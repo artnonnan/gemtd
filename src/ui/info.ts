@@ -1,4 +1,4 @@
-import type { Game } from '../game/game';
+import { SWAP_COST, type Game } from '../game/game';
 import {
   BASE_GEMS, GEM_TYPES, GREAT, PERFECT, QUALITY_NAMES, RECIPES, TOWERS, abilityOf, describeAbility, displayName, towerColor,
 } from '../data/gems';
@@ -86,6 +86,9 @@ export class InfoModal {
         <li><b>4 identical gems</b> → jump two qualities, e.g. 4× Flawed Ruby → Flawless Ruby.</li>
         <li><b>${QUALITY_NAMES[GREAT]}</b> gems come from 4× ${QUALITY_NAMES[PERFECT - 1]} or 4× ${QUALITY_NAMES[PERFECT]} (2× ${QUALITY_NAMES[PERFECT]} cannot combine).</li>
         <li>Only gems placed <b>this round</b> combine. The others turn into rocks.</li>
+        <li><b>Keep ↓</b> (Downgrade): keep a Flawed–Perfect gem one quality lower. Handy when a recipe needs the lower one.</li>
+        <li><b>Rocks</b> can be removed for free at any time. Select one and press Remove (or R).</li>
+        <li><b>Swap</b> (${SWAP_COST}g, once per tower, renewed on upgrade): Black Opal, Gold, Fire Star, Lucky China Jade and other advanced towers can trade places with another kept gem or a rock.</li>
       </ul>
       <div class="table-wrap"><table class="grid">
         <thead><tr><th></th>${head}<th>Ability</th></tr></thead>

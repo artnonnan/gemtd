@@ -138,6 +138,7 @@ export class Renderer {
     this.drawRanges(game);
     this.drawHover(game);
     this.drawCursor(game);
+    this.drawRockAndSwap(game);
 
     for (const c of game.creeps) {
       const cx = c.x * tile, cy = c.y * tile;
@@ -312,6 +313,35 @@ export class Renderer {
     const aura = a.auraSpeed ?? a.auraDamage ?? a.armorAura;
     if (aura) circle(aura.range, 'rgba(120,255,160,0.5)', 'rgba(120,255,160,0.04)');
     if (a.burn) circle(a.burn.range, 'rgba(255,140,60,0.6)', 'rgba(255,140,60,0.06)');
+  }
+
+  private drawRockAndSwap(game: Game) {
+    const { ctx, tile } = this;
+    const rock = game.selectedRock;
+    if (rock) {
+      ctx.strokeStyle = COLORS.select;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(rock.x * tile, rock.y * tile, tile, tile);
+    }
+    const src = game.swapSource;
+    if (!src) return;
+    const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 160);
+    ctx.save();
+    ctx.setLineDash([4, 3]);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = `rgba(255,216,74,${0.5 + 0.5 * pulse})`;
+    ctx.strokeRect(src.x * tile - 1, src.y * tile - 1, tile + 2, tile + 2);
+    ctx.restore();
+    const h = this.hover ?? this.cursor;
+    if (h && game.isSwapTarget(h.x, h.y)) {
+      ctx.fillStyle = 'rgba(80,220,255,0.3)';
+      ctx.fillRect(h.x * tile, h.y * tile, tile, tile);
+      ctx.strokeStyle = 'rgba(80,220,255,0.8)';
+      ctx.beginPath();
+      ctx.moveTo((src.x + 0.5) * tile, (src.y + 0.5) * tile);
+      ctx.lineTo((h.x + 0.5) * tile, (h.y + 0.5) * tile);
+      ctx.stroke();
+    }
   }
 
   private drawCursor(game: Game) {

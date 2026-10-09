@@ -8,6 +8,7 @@
   "range": 700,
   "cost": 0,
   "upgrades": [],
+  "swap": false,
   "tip": ""
  },
  "e000": {
@@ -19,6 +20,7 @@
   "range": 400,
   "cost": 0,
   "upgrades": [],
+  "swap": false,
   "tip": ""
  },
  "h001": {
@@ -30,6 +32,7 @@
   "range": 600,
   "cost": 0,
   "upgrades": [],
+  "swap": false,
   "tip": ""
  },
  "h002": {
@@ -41,6 +44,7 @@
   "range": 400,
   "cost": 0,
   "upgrades": [],
+  "swap": false,
   "tip": ""
  },
  "h003": {
@@ -52,6 +56,7 @@
   "range": 700,
   "cost": 0,
   "upgrades": [],
+  "swap": false,
   "tip": ""
  },
  "h004": {
@@ -63,6 +68,7 @@
   "range": 1000,
   "cost": 0,
   "upgrades": [],
+  "swap": false,
   "tip": ""
  },
  "h005": {
@@ -74,6 +80,7 @@
   "range": 800,
   "cost": 0,
   "upgrades": [],
+  "swap": false,
   "tip": ""
  },
  "h007": {
@@ -85,6 +92,7 @@
   "range": 1200,
   "cost": 0,
   "upgrades": [],
+  "swap": false,
   "tip": ""
  },
  "h008": {
@@ -96,6 +104,7 @@
   "range": 700,
   "cost": 0,
   "upgrades": [],
+  "swap": false,
   "tip": ""
  },
  "h009": {
@@ -107,6 +116,7 @@
   "range": 700,
   "cost": 0,
   "upgrades": [],
+  "swap": false,
   "tip": ""
  },
  "h00A": {
@@ -118,6 +128,7 @@
   "range": 700,
   "cost": 0,
   "upgrades": [],
+  "swap": false,
   "tip": ""
  },
  "h00B": {
@@ -129,6 +140,7 @@
   "range": 750,
   "cost": 0,
   "upgrades": [],
+  "swap": false,
   "tip": ""
  },
  "h00C": {
@@ -140,6 +152,7 @@
   "range": 800,
   "cost": 0,
   "upgrades": [],
+  "swap": false,
   "tip": ""
  },
  "e001": {
@@ -151,6 +164,7 @@
   "range": 500,
   "cost": 0,
   "upgrades": [],
+  "swap": false,
   "tip": ""
  },
  "h00H": {
@@ -162,6 +176,7 @@
   "range": 1600,
   "cost": 0,
   "upgrades": [],
+  "swap": false,
   "tip": ""
  },
  "h00I": {
@@ -173,6 +188,7 @@
   "range": 1000,
   "cost": 0,
   "upgrades": [],
+  "swap": false,
   "tip": ""
  },
  "h00J": {
@@ -184,6 +200,7 @@
   "range": 600,
   "cost": 0,
   "upgrades": [],
+  "swap": false,
   "tip": ""
  },
  "h00K": {
@@ -195,6 +212,7 @@
   "range": 800,
   "cost": 0,
   "upgrades": [],
+  "swap": false,
   "tip": ""
  },
  "h00L": {
@@ -206,6 +224,7 @@
   "range": 800,
   "cost": 0,
   "upgrades": [],
+  "swap": false,
   "tip": ""
  },
  "h00M": {
@@ -217,6 +236,7 @@
   "range": 800,
   "cost": 0,
   "upgrades": [],
+  "swap": false,
   "tip": ""
  },
  "e002": {
@@ -228,6 +248,7 @@
   "range": 500,
   "cost": 0,
   "upgrades": [],
+  "swap": false,
   "tip": ""
  },
  "h00N": {
@@ -239,6 +260,7 @@
   "range": 1350,
   "cost": 0,
   "upgrades": [],
+  "swap": false,
   "tip": ""
  },
  "h00O": {
@@ -250,6 +272,7 @@
   "range": 700,
   "cost": 0,
   "upgrades": [],
+  "swap": false,
   "tip": ""
  },
  "h00P": {
@@ -261,6 +284,7 @@
   "range": 900,
   "cost": 0,
   "upgrades": [],
+  "swap": false,
   "tip": ""
  },
  "h00Q": {
@@ -272,6 +296,7 @@
   "range": 800,
   "cost": 0,
   "upgrades": [],
+  "swap": false,
   "tip": ""
  },
  "e003": {
@@ -283,6 +308,7 @@
   "range": 500,
   "cost": 0,
   "upgrades": [],
+  "swap": false,
   "tip": ""
  },
  "h00R": {
@@ -294,6 +320,7 @@
   "range": 800,
   "cost": 0,
   "upgrades": [],
+  "swap": false,
   "tip": ""
  },
  "h00S": {
@@ -305,6 +332,7 @@
   "range": 700,
   "cost": 0,
   "upgrades": [],
+  "swap": false,
   "tip": ""
  },
  "e004": {
@@ -316,6 +344,7 @@
   "range": 600,
   "cost": 0,
   "upgrades": [],
+  "swap": false,
   "tip": ""
  },
  "h00T": {
@@ -327,6 +356,7 @@
   "range": 1200,
   "cost": 0,
   "upgrades": [],
+  "swap": false,
   "tip": ""
  },
  "h00U": {
@@ -338,6 +368,7 @@
   "range": 800,
   "cost": 0,
   "upgrades": [],
+  "swap": false,
   "tip": ""
  },
  "h00V": {
@@ -349,6 +380,7 @@
   "range": 1200,
   "cost": 0,
   "upgrades": [],
+  "swap": false,
   "tip": ""
  },
  "h00W": {
@@ -360,6 +392,7 @@
   "range": 1000,
   "cost": 0,
   "upgrades": [],
+  "swap": false,
   "tip": ""
  },
  "h00X": {
@@ -371,6 +404,7 @@
   "range": 1000,
   "cost": 0,
   "upgrades": [],
+  "swap": false,
   "tip": ""
  },
  "h00Y": {
@@ -382,6 +416,7 @@
   "range": 1000,
   "cost": 0,
   "upgrades": [],
+  "swap": false,
   "tip": ""
  },
  "h014": {
@@ -395,6 +430,7 @@
   "upgrades": [
    "h02R"
   ],
+  "swap": false,
   "tip": ""
  },
  "h015": {
@@ -408,6 +444,7 @@
   "upgrades": [
    "h02K"
   ],
+  "swap": true,
   "tip": ""
  },
  "h016": {
@@ -421,6 +458,7 @@
   "upgrades": [
    "h02M"
   ],
+  "swap": false,
   "tip": ""
  },
  "h017": {
@@ -434,6 +472,7 @@
   "upgrades": [
    "h02P"
   ],
+  "swap": false,
   "tip": ""
  },
  "h018": {
@@ -447,6 +486,7 @@
   "upgrades": [
    "h02L"
   ],
+  "swap": false,
   "tip": ""
  },
  "h019": {
@@ -460,6 +500,7 @@
   "upgrades": [
    "h02N"
   ],
+  "swap": false,
   "tip": "Primary defensive structure. Can learn the Magic Sentry ability. Attacks land and air units."
  },
  "h01A": {
@@ -473,6 +514,7 @@
   "upgrades": [
    "h02O"
   ],
+  "swap": false,
   "tip": ""
  },
  "h01B": {
@@ -486,6 +528,7 @@
   "upgrades": [
    "h02W"
   ],
+  "swap": true,
   "tip": ""
  },
  "h01N": {
@@ -499,6 +542,7 @@
   "upgrades": [
    "h02V"
   ],
+  "swap": false,
   "tip": ""
  },
  "h01O": {
@@ -512,6 +556,7 @@
   "upgrades": [
    "h02U"
   ],
+  "swap": false,
   "tip": "From this gem, you can upgrade to Hell or Extreme."
  },
  "h029": {
@@ -525,6 +570,7 @@
   "upgrades": [
    "h02J"
   ],
+  "swap": false,
   "tip": ""
  },
  "h02J": {
@@ -538,6 +584,7 @@
   "upgrades": [
    "h02Q"
   ],
+  "swap": false,
   "tip": ""
  },
  "h02K": {
@@ -551,6 +598,7 @@
   "upgrades": [
    "h059"
   ],
+  "swap": true,
   "tip": "Damage: 170                                  Cooldown: 1 seconds                        Abilities: 40% damage aura with 1200 range.                                                                           Range: 1000"
  },
  "h02L": {
@@ -564,6 +612,7 @@
   "upgrades": [
    "h035"
   ],
+  "swap": false,
   "tip": "Damage: 50                                  Cooldown: 0.5 seconds                        Abilities: Slows targets 50% for 3 seconds.                                                                        Range: 800"
  },
  "h02M": {
@@ -577,6 +626,7 @@
   "upgrades": [
    "e006"
   ],
+  "swap": false,
   "tip": "Abilities: 50 damage per second to units within 800 range."
  },
  "h02N": {
@@ -590,6 +640,7 @@
   "upgrades": [
    "h04Z"
   ],
+  "swap": false,
   "tip": "Add Gamma rays which will deal 200 damage per second to enemies within 900 range."
  },
  "h02O": {
@@ -603,6 +654,7 @@
   "upgrades": [
    "h033"
   ],
+  "swap": false,
   "tip": "Damage: 70                                              Cooldown: 1 second                             Abilities: Cold splash damage.               Range: 800"
  },
  "h02P": {
@@ -617,6 +669,7 @@
    "n00H",
    "h04T"
   ],
+  "swap": false,
   "tip": "Damage: 2000                                  Cooldown: 0.65 seconds                        Abilities: 20% chance to do 20x damage. Ground units only.                                               Range: 1000"
  },
  "h02Q": {
@@ -630,6 +683,7 @@
   "upgrades": [
    "h02X"
   ],
+  "swap": true,
   "tip": "Damage: 600                                  Cooldown: 0.8 seconds                           Abilities: -6 armor aura to air units. Attacks air and ground                                                    Range: 1500"
  },
  "h02R": {
@@ -643,6 +697,7 @@
   "upgrades": [
    "h052"
   ],
+  "swap": false,
   "tip": "Damage: 500                                           Cooldown: 0.8 seconds                              Abilities: 400 area of effect slows. Gives 20% Damage Aura to all towers within 1200 range."
  },
  "h02U": {
@@ -656,6 +711,7 @@
   "upgrades": [
    "h05E"
   ],
+  "swap": false,
   "tip": "Damage: 900                                      Cooldown: 0.8 second                              Abilities: 10% chance to x10 damage. 10% chance to cast 350 damage per second Blood lightning. Max level gives 10% chance to deal x30 damage to all enemy."
  },
  "h02V": {
@@ -669,6 +725,7 @@
   "upgrades": [
    "h058"
   ],
+  "swap": true,
   "tip": "Damage: 350-400                                  Cooldown: 0.7 seconds                         Abilities: 12.5% chance to stun for 1.5 seconds. 25% chance to do 8x damage.                                                                  Range: 700"
  },
  "h02W": {
@@ -682,6 +739,7 @@
   "upgrades": [
    "h05D"
   ],
+  "swap": false,
   "tip": "Damage: 500                                       Cooldown: 0.75 seconds                        Abilities: 30% chance to do 2x damage. Desolates 8 armor.                                                          Range: 800"
  },
  "h02X": {
@@ -695,6 +753,7 @@
   "upgrades": [
    "hatw"
   ],
+  "swap": false,
   "tip": "Damage: 800                                  Abilities: The Great Amethyst destroy -6 armor of all enemy within 1000 range."
  },
  "e005": {
@@ -708,6 +767,7 @@
   "upgrades": [
    "h058"
   ],
+  "swap": false,
   "tip": ""
  },
  "h02Y": {
@@ -721,6 +781,7 @@
   "upgrades": [
    "h04V"
   ],
+  "swap": false,
   "tip": "Damage: 300                                  Abilities: Any enemy within 1000 range, Great Ruby can attack 3 targets every half second."
  },
  "h02Z": {
@@ -734,6 +795,7 @@
   "upgrades": [
    "h058"
   ],
+  "swap": false,
   "tip": ""
  },
  "h030": {
@@ -747,6 +809,7 @@
   "upgrades": [
    "hatw"
   ],
+  "swap": false,
   "tip": "Damage: 600                                  Abilities: Gives 50% Speed Aura to all towers within 1500 range."
  },
  "h031": {
@@ -760,6 +823,7 @@
   "upgrades": [
    "h058"
   ],
+  "swap": false,
   "tip": ""
  },
  "h032": {
@@ -773,6 +837,7 @@
   "upgrades": [
    "n00H"
   ],
+  "swap": false,
   "tip": ""
  },
  "e006": {
@@ -786,6 +851,7 @@
   "upgrades": [
    "h04U"
   ],
+  "swap": true,
   "tip": "Damage: 200                                               Cooldown: 0.5 Seconds                                     Abilities: Attacks all targets within 600 range.                                                                             Range: 600"
  },
  "h033": {
@@ -800,6 +866,7 @@
    "h030",
    "h03W"
   ],
+  "swap": false,
   "tip": "Damage: 250                                             Cooldown: 1 second                             Abilities: Cold splash damage.               Range: 1000"
  },
  "n000": {
@@ -811,6 +878,7 @@
   "range": 130,
   "cost": 0,
   "upgrades": [],
+  "swap": false,
   "tip": ""
  },
  "n001": {
@@ -822,6 +890,7 @@
   "range": 150,
   "cost": 0,
   "upgrades": [],
+  "swap": false,
   "tip": ""
  },
  "n003": {
@@ -833,6 +902,7 @@
   "range": 130,
   "cost": 0,
   "upgrades": [],
+  "swap": false,
   "tip": ""
  },
  "n004": {
@@ -844,6 +914,7 @@
   "range": 130,
   "cost": 0,
   "upgrades": [],
+  "swap": false,
   "tip": ""
  },
  "n005": {
@@ -855,6 +926,7 @@
   "range": 200,
   "cost": 0,
   "upgrades": [],
+  "swap": false,
   "tip": ""
  },
  "h035": {
@@ -869,6 +941,7 @@
    "h04V",
    "h04A"
   ],
+  "swap": true,
   "tip": "Damage: 90                                   Cooldown: 0.35 seconds                        Abilities: Slows targets 50% for 4 seconds. Lucky charm Ability                                                Range: 900"
  },
  "h03R": {
@@ -880,6 +953,7 @@
   "range": 500,
   "cost": 0,
   "upgrades": [],
+  "swap": false,
   "tip": ""
  },
  "h03S": {
@@ -891,6 +965,7 @@
   "range": 400,
   "cost": 0,
   "upgrades": [],
+  "swap": false,
   "tip": ""
  },
  "h03T": {
@@ -902,6 +977,7 @@
   "range": 350,
   "cost": 0,
   "upgrades": [],
+  "swap": false,
   "tip": ""
  },
  "h03U": {
@@ -913,6 +989,7 @@
   "range": 600,
   "cost": 0,
   "upgrades": [],
+  "swap": false,
   "tip": ""
  },
  "h03V": {
@@ -924,6 +1001,7 @@
   "range": 700,
   "cost": 0,
   "upgrades": [],
+  "swap": false,
   "tip": ""
  },
  "h03W": {
@@ -937,6 +1015,7 @@
   "upgrades": [
    "hatw"
   ],
+  "swap": true,
   "tip": "Damage: 500                                  Abilities: The Great Aquamarine gives 10% speed and 30% damage for all gem within 600 range."
  },
  "h03X": {
@@ -950,6 +1029,7 @@
   "upgrades": [
    "h03Y"
   ],
+  "swap": false,
   "tip": ""
  },
  "h03Y": {
@@ -963,6 +1043,7 @@
   "upgrades": [
    "h03Z"
   ],
+  "swap": false,
   "tip": "Damage: 22                                               Cooldown: 0.5 Seconds                                     Abilities: Attacks 4 targets within 800 range.                                                                             Range: 700"
  },
  "h03Z": {
@@ -977,6 +1058,7 @@
    "h030",
    "h03W"
   ],
+  "swap": false,
   "tip": "Damage: 66                                               Cooldown: 0.55 Seconds                                    Abilities: Attacks all targets within 800 range.                                                                             Range: 800"
  },
  "h040": {
@@ -990,6 +1072,7 @@
   "upgrades": [
    "h041"
   ],
+  "swap": false,
   "tip": ""
  },
  "h041": {
@@ -1003,6 +1086,7 @@
   "upgrades": [
    "h056"
   ],
+  "swap": false,
   "tip": "Damage: 600                                  Cooldown: 0.75 seconds                        Abilities: -4 armor aura to ground units. 20% cast 250 damage frost nova."
  },
  "n008": {
@@ -1014,6 +1098,7 @@
   "range": 300,
   "cost": 0,
   "upgrades": [],
+  "swap": false,
   "tip": ""
  },
  "n009": {
@@ -1025,6 +1110,7 @@
   "range": 300,
   "cost": 0,
   "upgrades": [],
+  "swap": false,
   "tip": ""
  },
  "n00A": {
@@ -1036,6 +1122,7 @@
   "range": 390,
   "cost": 0,
   "upgrades": [],
+  "swap": false,
   "tip": ""
  },
  "h04A": {
@@ -1049,6 +1136,7 @@
   "upgrades": [
    "h04T"
   ],
+  "swap": false,
   "tip": "Damage: 900                                  Abilities: 10% chance to x10 damage to enemy within 900 range, Stone of Life can attack 3 targets every second."
  },
  "n00E": {
@@ -1060,6 +1148,7 @@
   "range": 600,
   "cost": 0,
   "upgrades": [],
+  "swap": false,
   "tip": ""
  },
  "n00F": {
@@ -1071,6 +1160,7 @@
   "range": 800,
   "cost": 0,
   "upgrades": [],
+  "swap": false,
   "tip": ""
  },
  "h04T": {
@@ -1084,6 +1174,7 @@
   "upgrades": [
    "h04W"
   ],
+  "swap": false,
   "tip": "Damage: 1000 and gives 20% attack speed to all gem."
  },
  "n00H": {
@@ -1097,6 +1188,7 @@
   "upgrades": [
    "h04Y"
   ],
+  "swap": false,
   "tip": "Damage: 3000                                     Abilities: 100% damage aura with 1200 range."
  },
  "h04W": {
@@ -1110,6 +1202,7 @@
   "upgrades": [
    "h05C"
   ],
+  "swap": true,
   "tip": "Legend 50% Chance to do 60x damage and increases 100% damage to all gem."
  },
  "h04Y": {
@@ -1121,6 +1214,7 @@
   "range": 1200,
   "cost": 6000,
   "upgrades": [],
+  "swap": true,
   "tip": "Terrible Damage and increases 200% damage to all gem within 1200 range."
  },
  "h04V": {
@@ -1134,6 +1228,7 @@
   "upgrades": [
    "n00H"
   ],
+  "swap": true,
   "tip": "From Helltaker, you can upgrades to God Gem or Pro Gem."
  },
  "h051": {
@@ -1145,6 +1240,7 @@
   "range": 1000,
   "cost": 5000,
   "upgrades": [],
+  "swap": false,
   "tip": "Damage: 5000                                     Abilities: Aura within 1600 range gives 60% attack speed and 300% damage by Control and 300% damage by Stone to all towers. 50% with 55x damage."
  },
  "h052": {
@@ -1158,6 +1254,7 @@
   "upgrades": [
    "h04X"
   ],
+  "swap": false,
   "tip": "Damage: 600                                           Cooldown: 0.8 seconds                              Abilities: 400 area of effect slows. Gives 100% Damage Aura to all towers within 1200 range. 50% chance to do 25x damage."
  },
  "h053": {
@@ -1171,6 +1268,7 @@
   "upgrades": [
    "h054"
   ],
+  "swap": false,
   "tip": "Damage: 700                                           Cooldown: 0.8 seconds                              Abilities: 400 area of effect slows. Gives 300% Damage Aura to all towers within 1200 range. 50% chance to do 120x damage."
  },
  "h054": {
@@ -1184,6 +1282,7 @@
   "upgrades": [
    "h055"
   ],
+  "swap": false,
   "tip": "Damage: 700                                           Cooldown: 0.8 seconds                              Abilities: 400 area of effect slows. Gives 400% Damage Aura to all towers within 1200 range. 50% chance to do 200x damage."
  },
  "h055": {
@@ -1197,6 +1296,7 @@
   "upgrades": [
    "h057"
   ],
+  "swap": false,
   "tip": "Damage: 800                                           Cooldown: 0.8 seconds                              Abilities: 400 area of effect slows. Gives 500% Damage Aura to all towers within 1200 range. 60% chance to do 350x damage."
  },
  "h057": {
@@ -1208,6 +1308,7 @@
   "range": 1200,
   "cost": 6000,
   "upgrades": [],
+  "swap": false,
   "tip": "Damage: 8000                                           Cooldown: 0.8 seconds                              Abilities: Effect slows + 20% attack speed to all gems. Gives 600% Damage Aura to all towers within 1200 range. 60% chance to do 60x damage."
  },
  "h058": {
@@ -1221,6 +1322,7 @@
   "upgrades": [
    "h05B"
   ],
+  "swap": true,
   "tip": "Damage: 7000                                     Abilities: Galaxy gives 20% attack speed within 1200 range and 44% chance to do 44x damage."
  },
  "h059": {
@@ -1234,6 +1336,7 @@
   "upgrades": [
    "h05A"
   ],
+  "swap": false,
   "tip": "Damage: 300 with Abilities: 100% damage aura \r\r\nwith 1200 range. 10% chance to do 20x damage."
  },
  "h05A": {
@@ -1247,6 +1350,7 @@
   "upgrades": [
    "h05F"
   ],
+  "swap": false,
   "tip": "Terrible Damage and increases 200% damage to all gem within 1200 range."
  },
  "h05B": {
@@ -1258,6 +1362,7 @@
   "range": 1200,
   "cost": 7000,
   "upgrades": [],
+  "swap": false,
   "tip": "Abilities: Universe gives 20% attack speed within 1200 range and 200% damage to all gems. 10% Chance to do 100x damage"
  },
  "h05C": {
@@ -1269,6 +1374,7 @@
   "range": 1400,
   "cost": 8000,
   "upgrades": [],
+  "swap": false,
   "tip": "Abilities: Secret gem gives 20% attack speed and increase 100% damage within 1200 range and 35% to 350x damage."
  },
  "h056": {
@@ -1282,6 +1388,7 @@
   "upgrades": [
    "h04S"
   ],
+  "swap": false,
   "tip": "Damage: 700                                  Cooldown: 0.50 seconds                        Abilities: -6 armor aura to ground units. 20% cast 350 damage frost nova within 40% to 10x damage."
  },
  "h04X": {
@@ -1295,6 +1402,7 @@
   "upgrades": [
    "h053"
   ],
+  "swap": false,
   "tip": "Damage: 600                                           Cooldown: 0.8 seconds                              Abilities: 400 area of effect slows. Gives 200% Damage Aura to all towers within 1200 range. 50% chance to do 50x damage."
  },
  "h04Z": {
@@ -1306,6 +1414,7 @@
   "range": 900,
   "cost": 12000,
   "upgrades": [],
+  "swap": true,
   "tip": "Damage: 666                                  Cooldown: 0.50 seconds                        Abilities: Effect slows within 50% to 500x damage."
  },
  "h05D": {
@@ -1319,6 +1428,7 @@
   "upgrades": [
    "h05G"
   ],
+  "swap": false,
   "tip": "Damage: 500                                       Cooldown: 0.75 seconds                        Abilities: 50% chance to do 25x damage. Desolates 8 armor. Buff 60% attack speed from Great Opal, Great Aquamarine."
  },
  "h05E": {
@@ -1332,6 +1442,7 @@
   "upgrades": [
    "h04Y"
   ],
+  "swap": false,
   "tip": "Damage: 2000                                           Cooldown: 0.8 seconds                              Abilities: Sovereign's Orb 55% Chance to do 55x damage and increases 200% damage to all gem within 1200 range."
  },
  "h05F": {
@@ -1343,6 +1454,7 @@
   "range": 1200,
   "cost": 8000,
   "upgrades": [],
+  "swap": false,
   "tip": "Terrible Damage and increases 400% damage to all gem within 1200 range. 66% Chance to do 88x damage"
  },
  "h05G": {
@@ -1354,6 +1466,7 @@
   "range": 1200,
   "cost": 8000,
   "upgrades": [],
+  "swap": false,
   "tip": "Terrible Damage and increases 400% damage to all gem within 1200 range. 44% chance to do 55x damage. Desolates 8 armor. Buff 60% attack speed from Great Opal, Great Aquamarine."
  },
  "h04S": {
@@ -1365,6 +1478,7 @@
   "range": 1200,
   "cost": 10000,
   "upgrades": [],
+  "swap": true,
   "tip": "Abilities: -6 armor aura to ground units. 20% cast 350 damage frost nova within 60% to 90x damage."
  }
 }

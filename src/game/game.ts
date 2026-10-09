@@ -48,6 +48,8 @@ export interface Tower {
   fresh: boolean;
   /** last time it fired, for the muzzle flash */
   firedAt: number;
+  /** Swap is single-use per tower; upgrading grants it again (new unit in the original map) */
+  swapUsed: boolean;
 }
 
 export interface Creep {
@@ -95,6 +97,8 @@ export interface CombineOption {
   result: string;
 }
 
+export const SWAP_COST = 200;
+
 const SHOT_SPEED = 16; // tiles per second
 const SPLASH_FACTOR = 0.5;
 
@@ -117,8 +121,11 @@ export class Game {
   route: Point[] = [];
   routeLen = 0;
   selected: Tower | null = null;
+  selectedRock: Point | null = null;
+  /** tower waiting for a swap target */
+  swapSource: Tower | null = null;
   log: string[] = [];
-  stats = { kills: 0, leaked: 0, specials: 0 };
+  stats = { kills: 0, leaked: 0, specials: 0, downgrades: 0, rocksRemoved: 0, swaps: 0 };
 
   /** bumped on every structural change; UI and caches key off it */
   version = 0;
@@ -200,11 +207,11 @@ export class Game {
 
   placeGem(x: number, y: number): boolean {
     if (this.phase !== 'build' || this.gemsLeft <= 0 || !this.canPlace(x, y)) return false;
-    const tower: Tower = { uid: nextUid++, id: this.rollGem(), x, y, cooldown: 0, kills: 0, fresh: true, firedAt: -1 };
+    const tower: Tower = { uid: nextUid++, id: this.rollGem(), x, y, cooldown: 0, kills: 0, fresh: true, firedAt: -1, swapUsed: false };
     this.towers.push(tower);
     this.grid[y * GRID + x] = tower;
     this.gemsLeft--;
-    this.selected = tower;
+    this.select(tower);
     this.refreshRoute();
     if (this.gemsLeft === 0) {
       this.phase = 'choose';
@@ -286,6 +293,27 @@ export class Game {
     return true;
   }
 
+  /**
+   * Downgrade (A02G in the map): a kept Flawed..Perfect base gem may drop one quality, once.
+   * The original allows it between Keep and the wave timer; here waves start on Keep, so it is offered as "keep lower".
+   */
+  downgradeOption(t: Tower): string | null {
+    if (this.phase !== 'choose' || !t.fresh) return null;
+    const info = GEM_INFO[t.id];
+    if (!info || info.quality < 1 || info.quality > PERFECT) return null;
+    return BASE_GEMS[info.type][info.quality - 1];
+  }
+
+  keepDowngraded(t: Tower): boolean {
+    const lower = this.downgradeOption(t);
+    if (!lower) return false;
+    this.say(`Kept ${displayName(t.id)} downgraded to ${displayName(lower)}.`);
+    t.id = lower;
+    this.stats.downgrades++;
+    this.finishRound(t);
+    return true;
+  }
+
   combine(t: Tower, count: 2 | 4): boolean {
     const opt = this.combineOptions(t).find((o) => o.count === count);
     if (!opt) return false;
@@ -319,7 +347,7 @@ export class Game {
     for (const o of this.freshTowers) if (o !== kept) this.toRock(o);
     kept.fresh = false;
     kept.cooldown = 0;
-    this.selected = kept;
+    this.select(kept);
     this.refreshRoute();
     if (this.versus) {
       this.phase = 'waiting';
@@ -339,6 +367,90 @@ export class Game {
     this.grid[t.y * GRID + t.x] = null;
     this.rocks.add(t.y * GRID + t.x);
     if (this.selected === t) this.selected = null;
+    if (this.swapSource === t) this.swapSource = null;
+  }
+
+  // ---------- selection, rocks, swap ----------
+
+  select(t: Tower | null) {
+    this.selected = t;
+    this.selectedRock = null;
+    this.swapSource = null;
+    this.touch();
+  }
+
+  selectRock(x: number, y: number) {
+    if (!this.isRock(x, y)) return;
+    this.selected = null;
+    this.swapSource = null;
+    this.selectedRock = { x, y };
+    this.touch();
+  }
+
+  /** Remove (A008 on Rock): free and allowed at any time, as in the original. */
+  removeRock(x: number, y: number): boolean {
+    if (!this.isRock(x, y) || this.phase === 'gameover' || this.phase === 'victory') return false;
+    this.rocks.delete(y * GRID + x);
+    if (this.selectedRock?.x === x && this.selectedRock.y === y) this.selectedRock = null;
+    this.stats.rocksRemoved++;
+    // creeps already walking keep their path: it only got more open
+    this.refreshRoute();
+    this.touch();
+    return true;
+  }
+
+  /** Towers with the map's Swap ability, not yet used since the last upgrade. */
+  canSwap(t: Tower): boolean {
+    return !t.fresh && TOWERS[t.id].swap && !t.swapUsed && this.phase !== 'gameover' && this.phase !== 'victory';
+  }
+
+  beginSwap(t: Tower): boolean {
+    if (!this.canSwap(t) || this.gold < SWAP_COST) return false;
+    this.swapSource = t;
+    this.say('Swap: pick another gem or a rock.');
+    this.touch();
+    return true;
+  }
+
+  cancelSwap() {
+    if (!this.swapSource) return;
+    this.swapSource = null;
+    this.touch();
+  }
+
+  isSwapTarget(x: number, y: number): boolean {
+    const src = this.swapSource;
+    if (!src) return false;
+    const other = this.towerAt(x, y);
+    return this.isRock(x, y) || (!!other && other !== src && !other.fresh);
+  }
+
+  /** Swap positions with a kept tower or a rock. The set of blocked tiles is unchanged, so the route is too. */
+  swapWith(x: number, y: number): boolean {
+    const src = this.swapSource;
+    if (!src || !this.isSwapTarget(x, y) || this.gold < SWAP_COST) {
+      this.cancelSwap();
+      return false;
+    }
+    const other = this.towerAt(x, y);
+    const [sx, sy] = [src.x, src.y];
+    if (other) {
+      [other.x, other.y] = [sx, sy];
+      this.grid[sy * GRID + sx] = other;
+    } else {
+      this.rocks.delete(y * GRID + x);
+      this.rocks.add(sy * GRID + sx);
+      this.grid[sy * GRID + sx] = null;
+    }
+    [src.x, src.y] = [x, y];
+    this.grid[y * GRID + x] = src;
+    this.gold -= SWAP_COST;
+    src.swapUsed = true;
+    this.swapSource = null;
+    this.stats.swaps++;
+    this.say(`Swapped ${displayName(src.id)} with ${other ? displayName(other.id) : 'a rock'}.`);
+    this.touch();
+    return true;
   }
 
   private hintSpecials() {
@@ -360,6 +472,7 @@ export class Game {
     this.gold -= opt.cost;
     this.say(`${displayName(t.id)} upgraded to ${displayName(target)}.`);
     t.id = target;
+    t.swapUsed = false;
     this.touch();
     return true;
   }

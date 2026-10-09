@@ -135,14 +135,33 @@ export class BoardInput {
     return a && b ? Math.hypot(a.x - b.x, a.y - b.y) : 0;
   }
 
+  /** Swap targeting, tower and rock selection. Returns true when the tap/click was consumed. */
+  private pick(p: Point): boolean {
+    const game = this.getGame();
+    if (game.swapSource) {
+      game.swapWith(p.x, p.y); // a non-target cancels
+      return true;
+    }
+    const tower = game.towerAt(p.x, p.y);
+    if (tower) {
+      game.select(tower);
+      this.renderer.cursor = null;
+      return true;
+    }
+    if (game.isRock(p.x, p.y)) {
+      game.selectRock(p.x, p.y);
+      this.renderer.cursor = null;
+      return true;
+    }
+    return false;
+  }
+
   private mouseClick(e: PointerEvent) {
     const game = this.getGame();
     const p = this.renderer.tileAt(e.clientX, e.clientY);
     this.renderer.hover = p;
-    const tower = game.towerAt(p.x, p.y);
-    if (tower) game.selected = tower;
-    else if (!game.placeGem(p.x, p.y)) game.selected = null;
-    game.touch();
+    if (this.pick(p)) return;
+    if (!game.placeGem(p.x, p.y)) game.select(null);
   }
 
   private tap(clientX: number, clientY: number) {
@@ -150,16 +169,9 @@ export class BoardInput {
     const r = this.renderer;
     const p = r.tileAt(clientX, clientY);
     if (!game.inBounds(p.x, p.y)) return;
-    const tower = game.towerAt(p.x, p.y);
-    if (tower) {
-      game.selected = tower;
-      r.cursor = null;
-      game.touch();
-      return;
-    }
+    if (this.pick(p)) return;
     if (game.phase !== 'build') {
-      game.selected = null;
-      game.touch();
+      game.select(null);
       return;
     }
     // tiles are too small to hit reliably when zoomed out: first zoom in around the tap

@@ -13,6 +13,10 @@
    - **Special:** ถ้ามีวัตถุดิบครบตามสูตร จะสร้าง special tower (ดูสูตรได้ในแผง "Special recipes")
 3. Gem ที่เหลือจะกลายเป็นหินที่ใช้ทำ maze จากนั้น wave จะเริ่ม ครีปมา 10 ตัวและต้องเดินผ่านจุด S → 1 → 2 → 3 → 4 → 5 → M (Mine)
 4. ใช้ทองที่ได้ไปเพิ่ม **Gem quality** ที่ Mine เพื่อให้สุ่มได้ gem คุณภาพสูงขึ้น หรืออัปเกรด special tower
+5. คำสั่งเสริมที่มีในแมพต้นฉบับ:
+   - **Keep ↓ (Downgrade):** เก็บ gem คุณภาพ Flawed ถึง Perfect โดยลดลง 1 ขั้น เหมาะกับตอนที่สูตร special ต้องใช้คุณภาพต่ำกว่า
+   - **Remove rock:** คลิกหินแล้วกด Remove (หรือกด `R`) ฟรีและใช้ได้ตลอดเวลา
+   - **Swap (200g):** tower ระดับสูงบางตัว เช่น Black Opal, Gold, Fire Star และ Lucky China Jade สลับที่กับ gem อื่นหรือหินได้ ครั้งเดียวต่อ tower และได้สิทธิ์ใหม่เมื่ออัปเกรด
 
 ### Versus ออนไลน์ 2 คน
 
@@ -34,6 +38,7 @@ npm run dev        # http://localhost:5173
 npm run build      # type-check + build ไปที่ dist/
 npm run simulate -- 5 --smart --difficulty=easy   # ให้ bot เล่นแบบ headless เพื่อทดสอบ logic และ balance
 npm run versus-test   # ทดสอบ logic ของ versus โดยต่อ 2 ฝั่งผ่าน channel ในหน่วยความจำ
+npm run features-test # ทดสอบ Remove rock, Downgrade และ Swap
 ```
 
 ต้องใช้ Node 18 ขึ้นไป

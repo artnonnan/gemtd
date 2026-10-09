@@ -1,4 +1,4 @@
-import { DIFFICULTIES, type Difficulty, type Game } from '../game/game';
+import { DIFFICULTIES, SWAP_COST, type Difficulty, type Game } from '../game/game';
 import type { Match } from '../net/match';
 import { MiniRenderer } from '../render/mini';
 import { InfoModal } from './info';
@@ -142,10 +142,13 @@ export class Panel {
       case 'combine': if (t) game.combine(t, +v as 2 | 4); break;
       case 'special': if (t) game.makeSpecial(t, RECIPES[+v]); break;
       case 'upgrade': if (t) game.upgradeTower(t, v); break;
+      case 'downgrade': if (t) game.keepDowngraded(t); break;
+      case 'swap': if (t) game.beginSwap(t); break;
+      case 'cancel-swap': game.cancelSwap(); break;
+      case 'remove-rock': if (game.selectedRock) game.removeRock(game.selectedRock.x, game.selectedRock.y); break;
       case 'select': {
         const uid = +v;
-        game.selected = game.towers.find((o) => o.uid === uid) ?? null;
-        game.touch();
+        game.select(game.towers.find((o) => o.uid === uid) ?? null);
         break;
       }
       default: return;
@@ -196,6 +199,18 @@ export class Panel {
         .join('') + '</div>');
     }
 
+    if (g.swapSource) {
+      choose.push(`<div class="phase phase-choose">⇄ Swap ${gemLabel(g.swapSource.id)}: click another kept gem or a rock. Esc to cancel.</div>`);
+    }
+    const rock = g.selectedRock;
+    if (rock && g.isRock(rock.x, rock.y)) {
+      choose.push(`<div class="selected">
+        <div class="sel-head"><h3>Rock</h3><span class="muted">tile ${rock.x}, ${rock.y}</span></div>
+        <p class="muted">Mazing rock. Removing it is free and opens the tile for building.</p>
+        <div class="btns"><button data-act="remove-rock">Remove rock</button></div>
+      </div>`);
+    }
+
     const t = g.selected && g.towers.includes(g.selected) ? g.selected : null;
     if (t) {
       const def = TOWERS[t.id];
@@ -204,6 +219,8 @@ export class Panel {
       const btns: string[] = [];
       if (g.phase === 'choose' && t.fresh) {
         btns.push(`<button data-act="keep" class="primary">Keep</button>`);
+        const lower = g.downgradeOption(t);
+        if (lower) btns.push(`<button data-act="downgrade" title="Keep this gem one quality lower (Downgrade)">Keep ↓ ${gemLabel(lower)}</button>`);
         for (const o of g.combineOptions(t)) {
           btns.push(`<button data-act="combine" data-v="${o.count}" class="primary">Combine ${o.count} → ${gemLabel(o.result)}</button>`);
         }
@@ -213,6 +230,11 @@ export class Panel {
       }
       for (const u of g.upgradeOptions(t)) {
         btns.push(`<button data-act="upgrade" data-v="${u.id}" ${g.gold < u.cost ? 'disabled' : ''}>Upgrade → ${gemLabel(u.id)} <span class="cost">${u.cost}g</span></button>`);
+      }
+      if (g.swapSource === t) {
+        btns.push(`<button data-act="cancel-swap" class="special">Cancel swap</button>`);
+      } else if (g.canSwap(t)) {
+        btns.push(`<button data-act="swap" ${g.gold < SWAP_COST ? 'disabled' : ''} title="Swap position with another gem or a rock (once per tower)">⇄ Swap <span class="cost">${SWAP_COST}g</span></button>`);
       }
       choose.push(`<div class="selected">
         <div class="sel-head"><h3>${gemLabel(t.id)}</h3><span class="muted">${info ? `${QUALITY_NAMES[info.quality]} gem` : 'Special tower'} · ${t.kills} kills</span></div>
@@ -271,7 +293,7 @@ export class Panel {
     });
     parts.push(`<h3>Difficulty</h3><div class="btns">${opts.join('')}</div>`);
     if (!canChange) parts.push('<p class="muted">Difficulty can only change before the first gem is placed (host only in versus).</p>');
-    parts.push('<p class="muted">Keys: Space pause · 1/2/4 speed · K keep · I info · S settings</p>');
+    parts.push('<p class="muted">Keys: Space pause · 1/2/4 speed · K keep · R/Del remove selected rock · Esc cancel · I info · S settings</p>');
     return parts.join('');
   }
 

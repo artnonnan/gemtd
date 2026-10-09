@@ -14,6 +14,8 @@ export interface TowerDef {
   /** gold needed to upgrade INTO this tower */
   cost: number;
   upgrades: string[];
+  /** has the map's "Swap" ability (A05L) */
+  swap: boolean;
   tip: string;
 }
 
