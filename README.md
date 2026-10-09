@@ -39,6 +39,7 @@ npm run build      # type-check + build ไปที่ dist/
 npm run simulate -- 5 --smart --difficulty=easy   # ให้ bot เล่นแบบ headless เพื่อทดสอบ logic และ balance
 npm run versus-test   # ทดสอบ logic ของ versus โดยต่อ 2 ฝั่งผ่าน channel ในหน่วยความจำ
 npm run features-test # ทดสอบ Remove rock, Downgrade และ Swap
+npm run render-smoke  # รัน renderer กับ canvas จำลอง เพื่อหา runtime error และค่า NaN
 ```
 
 ต้องใช้ Node 18 ขึ้นไป
@@ -65,7 +66,9 @@ src/
   game/rng.ts        seeded PRNG สำหรับสุ่ม gem (versus ใช้ seed เดียวกัน)
   net/session.ts     PeerJS wrapper (host/join) และ message protocol
   net/match.ts       ควบคุม versus: sync การเริ่ม wave, ส่ง snapshot, ตัดสินผล
-  render/renderer.ts วาดภาพด้วย Canvas 2D
+  render/renderer.ts วาดภาพด้วย Canvas 2D (กล้อง, LOD, ลำดับความลึก, cache หินและพื้นหลัง)
+  render/art.ts      วาด tower ด้วยโค้ด รูปแบบแยกตาม quality 6 ระดับ (ต้นแบบอยู่ที่ demo/example1)
+  render/vfx.ts      particle, คลื่นวงแหวน, ป้ายข้อความ
   render/mini.ts     มุมมองบอร์ดของคู่แข่ง (จาก snapshot)
   ui/panel.ts        แผง HUD
   main.ts            game loop และ input

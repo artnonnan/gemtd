@@ -92,6 +92,13 @@ export interface Effect {
   life: number;
 }
 
+/** Things that just happened, for the renderer's animations. Gameplay never reads these. */
+export type GameEvent =
+  | { type: 'fire'; tower: Tower; tx: number; ty: number }
+  | { type: 'hit'; x: number; y: number; creep: number; tower: Tower; crit: boolean; splash: number }
+  | { type: 'kill'; x: number; y: number; creep: number; air: boolean }
+  | { type: 'transform'; tower: Tower; kind: 'keep' | 'combine' | 'special' | 'upgrade' | 'downgrade' };
+
 export interface CombineOption {
   count: 2 | 4;
   result: string;
@@ -118,6 +125,8 @@ export class Game {
   creeps: Creep[] = [];
   shots: Shot[] = [];
   effects: Effect[] = [];
+  /** drained by the renderer every frame; capped so headless runs don't grow it forever */
+  events: GameEvent[] = [];
   route: Point[] = [];
   routeLen = 0;
   selected: Tower | null = null;
@@ -286,9 +295,15 @@ export class Game {
     return [...used];
   }
 
+  private emit(e: GameEvent) {
+    this.events.push(e);
+    if (this.events.length > 600) this.events.splice(0, 300);
+  }
+
   keep(t: Tower): boolean {
     if (this.phase !== 'choose' || !t.fresh) return false;
     this.say(`Kept ${displayName(t.id)}.`);
+    this.emit({ type: 'transform', tower: t, kind: 'keep' });
     this.finishRound(t);
     return true;
   }
@@ -310,6 +325,7 @@ export class Game {
     this.say(`Kept ${displayName(t.id)} downgraded to ${displayName(lower)}.`);
     t.id = lower;
     this.stats.downgrades++;
+    this.emit({ type: 'transform', tower: t, kind: 'downgrade' });
     this.finishRound(t);
     return true;
   }
@@ -324,6 +340,7 @@ export class Game {
     }
     this.say(`Combined ${count}x ${displayName(t.id)} into ${displayName(opt.result)}.`);
     t.id = opt.result;
+    this.emit({ type: 'transform', tower: t, kind: 'combine' });
     this.finishRound(t);
     return true;
   }
@@ -338,6 +355,7 @@ export class Game {
     }
     t.id = recipe.result;
     this.stats.specials++;
+    this.emit({ type: 'transform', tower: t, kind: 'special' });
     this.say(`Created special: ${displayName(recipe.result)}!`);
     this.finishRound(t);
     return true;
@@ -473,6 +491,7 @@ export class Game {
     this.say(`${displayName(t.id)} upgraded to ${displayName(target)}.`);
     t.id = target;
     t.swapUsed = false;
+    this.emit({ type: 'transform', tower: t, kind: 'upgrade' });
     this.touch();
     return true;
   }
@@ -644,6 +663,7 @@ export class Game {
       t.cooldown += def.cd;
       t.firedAt = this.time;
       for (const c of targets) this.shots.push({ x: t.x + 0.5, y: t.y + 0.5, target: c, tower: t, color: shotColor(t.id) });
+      this.emit({ type: 'fire', tower: t, tx: targets[0].x, ty: targets[0].y });
     }
   }
 
@@ -679,12 +699,14 @@ export class Game {
     let dmg = def.dmg;
     for (let i = 0; i < def.dice; i++) dmg += 1 + Math.floor(Math.random() * def.sides);
     dmg *= this.damageMult(t);
-    if (a.crit && Math.random() < a.crit.chance) {
-      dmg *= a.crit.mult;
+    const crit = !!a.crit && Math.random() < a.crit.chance;
+    if (crit) {
+      dmg *= a.crit!.mult;
       this.effects.push({ kind: 'text', x: c.x, y: c.y - 0.4, r: 0, color: '#ffe066', text: `${Math.round(dmg)}!`, born: this.time, life: 0.7 });
     }
     this.damage(c, dmg, t);
     this.applyOnHit(a, c, t);
+    this.emit({ type: 'hit', x: c.x, y: c.y, creep: c.uid, tower: t, crit, splash: a.splash ? toTiles(a.splash) : 0 });
 
     if (a.splash) {
       const r = toTiles(a.splash);
@@ -750,6 +772,7 @@ export class Game {
       src.kills++;
       this.stats.kills++;
       this.effects.push({ kind: 'text', x: c.x, y: c.y, r: 0, color: '#ffd84a', text: `+${c.def.bounty}`, born: this.time, life: 0.8 });
+      this.emit({ type: 'kill', x: c.x, y: c.y, creep: c.uid, air: c.def.air });
     }
   }
 
