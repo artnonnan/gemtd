@@ -9,7 +9,24 @@
   <body>
     <div id="app">
       <main class="board-wrap">
-        <canvas id="board"></canvas>
+        <div class="board-stack">
+          <canvas id="board"></canvas>
+          <div id="touchbar" hidden>
+            <div class="tb-group">
+              <button data-t="zoom-out" aria-label="Zoom out">−</button>
+              <button data-t="fit" aria-label="Show whole board">⤢</button>
+              <button data-t="zoom-in" aria-label="Zoom in">+</button>
+            </div>
+            <div class="tb-group dpad">
+              <button data-t="left" aria-label="Move cursor left">◀</button>
+              <button data-t="up" aria-label="Move cursor up">▲</button>
+              <button data-t="down" aria-label="Move cursor down">▼</button>
+              <button data-t="right" aria-label="Move cursor right">▶</button>
+            </div>
+            <button data-t="place" class="primary place">Place</button>
+            <span class="hint"></span>
+          </div>
+        </div>
       </main>
       <aside id="panel"></aside>
     </div>

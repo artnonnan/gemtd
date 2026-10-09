@@ -309,6 +309,51 @@ footer {
   color: var(--muted);
 }
 
+.board-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+#touchbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.tb-group {
+  display: flex;
+  gap: 4px;
+}
+
+#touchbar button {
+  min-width: 44px;
+  min-height: 44px;
+  justify-content: center;
+  font-size: 18px;
+  touch-action: manipulation;
+}
+
+#touchbar .place {
+  min-width: 96px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+#touchbar .hint {
+  flex-basis: 100%;
+  text-align: center;
+  color: var(--muted);
+  font-size: 12px;
+  min-height: 1em;
+}
+
 .info-btn {
   margin-left: auto;
   padding: 4px 10px;

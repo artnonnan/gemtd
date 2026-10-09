@@ -2,6 +2,7 @@ import './style.css';
 import { Game } from './game/game';
 import { Match } from './net/match';
 import { Renderer } from './render/renderer';
+import { BoardInput } from './ui/input';
 import { Panel, type Controls } from './ui/panel';
 
 const STEP = 1 / 60;
@@ -33,23 +34,7 @@ if (room) {
 renderer.resize();
 window.addEventListener('resize', () => renderer.resize());
 
-canvas.addEventListener('pointermove', (e) => {
-  renderer.hover = renderer.tileAt(e.clientX, e.clientY);
-});
-canvas.addEventListener('pointerleave', () => {
-  renderer.hover = null;
-});
-canvas.addEventListener('pointerdown', (e) => {
-  const p = renderer.tileAt(e.clientX, e.clientY);
-  renderer.hover = p;
-  const tower = game.towerAt(p.x, p.y);
-  if (tower) {
-    game.selected = tower;
-  } else if (!game.placeGem(p.x, p.y)) {
-    game.selected = null;
-  }
-  game.touch();
-});
+const input = new BoardInput(canvas, renderer, getGame);
 
 window.addEventListener('keydown', (e) => {
   if (e.target instanceof HTMLInputElement) return;
@@ -85,6 +70,7 @@ function frame(now: number) {
       acc -= STEP;
     }
   }
+  input.update();
   renderer.draw(game);
   panel.update();
   requestAnimationFrame(frame);

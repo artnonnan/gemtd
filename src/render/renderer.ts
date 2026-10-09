@@ -21,41 +21,106 @@ const COLORS = {
   bad: 'rgba(255,70,70,0.35)',
 };
 
+export const MIN_ZOOM = 1;
+export const MAX_ZOOM = 5;
+
 export class Renderer {
   private ctx: CanvasRenderingContext2D;
+  private dpr = 1;
   tile = 16;
   hover: Point | null = null;
+  /** touch placement target, confirmed with a second tap or the Place button */
+  cursor: Point | null = null;
+  /** camera: zoom factor and top-left offset in unzoomed board pixels */
+  zoom = 1;
+  offX = 0;
+  offY = 0;
 
   constructor(private canvas: HTMLCanvasElement) {
     this.ctx = canvas.getContext('2d')!;
   }
 
-  resize() {
-    const parent = this.canvas.parentElement!;
-    // stacked (mobile) layout: the wrapper's height follows the canvas, so size from width only
-    const stacked = window.matchMedia('(max-width: 860px)').matches;
-    const size = Math.max(200, stacked ? parent.clientWidth : Math.min(parent.clientWidth, parent.clientHeight));
-    this.tile = Math.floor(size / GRID);
-    const px = this.tile * GRID;
-    const dpr = window.devicePixelRatio || 1;
-    this.canvas.style.width = `${px}px`;
-    this.canvas.style.height = `${px}px`;
-    this.canvas.width = Math.round(px * dpr);
-    this.canvas.height = Math.round(px * dpr);
-    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  private get boardPx() {
+    return this.tile * GRID;
   }
 
-  /** Canvas pixel -> tile coordinate. */
+  private clampCamera() {
+    this.zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, this.zoom));
+    const max = this.boardPx - this.boardPx / this.zoom;
+    this.offX = Math.min(max, Math.max(0, this.offX));
+    this.offY = Math.min(max, Math.max(0, this.offY));
+  }
+
+  /** Zoom keeping the board point under (clientX, clientY) fixed. */
+  zoomAt(zoom: number, clientX: number, clientY: number) {
+    const r = this.canvas.getBoundingClientRect();
+    const sx = clientX - r.left, sy = clientY - r.top;
+    const bx = sx / this.zoom + this.offX, by = sy / this.zoom + this.offY;
+    this.zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom));
+    this.offX = bx - sx / this.zoom;
+    this.offY = by - sy / this.zoom;
+    this.clampCamera();
+  }
+
+  /** Pan by a screen-space drag delta. */
+  panBy(dx: number, dy: number) {
+    this.offX -= dx / this.zoom;
+    this.offY -= dy / this.zoom;
+    this.clampCamera();
+  }
+
+  /** Center the view on a tile, optionally changing zoom. */
+  centerOn(p: Point, zoom = this.zoom) {
+    this.zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom));
+    const view = this.boardPx / this.zoom;
+    this.offX = (p.x + 0.5) * this.tile - view / 2;
+    this.offY = (p.y + 0.5) * this.tile - view / 2;
+    this.clampCamera();
+  }
+
+  /** Keep a tile on screen (used when nudging the cursor). */
+  ensureVisible(p: Point) {
+    const view = this.boardPx / this.zoom, t = this.tile;
+    if (p.x * t < this.offX || (p.x + 1) * t > this.offX + view || p.y * t < this.offY || (p.y + 1) * t > this.offY + view) {
+      this.centerOn(p);
+    }
+  }
+
+  resize() {
+    const wrap = this.canvas.closest<HTMLElement>('.board-wrap') ?? this.canvas.parentElement!;
+    const bar = document.querySelector<HTMLElement>('#touchbar');
+    const barHeight = bar && !bar.hidden ? bar.offsetHeight + 8 : 0;
+    // stacked (mobile) layout: the wrapper's height follows the canvas, so size from width only
+    const stacked = window.matchMedia('(max-width: 860px)').matches;
+    const size = Math.max(200, stacked ? wrap.clientWidth : Math.min(wrap.clientWidth, wrap.clientHeight - barHeight));
+    const oldPx = this.boardPx;
+    this.tile = Math.floor(size / GRID);
+    const px = this.tile * GRID;
+    this.dpr = window.devicePixelRatio || 1;
+    this.canvas.style.width = `${px}px`;
+    this.canvas.style.height = `${px}px`;
+    this.canvas.width = Math.round(px * this.dpr);
+    this.canvas.height = Math.round(px * this.dpr);
+    this.offX *= px / oldPx;
+    this.offY *= px / oldPx;
+    this.clampCamera();
+  }
+
+  /** Screen point -> tile coordinate, through the camera. */
   tileAt(clientX: number, clientY: number): Point {
     const r = this.canvas.getBoundingClientRect();
-    return { x: Math.floor((clientX - r.left) / this.tile), y: Math.floor((clientY - r.top) / this.tile) };
+    const bx = (clientX - r.left) / this.zoom + this.offX;
+    const by = (clientY - r.top) / this.zoom + this.offY;
+    return { x: Math.floor(bx / this.tile), y: Math.floor(by / this.tile) };
   }
 
   draw(game: Game) {
-    const { ctx, tile } = this;
+    const { ctx, tile, dpr, zoom } = this;
     const px = tile * GRID;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.fillStyle = COLORS.bg;
     ctx.fillRect(0, 0, px, px);
+    ctx.setTransform(dpr * zoom, 0, 0, dpr * zoom, -this.offX * dpr * zoom, -this.offY * dpr * zoom);
 
     for (let y = 0; y < GRID; y++) {
       for (let x = 0; x < GRID; x++) {
@@ -72,6 +137,7 @@ export class Renderer {
 
     this.drawRanges(game);
     this.drawHover(game);
+    this.drawCursor(game);
 
     for (const c of game.creeps) {
       const cx = c.x * tile, cy = c.y * tile;
@@ -246,6 +312,28 @@ export class Renderer {
     const aura = a.auraSpeed ?? a.auraDamage ?? a.armorAura;
     if (aura) circle(aura.range, 'rgba(120,255,160,0.5)', 'rgba(120,255,160,0.04)');
     if (a.burn) circle(a.burn.range, 'rgba(255,140,60,0.6)', 'rgba(255,140,60,0.06)');
+  }
+
+  private drawCursor(game: Game) {
+    const c = this.cursor;
+    if (!c || game.phase !== 'build' || !game.inBounds(c.x, c.y)) return;
+    const { ctx, tile } = this;
+    const ok = game.canPlace(c.x, c.y);
+    const pulse = 0.55 + 0.45 * Math.sin(performance.now() / 180);
+    ctx.fillStyle = ok ? COLORS.ok : COLORS.bad;
+    ctx.fillRect(c.x * tile, c.y * tile, tile, tile);
+    ctx.strokeStyle = ok ? `rgba(120,255,170,${pulse})` : `rgba(255,90,90,${pulse})`;
+    ctx.lineWidth = Math.max(1.5, tile * 0.12);
+    ctx.strokeRect(c.x * tile + 0.5, c.y * tile + 0.5, tile - 1, tile - 1);
+    // crosshair lines help aim on a small screen
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo((c.x + 0.5) * tile, 0);
+    ctx.lineTo((c.x + 0.5) * tile, GRID * tile);
+    ctx.moveTo(0, (c.y + 0.5) * tile);
+    ctx.lineTo(GRID * tile, (c.y + 0.5) * tile);
+    ctx.stroke();
   }
 
   private drawHover(game: Game) {
