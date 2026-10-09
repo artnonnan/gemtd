@@ -68,7 +68,7 @@ const runs = +(process.argv[2] ?? 5);
 const results: number[] = [];
 for (let r = 0; r < runs; r++) {
   const difficulty = (process.argv.find((a) => a.startsWith('--difficulty='))?.split('=')[1] ?? 'normal') as Difficulty;
-  const game = new Game(difficulty);
+  const game = new Game({ difficulty });
   let guard = 0;
   while (game.phase !== 'gameover' && game.phase !== 'victory') {
     if (game.phase === 'build') {

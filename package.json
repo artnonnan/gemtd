@@ -7,10 +7,14 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "simulate": "esbuild scripts/simulate.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/sim.mjs --log-level=warning && node node_modules/.cache/sim.mjs"
+    "simulate": "esbuild scripts/simulate.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/sim.mjs --log-level=warning && node node_modules/.cache/sim.mjs",
+    "versus-test": "esbuild scripts/versus-test.ts --bundle --platform=node --format=esm --external:peerjs --outfile=node_modules/.cache/versus.mjs --log-level=warning && node node_modules/.cache/versus.mjs"
   },
   "devDependencies": {
     "typescript": "5.4.5",
     "vite": "5.2.11"
+  },
+  "dependencies": {
+    "peerjs": "1.5.4"
   }
 }

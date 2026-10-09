@@ -14,6 +14,16 @@
 3. Gem ที่เหลือจะกลายเป็นหินที่ใช้ทำ maze จากนั้น wave จะเริ่ม ครีปมา 10 ตัวและต้องเดินผ่านจุด S → 1 → 2 → 3 → 4 → 5 → M (Mine)
 4. ใช้ทองที่ได้ไปเพิ่ม **Gem quality** ที่ Mine เพื่อให้สุ่มได้ gem คุณภาพสูงขึ้น หรืออัปเกรด special tower
 
+### Versus ออนไลน์ 2 คน
+
+1. คนแรกกด **Host game** แล้วจะได้รหัสห้อง 5 ตัวอักษร จากนั้นส่งรหัสหรือกด **Copy invite link** แล้วส่งลิงก์ (`?room=CODE`) ให้เพื่อน
+2. เพื่อนกรอกรหัสแล้วกด **Join** หรือเปิดลิงก์ เมื่อเชื่อมต่อได้แล้วเกมจะเริ่มใหม่ทั้งสองฝั่งพร้อมกัน
+3. ทั้งสองคนได้ **gem ลำดับเดียวกัน** (ใช้ seed เดียวกัน) แต่เล่นบนบอร์ดของตัวเอง และเห็นบอร์ดของอีกฝ่ายเป็นภาพเล็กในแผงด้านข้าง
+4. wave ของแต่ละเลเวลจะเริ่มเมื่อ**ทั้งสองคนเลือก gem เสร็จแล้ว** ใครอยู่รอดนานกว่าชนะ ถ้ารอดทั้งคู่จะเทียบเลเวล, lives และ kills ตามลำดับ
+5. ระหว่างแข่งจะปิดการ pause และการเร่งความเร็ว เฉพาะ host ที่เปลี่ยนความยากหรือ restart ได้ ถ้าอีกฝ่ายหลุด จะเล่นต่อคนเดียวได้
+
+เบื้องหลังใช้ [PeerJS](https://peerjs.com) (WebRTC data channel) และใช้ signalling server สาธารณะของ PeerJS ไม่ต้องมี backend ของเราเอง จึงยัง deploy บน Vercel แบบ static ได้ ข้อจำกัดคือไม่มี TURN server ถ้าทั้งสองฝั่งอยู่หลัง NAT แบบเข้มงวด (เช่นเครือข่ายบริษัทบางแห่ง) อาจเชื่อมต่อไม่ได้
+
 ปุ่มลัด: `Space` หยุด/เล่นต่อ · `1` `2` `4` เปลี่ยนความเร็ว · `K` Keep gem ที่เลือกอยู่ · `Esc` ยกเลิกการเลือก
 
 ## พัฒนา
@@ -23,6 +33,7 @@ npm install
 npm run dev        # http://localhost:5173
 npm run build      # type-check + build ไปที่ dist/
 npm run simulate -- 5 --smart --difficulty=easy   # ให้ bot เล่นแบบ headless เพื่อทดสอบ logic และ balance
+npm run versus-test   # ทดสอบ logic ของ versus โดยต่อ 2 ฝั่งผ่าน channel ในหน่วยความจำ
 ```
 
 ต้องใช้ Node 18 ขึ้นไป
@@ -46,7 +57,11 @@ src/
   game/config.ts     ขนาดบอร์ด, checkpoint, ค่าคงที่ต่าง ๆ
   game/path.ts       A* pathfinding และการตรวจว่า maze ถูกปิดหรือไม่
   game/game.ts       state ของเกม, กติกา, การจำลองการต่อสู้ (fixed timestep)
+  game/rng.ts        seeded PRNG สำหรับสุ่ม gem (versus ใช้ seed เดียวกัน)
+  net/session.ts     PeerJS wrapper (host/join) และ message protocol
+  net/match.ts       ควบคุม versus: sync การเริ่ม wave, ส่ง snapshot, ตัดสินผล
   render/renderer.ts วาดภาพด้วย Canvas 2D
+  render/mini.ts     มุมมองบอร์ดของคู่แข่ง (จาก snapshot)
   ui/panel.ts        แผง HUD
   main.ts            game loop และ input
 scripts/simulate.ts  bot สำหรับเล่นแบบ headless

@@ -3,16 +3,39 @@ import {
   MIN_SPEED_FACTOR, SPAWN_INTERVAL, START_GOLD, START_LIVES, toTiles, type Point,
 } from './config';
 import { findRoute, routeLength } from './path';
+import { mulberry32, randomSeed } from './rng';
 import {
   BASE_GEMS, GEM_INFO, GEM_TYPES, GREAT, MAX_QUALITY_LEVEL, PERFECT, QUALITY_CHANCES, RECIPES, TOWERS, WAVES,
   abilityOf, displayName, qualityUpgradeCost, type Ability, type CreepDef, type Recipe, type Targets,
 } from '../data/gems';
 
-export type Phase = 'build' | 'choose' | 'wave' | 'gameover' | 'victory';
+export type Phase = 'build' | 'choose' | 'waiting' | 'wave' | 'gameover' | 'victory';
 
 /** Armor bonus every creep gets, like the map's difficulty auras (A00S/A00T/A01E). */
 export const DIFFICULTIES = { easy: -3, normal: -1, hard: 2 } as const;
 export type Difficulty = keyof typeof DIFFICULTIES;
+
+export interface GameOptions {
+  difficulty?: Difficulty;
+  /** seeds the gem rolls; versus players share it */
+  seed?: number;
+  /** versus mode: after choosing, wait in 'waiting' until the match calls beginWave() */
+  versus?: boolean;
+}
+
+/** Compact board state sent to the opponent. */
+export interface BoardSnapshot {
+  level: number;
+  lives: number;
+  gold: number;
+  phase: Phase;
+  kills: number;
+  quality: number;
+  /** [x, y, hpFraction, air] */
+  creeps: [number, number, number, number][];
+  /** only sent when the layout changed: towers as [rawcode, x, y], rocks as tile indices */
+  layout?: { towers: [string, number, number][]; rocks: number[] };
+}
 
 export interface Tower {
   uid: number;
@@ -109,9 +132,17 @@ export class Game {
   private speedBonus = new Map<Tower, number>();
   private damageBonus = new Map<Tower, number>();
 
-  constructor(public difficulty: Difficulty = 'normal') {
+  readonly difficulty: Difficulty;
+  readonly versus: boolean;
+  /** gem rolls only; combat randomness stays on Math.random so both players' gem sequences line up */
+  private rng: () => number;
+
+  constructor(opts: GameOptions = {}) {
+    this.difficulty = opts.difficulty ?? 'normal';
+    this.versus = opts.versus ?? false;
+    this.rng = mulberry32(opts.seed ?? randomSeed());
     this.refreshRoute();
-    this.say(`Level 1 (${difficulty}): place ${GEMS_PER_ROUND} gems, then keep or combine one.`);
+    this.say(`Level 1 (${this.difficulty}): place ${GEMS_PER_ROUND} gems, then keep or combine one.`);
   }
 
   // ---------- board queries ----------
@@ -185,9 +216,9 @@ export class Game {
   }
 
   private rollGem(): string {
-    const type = GEM_TYPES[Math.floor(Math.random() * GEM_TYPES.length)];
+    const type = GEM_TYPES[Math.floor(this.rng() * GEM_TYPES.length)];
     const chances = QUALITY_CHANCES[this.qualityLevel];
-    let roll = Math.random() * 100;
+    let roll = this.rng() * 100;
     let quality = 0;
     for (; quality < chances.length - 1; quality++) {
       roll -= chances[quality];
@@ -290,7 +321,17 @@ export class Game {
     kept.cooldown = 0;
     this.selected = kept;
     this.refreshRoute();
-    this.startWave();
+    if (this.versus) {
+      this.phase = 'waiting';
+      this.touch();
+    } else {
+      this.startWave();
+    }
+  }
+
+  /** Versus: the match starts the wave once both players have chosen. */
+  beginWave() {
+    if (this.phase === 'waiting') this.startWave();
   }
 
   private toRock(t: Tower) {
@@ -608,6 +649,20 @@ export class Game {
     this.lives++;
     this.touch();
     return true;
+  }
+
+  snapshot(withLayout: boolean): BoardSnapshot {
+    const r2 = (n: number) => Math.round(n * 100) / 100;
+    return {
+      level: this.level,
+      lives: this.lives,
+      gold: this.gold,
+      phase: this.phase,
+      kills: this.stats.kills,
+      quality: this.qualityLevel,
+      creeps: this.creeps.map((c) => [r2(c.x), r2(c.y), r2(Math.max(0, c.hp / c.maxHp)), c.def.air ? 1 : 0]),
+      layout: withLayout ? { towers: this.towers.map((t) => [t.id, t.x, t.y]), rocks: [...this.rocks] } : undefined,
+    };
   }
 
   private refreshRoute() {
