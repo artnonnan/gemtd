@@ -495,5 +495,68 @@ export function drawTowerArt(ctx: CanvasRenderingContext2D, pal: Palette, tierId
   }
 }
 
+/**
+ * A slate: an engraved stone slab lying flat on the ground (creeps walk over it).
+ * Drawn at (0,0) in the same art units as towers; `special` slates get gold trim and a second rune ring.
+ */
+export function drawSlateArt(ctx: CanvasRenderingContext2D, color: string, special: boolean, time: number, anim: TowerAnim, lod: Lod) {
+  const light = mix(color, '#ffffff', 0.55);
+  const t = time + anim.seed;
+  ctx.save();
+  ctx.scale(1, 0.86);
+  // slab
+  const slab = ctx.createLinearGradient(0, -40, 0, 40);
+  slab.addColorStop(0, '#4d5466');
+  slab.addColorStop(1, '#262a35');
+  ctx.fillStyle = slab;
+  oct(ctx, 0, 0, 42, 1);
+  ctx.fill();
+  ctx.strokeStyle = special ? '#ffd84a' : 'rgba(255,255,255,0.18)';
+  ctx.lineWidth = special ? 3 : 1.5;
+  ctx.stroke();
+  // inner glow pool
+  ctx.globalCompositeOperation = 'lighter';
+  const pulse = 0.55 + 0.25 * Math.sin(t * 2.4) + anim.flash * 0.5;
+  const g = ctx.createRadialGradient(0, 0, 0, 0, 0, 36);
+  g.addColorStop(0, hexA(color, 0.55 * pulse));
+  g.addColorStop(1, hexA(color, 0));
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(0, 0, 36, 0, Math.PI * 2); ctx.fill();
+  // engraved rune ring
+  ctx.strokeStyle = hexA(light, 0.75);
+  ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.arc(0, 0, 28, 0, Math.PI * 2); ctx.stroke();
+  if (lod > 0) {
+    const marks = special ? 12 : 8;
+    for (let i = 0; i < marks; i++) {
+      const a = t * 0.6 + (i * Math.PI * 2) / marks;
+      ctx.fillStyle = hexA(i % 2 && special ? '#ffd84a' : light, 0.85);
+      ctx.fillRect(Math.cos(a) * 28 - 2, Math.sin(a) * 28 - 2, 4, 4);
+    }
+  }
+  if (special) {
+    ctx.strokeStyle = hexA('#ffd84a', 0.7);
+    ctx.lineWidth = 2;
+    ctx.save();
+    ctx.rotate(-t * 0.5);
+    ctx.beginPath();
+    for (let i = 0; i <= 6; i++) {
+      const a = (i * Math.PI * 2) / 6;
+      ctx.lineTo(Math.cos(a) * 20, Math.sin(a) * 20);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+  // centre crystal set into the stone
+  ctx.globalCompositeOperation = 'source-over';
+  const s = special ? 11 : 9;
+  ctx.fillStyle = mix(color, '#000000', 0.35);
+  ctx.beginPath(); ctx.moveTo(0, -s); ctx.lineTo(s, 0); ctx.lineTo(0, s); ctx.lineTo(-s, 0); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = light;
+  ctx.beginPath(); ctx.moveTo(0, -s); ctx.lineTo(s, 0); ctx.lineTo(0, 0); ctx.lineTo(-s, 0); ctx.closePath(); ctx.fill();
+  if (lod > 0) star(ctx, s * 0.3, -s * 0.4, 1.5 + Math.max(0, Math.sin(t * 3)) * 2, '#ffffff');
+  ctx.restore();
+}
+
 /** Tiers with rising motes, for the renderer's particle system. */
 export const motesPerSecond = (tierIdx: number) => TIERS[tierIdx].motes * 10;

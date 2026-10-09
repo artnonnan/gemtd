@@ -140,6 +140,20 @@ export interface Ability {
   /** chance per attack to earn floor(level/2) gold */
   luckyGold?: number;
   noAttack?: boolean;
+
+  // ---- slate abilities ----
+  /** separate (longer) attack range against air units */
+  airRange?: number;
+  /** permanent speed reduction, applied once per creep per slate */
+  permSlow?: number;
+  /** grab one enemy: stun `dur`, deal base + kills*perKill + level*perLevel, reduce armor while held, then rest */
+  hold?: { dur: number; rest: number; base: number; perKill: number; perLevel: number; armor: number };
+  /** chance per attack to cast one random spell: area damage, armor reduction, or gold */
+  spells?: { chance: number; dmg: number; radius: number; armor: number; armorDur: number; gold: number };
+  /** attack damage = kills*perKill + level*perLevel */
+  killDamage?: { perKill: number; perLevel: number };
+  /** extra damage stacking per consecutive hit on the same unit; burning units explode on death */
+  stackBurn?: { perHit: number; window: number; blast: number; blastRadius: number };
 }
 
 const q = <T>(arr: T[], quality: number) => arr[Math.min(quality, arr.length - 1)];
@@ -177,7 +191,8 @@ function baseGemAbility({ type, quality }: GemInfo): Ability {
   }
 }
 
-const SPECIAL_ABILITIES: Record<string, Ability> = {
+/** Hand-written abilities; data/slates.ts adds the slates here (kept one-way to avoid an import cycle). */
+export const SPECIAL_ABILITIES: Record<string, Ability> = {
   h01A: { targets: 'both', splash: 250, slow: { pct: 0.2, dur: 2 } }, // Silver
   h02O: { targets: 'both', splash: 300, slow: { pct: 0.25, dur: 2 } }, // Sterling Silver
   h033: { targets: 'both', splash: 350, slow: { pct: 0.3, dur: 2 } }, // Silver Knight
@@ -257,6 +272,15 @@ export function describeAbility(a: Ability): string[] {
   if (a.shred) out.push(`-${a.shred} armor on hit`);
   if (a.nova) out.push(`${a.nova.chance * 100}% chance: frost nova ${a.nova.dmg} dmg`);
   if (a.luckyGold) out.push(`${a.luckyGold * 100}% chance to earn gold`);
+  if (a.airRange) out.push(`Hits air units up to ${a.airRange} away`);
+  if (a.permSlow) out.push(`Permanently slows each unit it hits by ${Math.round(a.permSlow * 100)}%`);
+  if (a.hold) {
+    const dmg = [a.hold.base ? `${a.hold.base}` : '', a.hold.perKill ? `kills×${a.hold.perKill}` : '', a.hold.perLevel ? `level×${a.hold.perLevel}` : ''].filter(Boolean).join(' + ');
+    out.push(`Holds a unit ${a.hold.dur}s for ${dmg} damage${a.hold.armor ? `, -${a.hold.armor} armor` : ''}; rests ${a.hold.rest}s`);
+  }
+  if (a.spells) out.push(`${Math.round(a.spells.chance * 100)}% chance to cast: ${a.spells.dmg} area damage, -${a.spells.armor} armor or +${a.spells.gold} gold`);
+  if (a.killDamage) out.push(`Damage = kills×${a.killDamage.perKill} + level×${a.killDamage.perLevel}`);
+  if (a.stackBurn) out.push(`Flames add +${a.stackBurn.perHit} per repeated hit; burning units explode for ${a.stackBurn.blast}`);
   return out;
 }
 
@@ -270,7 +294,7 @@ export function towerColor(id: string): string {
   return SPECIAL_COLORS[id] ?? '#ffcf4a';
 }
 
-const SPECIAL_COLORS: Record<string, string> = {
+export const SPECIAL_COLORS: Record<string, string> = {
   h01A: '#cfd8e3', h02O: '#dfe7f0', h033: '#f3f7ff',
   h03X: '#3fbf7f', h03Y: '#2fe08f', h03Z: '#1fff9f',
   h016: '#ff6a3d', h02M: '#ff8a3d', e006: '#ff5a1f',

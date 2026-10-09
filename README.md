@@ -16,6 +16,7 @@
 5. คำสั่งเสริมที่มีในแมพต้นฉบับ:
    - **Keep ↓ (Downgrade):** เก็บ gem คุณภาพ Flawed ถึง Perfect โดยลดลง 1 ขั้น เหมาะกับตอนที่สูตร special ต้องใช้คุณภาพต่ำกว่า
    - **Remove rock:** คลิกหินแล้วกด Remove (หรือกด `R`) ฟรีและใช้ได้ตลอดเวลา
+   - **Slate:** หินแผ่นแบนฝังพื้นที่ครีป**เดินทับได้** จึงไม่ขวาง maze วิธีสร้างคือในช่วงเลือก gem ให้เลือก gem ระดับ Normal ที่มี gem Flawed คู่อยู่ใน 5 เม็ดของรอบนั้น แล้วกด **Create slate** มี slate พื้นฐาน 8 แบบ (Air, Slow, Hold, Opal Vein, Poison, Spell, Range, Damage) และเอา slate 2 แผ่นมารวมเป็น slate พิเศษได้ (Ancient, Wraith, Elder, Viper) แต่ละแผ่น **Teleport** ได้ 1 ครั้ง ดูสูตรได้ในหน้า Info แท็บ Slates
    - **Swap (200g):** tower ระดับสูงบางตัว เช่น Black Opal, Gold, Fire Star และ Lucky China Jade สลับที่กับ gem อื่นหรือหินได้ ครั้งเดียวต่อ tower และได้สิทธิ์ใหม่เมื่ออัปเกรด
 
 ### Versus ออนไลน์ 2 คน
@@ -38,7 +39,7 @@ npm run dev        # http://localhost:5173
 npm run build      # type-check + build ไปที่ dist/
 npm run simulate -- 5 --smart --difficulty=easy   # ให้ bot เล่นแบบ headless เพื่อทดสอบ logic และ balance
 npm run versus-test   # ทดสอบ logic ของ versus โดยต่อ 2 ฝั่งผ่าน channel ในหน่วยความจำ
-npm run features-test # ทดสอบ Remove rock, Downgrade และ Swap
+npm run features-test # ทดสอบ Remove rock, Downgrade, Swap และ Slate
 npm run render-smoke  # รัน renderer กับ canvas จำลอง เพื่อหา runtime error และค่า NaN
 ```
 
@@ -60,6 +61,7 @@ src/
   data/towers.json   ค่าสถานะ tower 114 ตัว (generated จาก war3map.w3u)
   data/waves.json    ครีป 50 เลเวล (generated จาก war3map.w3u + war3map.j)
   data/gems.ts       ประเภท gem, คุณภาพ, สูตร special, ability ของแต่ละ tower
+  data/slates.ts     สูตร slate, slate พิเศษ และ ability ของ slate (hold, permanent slow, flames, spells)
   game/config.ts     ขนาดบอร์ด, checkpoint, ค่าคงที่ต่าง ๆ
   game/path.ts       A* pathfinding และการตรวจว่า maze ถูกปิดหรือไม่
   game/game.ts       state ของเกม, กติกา, การจำลองการต่อสู้ (fixed timestep)

@@ -5,6 +5,9 @@ import {
 import { findRoute, routeLength } from './path';
 import { mulberry32, randomSeed } from './rng';
 import {
+  SLATE_RECIPES, SLATE_SPECIALS, SLATE_TELEPORT_RANGE, isSlate, slatesConflict, type SlateRecipe,
+} from '../data/slates';
+import {
   BASE_GEMS, GEM_INFO, GEM_TYPES, GREAT, MAX_QUALITY_LEVEL, PERFECT, QUALITY_CHANCES, RECIPES, TOWERS, WAVES,
   abilityOf, displayName, qualityUpgradeCost, type Ability, type CreepDef, type Recipe, type Targets,
 } from '../data/gems';
@@ -50,6 +53,8 @@ export interface Tower {
   firedAt: number;
   /** Swap is single-use per tower; upgrading grants it again (new unit in the original map) */
   swapUsed: boolean;
+  /** slates may teleport once (A02J) */
+  teleportUsed: boolean;
 }
 
 export interface Creep {
@@ -71,6 +76,11 @@ export interface Creep {
   stunUntil: number;
   shred: number;
   shredUntil: number;
+  /** product of permanent slows (Slow Slate), never below MIN_SPEED_FACTOR in effect */
+  permSlow: number;
+  permSlowBy: Set<number>;
+  /** Wraith Slate flames */
+  flames: { stacks: number; until: number; src: Tower } | null;
 }
 
 export interface Shot {
@@ -97,7 +107,9 @@ export type GameEvent =
   | { type: 'fire'; tower: Tower; tx: number; ty: number }
   | { type: 'hit'; x: number; y: number; creep: number; tower: Tower; crit: boolean; splash: number }
   | { type: 'kill'; x: number; y: number; creep: number; air: boolean }
-  | { type: 'transform'; tower: Tower; kind: 'keep' | 'combine' | 'special' | 'upgrade' | 'downgrade' };
+  | { type: 'transform'; tower: Tower; kind: 'keep' | 'combine' | 'special' | 'upgrade' | 'downgrade' | 'slate' | 'teleport' }
+  | { type: 'hold'; tower: Tower; creep: number; x: number; y: number }
+  | { type: 'blast'; x: number; y: number; r: number };
 
 export interface CombineOption {
   count: 2 | 4;
@@ -134,7 +146,9 @@ export class Game {
   /** tower waiting for a swap target */
   swapSource: Tower | null = null;
   log: string[] = [];
-  stats = { kills: 0, leaked: 0, specials: 0, downgrades: 0, rocksRemoved: 0, swaps: 0 };
+  stats = { kills: 0, leaked: 0, specials: 0, downgrades: 0, rocksRemoved: 0, swaps: 0, slates: 0 };
+  /** slate waiting for a teleport destination */
+  teleportSource: Tower | null = null;
 
   /** bumped on every structural change; UI and caches key off it */
   version = 0;
@@ -179,11 +193,18 @@ export class Game {
     return CHECKPOINTS.some((c) => Math.max(Math.abs(c.x - x), Math.abs(c.y - y)) <= CHECKPOINT_CLEARANCE);
   }
 
-  private blocked = (x: number, y: number) => !!this.grid[y * GRID + x] || this.rocks.has(y * GRID + x);
+  /** Gems and rocks block creeps; slates lie flat and can be walked over. */
+  private blocked = (x: number, y: number) => {
+    const t = this.grid[y * GRID + x];
+    return (!!t && !isSlate(t.id)) || this.rocks.has(y * GRID + x);
+  };
+
+  /** Tile has something on it (gem, slate or rock): nothing else can be built there. */
+  private occupied = (x: number, y: number) => !!this.grid[y * GRID + x] || this.rocks.has(y * GRID + x);
 
   /** Empty, not reserved, and does not cut the route. */
   canPlace(x: number, y: number): boolean {
-    if (!this.inBounds(x, y) || this.blocked(x, y) || this.isReserved(x, y)) return false;
+    if (!this.inBounds(x, y) || this.occupied(x, y) || this.isReserved(x, y)) return false;
     if (this.placeCacheVersion !== this.version) {
       this.placeCache.clear();
       this.placeCacheVersion = this.version;
@@ -216,7 +237,7 @@ export class Game {
 
   placeGem(x: number, y: number): boolean {
     if (this.phase !== 'build' || this.gemsLeft <= 0 || !this.canPlace(x, y)) return false;
-    const tower: Tower = { uid: nextUid++, id: this.rollGem(), x, y, cooldown: 0, kills: 0, fresh: true, firedAt: -1, swapUsed: false };
+    const tower: Tower = { uid: nextUid++, id: this.rollGem(), x, y, cooldown: 0, kills: 0, fresh: true, firedAt: -1, swapUsed: false, teleportUsed: false };
     this.towers.push(tower);
     this.grid[y * GRID + x] = tower;
     this.gemsLeft--;
@@ -361,6 +382,100 @@ export class Game {
     return true;
   }
 
+  // ---------- slates ----------
+
+  /** Create Slate: the selected Normal gem becomes a slate if a matching Flawed gem was placed this round. */
+  slateOptions(t: Tower): SlateRecipe[] {
+    if (this.phase !== 'choose' || !t.fresh) return [];
+    return SLATE_RECIPES.filter((r) => r.core === t.id && this.freshTowers.some((o) => o !== t && r.partners.includes(o.id)));
+  }
+
+  createSlate(t: Tower, recipe: SlateRecipe): boolean {
+    if (!this.slateOptions(t).includes(recipe)) return false;
+    t.id = recipe.result;
+    this.stats.slates++;
+    this.say(`Slate created: ${displayName(recipe.result)}. Creeps can walk over it.`);
+    this.emit({ type: 'transform', tower: t, kind: 'slate' });
+    this.finishRound(t); // the other four become rocks, the slate frees its tile for walking
+    return true;
+  }
+
+  /** Combine two owned slates into a special slate (Ancient, Wraith, Elder, Viper). */
+  slateSpecialOptions(t: Tower): { result: string; partner: Tower }[] {
+    if (!isSlate(t.id) || t.fresh || this.phase === 'gameover' || this.phase === 'victory') return [];
+    const out: { result: string; partner: Tower }[] = [];
+    for (const s of SLATE_SPECIALS) {
+      if (!s.ingredients.includes(t.id)) continue;
+      const otherId = s.ingredients[0] === t.id ? s.ingredients[1] : s.ingredients[0];
+      const partner = this.towers.find((o) => o !== t && o.id === otherId && !o.fresh);
+      if (partner) out.push({ result: s.result, partner });
+    }
+    return out;
+  }
+
+  combineSlates(t: Tower, result: string): boolean {
+    const opt = this.slateSpecialOptions(t).find((o) => o.result === result);
+    if (!opt) return false;
+    const p = opt.partner;
+    t.kills += p.kills;
+    this.towers = this.towers.filter((o) => o !== p);
+    this.grid[p.y * GRID + p.x] = null; // a slate leaves an empty, walkable tile behind
+    if (this.selected === p) this.selected = null;
+    t.id = result;
+    t.teleportUsed = false;
+    this.stats.specials++;
+    this.say(`Created special slate: ${displayName(result)}!`);
+    this.emit({ type: 'transform', tower: t, kind: 'special' });
+    this.refreshRoute();
+    this.touch();
+    return true;
+  }
+
+  canTeleport(t: Tower): boolean {
+    return isSlate(t.id) && !t.fresh && !t.teleportUsed && this.phase !== 'gameover' && this.phase !== 'victory';
+  }
+
+  beginTeleport(t: Tower): boolean {
+    if (!this.canTeleport(t)) return false;
+    this.swapSource = null;
+    this.teleportSource = t;
+    this.say('Teleport: pick an empty tile in range.');
+    this.touch();
+    return true;
+  }
+
+  cancelTeleport() {
+    if (!this.teleportSource) return;
+    this.teleportSource = null;
+    this.touch();
+  }
+
+  /** Empty, buildable tile within range, not next to a slate of the same kind (the map forbids stacking them). */
+  isTeleportTarget(x: number, y: number): boolean {
+    const src = this.teleportSource;
+    if (!src || !this.inBounds(x, y) || this.occupied(x, y) || this.isReserved(x, y)) return false;
+    if (Math.hypot(x - src.x, y - src.y) > toTiles(SLATE_TELEPORT_RANGE)) return false;
+    return !this.towers.some((o) => o !== src && isSlate(o.id) && slatesConflict(o.id, src.id) && Math.max(Math.abs(o.x - x), Math.abs(o.y - y)) <= 1);
+  }
+
+  teleportTo(x: number, y: number): boolean {
+    const src = this.teleportSource;
+    if (!src || !this.isTeleportTarget(x, y)) {
+      this.cancelTeleport();
+      return false;
+    }
+    this.grid[src.y * GRID + src.x] = null;
+    src.x = x;
+    src.y = y;
+    this.grid[y * GRID + x] = src;
+    src.teleportUsed = true;
+    this.teleportSource = null;
+    this.say(`${displayName(src.id)} teleported.`);
+    this.emit({ type: 'transform', tower: src, kind: 'teleport' });
+    this.touch();
+    return true;
+  }
+
   private finishRound(kept: Tower) {
     for (const o of this.freshTowers) if (o !== kept) this.toRock(o);
     kept.fresh = false;
@@ -386,6 +501,7 @@ export class Game {
     this.rocks.add(t.y * GRID + t.x);
     if (this.selected === t) this.selected = null;
     if (this.swapSource === t) this.swapSource = null;
+    if (this.teleportSource === t) this.teleportSource = null;
   }
 
   // ---------- selection, rocks, swap ----------
@@ -394,6 +510,7 @@ export class Game {
     this.selected = t;
     this.selectedRock = null;
     this.swapSource = null;
+    this.teleportSource = null;
     this.touch();
   }
 
@@ -401,6 +518,7 @@ export class Game {
     if (!this.isRock(x, y)) return;
     this.selected = null;
     this.swapSource = null;
+    this.teleportSource = null;
     this.selectedRock = { x, y };
     this.touch();
   }
@@ -440,7 +558,8 @@ export class Game {
     const src = this.swapSource;
     if (!src) return false;
     const other = this.towerAt(x, y);
-    return this.isRock(x, y) || (!!other && other !== src && !other.fresh);
+    // slates cannot be swapped (the map excludes them as targets)
+    return this.isRock(x, y) || (!!other && other !== src && !other.fresh && !isSlate(other.id));
   }
 
   /** Swap positions with a kept tower or a rock. The set of blocked tiles is unchanged, so the route is too. */
@@ -475,6 +594,9 @@ export class Game {
     const names = new Set<string>();
     for (const t of this.freshTowers) for (const r of this.specialOptions(t)) names.add(displayName(r.result));
     if (names.size) this.say(`Special available: ${[...names].join(', ')}`);
+    const slates = new Set<string>();
+    for (const t of this.freshTowers) for (const r of this.slateOptions(t)) slates.add(displayName(r.result));
+    if (slates.size) this.say(`Slate available: ${[...slates].join(', ')}`);
   }
 
   // ---------- upgrades ----------
@@ -514,6 +636,7 @@ export class Game {
     this.creeps.push({
       uid: nextUid++, def, hp: def.hp, maxHp: def.hp, x: start.x + 0.5, y: start.y + 0.5, path, next: 1, progress: 0,
       alive: true, slow: 0, slowUntil: 0, burnSlow: 0, burnSlowUntil: 0, poison: null, stunUntil: 0, shred: 0, shredUntil: 0,
+      permSlow: 1, permSlowBy: new Set(), flames: null,
     });
   }
 
@@ -577,7 +700,7 @@ export class Game {
         c.poison && c.poison.until > this.time ? c.poison.slow : 0,
         c.burnSlowUntil > this.time ? c.burnSlow : 0,
       );
-      let step = toTiles(c.def.speed) * Math.max(MIN_SPEED_FACTOR, 1 - slow) * dt;
+      let step = toTiles(c.def.speed) * Math.max(MIN_SPEED_FACTOR, (1 - slow) * c.permSlow) * dt;
       while (step > 0 && c.alive) {
         const target = c.path[c.next];
         const tx = target.x + 0.5, ty = target.y + 0.5;
@@ -652,8 +775,14 @@ export class Game {
       t.cooldown -= dt * (1 + (this.speedBonus.get(t) ?? 0));
       if (t.cooldown > 0) continue;
 
+      if (a.hold) {
+        this.tryHold(t, a, range);
+        continue;
+      }
+
+      const airRange = a.airRange ? toTiles(a.airRange) : range;
       const targets = this.creeps
-        .filter((c) => c.alive && this.canHit(a.targets, c) && Math.hypot(c.x - t.x - 0.5, c.y - t.y - 0.5) <= range)
+        .filter((c) => c.alive && this.canHit(a.targets, c) && Math.hypot(c.x - t.x - 0.5, c.y - t.y - 0.5) <= (c.def.air ? airRange : range))
         .sort((p, q) => q.progress - p.progress)
         .slice(0, a.multi ?? 1);
       if (!targets.length) {
@@ -665,6 +794,35 @@ export class Game {
       for (const c of targets) this.shots.push({ x: t.x + 0.5, y: t.y + 0.5, target: c, tower: t, color: shotColor(t.id) });
       this.emit({ type: 'fire', tower: t, tx: targets[0].x, ty: targets[0].y });
     }
+  }
+
+  /** Hold / Ancient Slate: grab the nearest free enemy, stun it and hit it once, then rest. */
+  private tryHold(t: Tower, a: Ability, range: number) {
+    const h = a.hold!;
+    let best: Creep | null = null, bestD = Infinity;
+    for (const c of this.creeps) {
+      if (!c.alive || !this.canHit(a.targets, c) || c.stunUntil > this.time) continue;
+      const d = Math.hypot(c.x - t.x - 0.5, c.y - t.y - 0.5);
+      if (d <= Math.max(range, 0.75) && d < bestD) {
+        best = c;
+        bestD = d;
+      }
+    }
+    if (!best) {
+      t.cooldown = 0;
+      return;
+    }
+    best.stunUntil = this.time + h.dur;
+    if (h.armor) {
+      best.shred = Math.max(best.shredUntil > this.time ? best.shred : 0, h.armor);
+      best.shredUntil = this.time + h.dur;
+    }
+    t.cooldown = h.dur + h.rest;
+    t.firedAt = this.time;
+    this.emit({ type: 'hold', tower: t, creep: best.uid, x: best.x, y: best.y });
+    const dmg = (h.base + t.kills * h.perKill + this.level * h.perLevel) * this.damageMult(t);
+    this.damage(best, dmg, t);
+    this.emit({ type: 'hit', x: best.x, y: best.y, creep: best.uid, tower: t, crit: false, splash: 0 });
   }
 
   private tickShots(dt: number) {
@@ -698,6 +856,14 @@ export class Game {
     const a = abilityOf(t.id);
     let dmg = def.dmg;
     for (let i = 0; i < def.dice; i++) dmg += 1 + Math.floor(Math.random() * def.sides);
+    if (a.killDamage) dmg += t.kills * a.killDamage.perKill + this.level * a.killDamage.perLevel;
+    if (a.stackBurn) {
+      // Wraith flames: each repeated hit on the same burning unit adds another layer
+      const f = c.flames && c.flames.until > this.time ? c.flames : null;
+      const stacks = f ? f.stacks + 1 : 1;
+      c.flames = { stacks, until: this.time + a.stackBurn.window, src: t };
+      dmg += a.stackBurn.perHit * (stacks - 1);
+    }
     dmg *= this.damageMult(t);
     const crit = !!a.crit && Math.random() < a.crit.chance;
     if (crit) {
@@ -732,6 +898,28 @@ export class Game {
       this.gold += g;
       this.effects.push({ kind: 'text', x: t.x + 0.5, y: t.y, r: 0, color: '#ffd84a', text: `+${g}g`, born: this.time, life: 1 });
     }
+    if (a.spells && Math.random() < a.spells.chance) this.castSpell(t, a.spells, c);
+  }
+
+  /** Spell / Elder Slate: one random spell — area damage (most likely), armor reduction, or gold. */
+  private castSpell(t: Tower, s: NonNullable<Ability['spells']>, c: Creep) {
+    const roll = Math.random();
+    if (roll < 0.66) {
+      const r = toTiles(s.radius);
+      this.effects.push({ kind: 'ring', x: c.x, y: c.y, r, color: '#9fe8ff', born: this.time, life: 0.4 });
+      for (const o of this.creeps) {
+        if (o.alive && Math.hypot(o.x - c.x, o.y - c.y) <= r) this.damage(o, s.dmg * this.damageMult(t), t);
+      }
+    } else if (roll < 0.83) {
+      if (!c.alive) return;
+      c.shred = Math.max(c.shredUntil > this.time ? c.shred : 0, s.armor);
+      c.shredUntil = this.time + s.armorDur;
+      this.effects.push({ kind: 'text', x: c.x, y: c.y - 0.4, r: 0, color: '#c9a0ff', text: `-${s.armor} armor`, born: this.time, life: 0.8 });
+    } else {
+      const g = s.gold + Math.floor(t.kills / 10);
+      this.gold += g;
+      this.effects.push({ kind: 'text', x: t.x + 0.5, y: t.y, r: 0, color: '#ffd84a', text: `+${g}g`, born: this.time, life: 1 });
+    }
   }
 
   private applyOnHit(a: Ability, c: Creep, t: Tower) {
@@ -747,6 +935,10 @@ export class Game {
     if (a.shred) {
       c.shred = Math.max(c.shredUntil > this.time ? c.shred : 0, a.shred);
       c.shredUntil = this.time + 5;
+    }
+    if (a.permSlow && !c.permSlowBy.has(t.uid)) {
+      c.permSlowBy.add(t.uid);
+      c.permSlow *= 1 - a.permSlow;
     }
   }
 
@@ -773,6 +965,17 @@ export class Game {
       this.stats.kills++;
       this.effects.push({ kind: 'text', x: c.x, y: c.y, r: 0, color: '#ffd84a', text: `+${c.def.bounty}`, born: this.time, life: 0.8 });
       this.emit({ type: 'kill', x: c.x, y: c.y, creep: c.uid, air: c.def.air });
+      // Wraith flames: a unit that dies burning is incinerated and damages everything around it
+      const f = c.flames;
+      c.flames = null;
+      const sb = f && f.until > this.time ? abilityOf(f.src.id).stackBurn : undefined;
+      if (f && sb) {
+        const r = toTiles(sb.blastRadius);
+        this.emit({ type: 'blast', x: c.x, y: c.y, r });
+        for (const o of this.creeps) {
+          if (o.alive && Math.hypot(o.x - c.x, o.y - c.y) <= r) this.damage(o, sb.blast * this.damageMult(f.src), f.src);
+        }
+      }
     }
   }
 

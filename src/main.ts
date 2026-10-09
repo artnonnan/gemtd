@@ -51,7 +51,8 @@ window.addEventListener('keydown', (e) => {
   } else if (e.key.toLowerCase() === 'k' && game.selected) {
     game.keep(game.selected);
   } else if (e.key === 'Escape') {
-    if (game.swapSource) game.cancelSwap();
+    if (game.teleportSource) game.cancelTeleport();
+    else if (game.swapSource) game.cancelSwap();
     else game.select(null);
   } else if ((e.key === 'Delete' || e.key.toLowerCase() === 'r') && game.selectedRock) {
     game.removeRock(game.selectedRock.x, game.selectedRock.y);

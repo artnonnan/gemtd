@@ -2,6 +2,7 @@ import { DIFFICULTIES, SWAP_COST, type Difficulty, type Game } from '../game/gam
 import type { Match } from '../net/match';
 import { MiniRenderer } from '../render/mini';
 import { InfoModal } from './info';
+import { SLATE_RECIPES, SLATE_TELEPORT_RANGE, isSlate } from '../data/slates';
 import {
   GEM_INFO, MAX_QUALITY_LEVEL, QUALITY_CHANCES, QUALITY_NAMES, RECIPES, TOWERS, abilityOf, describeAbility, displayName,
   qualityUpgradeCost, towerColor,
@@ -143,6 +144,10 @@ export class Panel {
       case 'special': if (t) game.makeSpecial(t, RECIPES[+v]); break;
       case 'upgrade': if (t) game.upgradeTower(t, v); break;
       case 'downgrade': if (t) game.keepDowngraded(t); break;
+      case 'slate': if (t) game.createSlate(t, SLATE_RECIPES[+v]); break;
+      case 'slate-special': if (t) game.combineSlates(t, v); break;
+      case 'teleport': if (t) game.beginTeleport(t); break;
+      case 'cancel-teleport': game.cancelTeleport(); break;
       case 'swap': if (t) game.beginSwap(t); break;
       case 'cancel-swap': game.cancelSwap(); break;
       case 'remove-rock': if (game.selectedRock) game.removeRock(game.selectedRock.x, game.selectedRock.y); break;
@@ -199,6 +204,9 @@ export class Panel {
         .join('') + '</div>');
     }
 
+    if (g.teleportSource) {
+      choose.push(`<div class="phase phase-choose">✦ Teleport ${gemLabel(g.teleportSource.id)}: click an empty tile inside the circle. Esc to cancel.</div>`);
+    }
     if (g.swapSource) {
       choose.push(`<div class="phase phase-choose">⇄ Swap ${gemLabel(g.swapSource.id)}: click another kept gem or a rock. Esc to cancel.</div>`);
     }
@@ -227,6 +235,17 @@ export class Panel {
         for (const r of g.specialOptions(t)) {
           btns.push(`<button data-act="special" data-v="${RECIPES.indexOf(r)}" class="special">Special → ${gemLabel(r.result)}</button>`);
         }
+        for (const r of g.slateOptions(t)) {
+          btns.push(`<button data-act="slate" data-v="${SLATE_RECIPES.indexOf(r)}" class="slate" title="Turn this gem into a slate creeps can walk over">Create slate → ${gemLabel(r.result)}</button>`);
+        }
+      }
+      for (const o of g.slateSpecialOptions(t)) {
+        btns.push(`<button data-act="slate-special" data-v="${o.result}" class="special" title="Uses your ${esc(displayName(o.partner.id))}">Combine → ${gemLabel(o.result)}</button>`);
+      }
+      if (g.teleportSource === t) {
+        btns.push(`<button data-act="cancel-teleport" class="slate">Cancel teleport</button>`);
+      } else if (g.canTeleport(t)) {
+        btns.push(`<button data-act="teleport" class="slate" title="Move this slate once, within ${SLATE_TELEPORT_RANGE} range">✦ Teleport</button>`);
       }
       for (const u of g.upgradeOptions(t)) {
         btns.push(`<button data-act="upgrade" data-v="${u.id}" ${g.gold < u.cost ? 'disabled' : ''}>Upgrade → ${gemLabel(u.id)} <span class="cost">${u.cost}g</span></button>`);
@@ -237,7 +256,7 @@ export class Panel {
         btns.push(`<button data-act="swap" ${g.gold < SWAP_COST ? 'disabled' : ''} title="Swap position with another gem or a rock (once per tower)">⇄ Swap <span class="cost">${SWAP_COST}g</span></button>`);
       }
       choose.push(`<div class="selected">
-        <div class="sel-head"><h3>${gemLabel(t.id)}</h3><span class="muted">${info ? `${QUALITY_NAMES[info.quality]} gem` : 'Special tower'} · ${t.kills} kills</span></div>
+        <div class="sel-head"><h3>${gemLabel(t.id)}</h3><span class="muted">${info ? `${QUALITY_NAMES[info.quality]} gem` : isSlate(t.id) ? 'Slate · creeps walk over it' : 'Special tower'} · ${t.kills} kills</span></div>
         <p class="muted">${a.noAttack ? '' : `Damage ${def.dmg + def.dice}–${def.dmg + def.dice * def.sides} · Cooldown ${def.cd}s · `}Range ${def.range}${describeAbility(a).length ? ' · ' + esc(describeAbility(a).join(' · ')) : ''}</p>
         ${btns.length ? `<div class="btns">${btns.join('')}</div>` : ''}
       </div>`);

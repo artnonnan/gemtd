@@ -138,6 +138,10 @@ export class BoardInput {
   /** Swap targeting, tower and rock selection. Returns true when the tap/click was consumed. */
   private pick(p: Point): boolean {
     const game = this.getGame();
+    if (game.teleportSource) {
+      game.teleportTo(p.x, p.y); // anything but a valid tile cancels
+      return true;
+    }
     if (game.swapSource) {
       game.swapWith(p.x, p.y); // a non-target cancels
       return true;

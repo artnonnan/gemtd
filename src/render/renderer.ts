@@ -2,9 +2,11 @@ import { CHECKPOINTS, GRID, toTiles, type Point } from '../game/config';
 import type { Creep, Game, GameEvent, Shot, Tower } from '../game/game';
 import { GEM_INFO, QUALITY_NAMES, TOWERS, abilityOf, displayName } from '../data/gems';
 import {
-  ART_PEDESTAL_WIDTH, TIERS, drawTowerArt, ease, gemOffset, hash, hexA, lookOf, motesPerSecond, star,
+  ART_PEDESTAL_WIDTH, TIERS, drawSlateArt, drawTowerArt, ease, gemOffset, hash, hexA, lookOf, motesPerSecond, star,
   type Lod, type TowerAnim,
 } from './art';
+import { SLATE_SPECIALS, SLATE_TELEPORT_RANGE, isSlate } from '../data/slates';
+import { towerColor } from '../data/gems';
 import { Vfx, drawOrb } from './vfx';
 
 const COLORS = {
@@ -171,11 +173,16 @@ export class Renderer {
     this.drawHover(game);
     this.drawCursor(game);
 
-    // towers and creeps sorted by depth so lower things overlap higher ones
+    // slates lie on the floor, under everything that stands
     const view = this.viewRect();
+    const visible = (t: Tower) => !(t.x < view.x0 - 2 || t.x > view.x1 + 2 || t.y < view.y0 - 2 || t.y > view.y1 + 3);
+    for (const t of game.towers) if (isSlate(t.id) && visible(t)) this.drawSlate(game, t, lod);
+    this.drawTeleport(game);
+
+    // towers and creeps sorted by depth so lower things overlap higher ones
     const items: { y: number; draw: () => void }[] = [];
     for (const t of game.towers) {
-      if (t.x < view.x0 - 2 || t.x > view.x1 + 2 || t.y < view.y0 - 2 || t.y > view.y1 + 3) continue;
+      if (isSlate(t.id) || !visible(t)) continue;
       items.push({ y: t.y + 0.5 + PEDESTAL_DROP, draw: () => this.drawTower(game, t, lod) });
     }
     for (const c of game.creeps) items.push({ y: c.y, draw: () => this.drawCreep(game, c, lod) });
@@ -237,8 +244,9 @@ export class Renderer {
     return f;
   }
 
-  /** Gem position in tiles for a tower (for muzzle sparks and celebrations). */
+  /** Gem position in tiles for a tower (for muzzle sparks and celebrations); slates use their centre. */
   private gemTop(t: Tower, lod: Lod): Point {
+    if (isSlate(t.id)) return { x: t.x + 0.5, y: t.y + 0.5 };
     const { tier } = lookOf(t.id);
     const off = gemOffset(tier, this.clock, this.anim(t), lod);
     return { x: t.x + 0.5, y: t.y + 0.5 + PEDESTAL_DROP + off.y * ART_SCALE };
@@ -289,9 +297,27 @@ export class Renderer {
           this.vfx.ring(top.x, top.y, 1.2 + tier * 0.35, palette.light, 0.6, 3);
           if (tier >= 3) this.vfx.ring(e.tower.x + 0.5, e.tower.y + 0.5 + PEDESTAL_DROP, 2 + tier * 0.4, '#ffd84a', 0.8, 3, true);
           this.anim(e.tower).flash = 1;
+          if (e.kind === 'teleport') break;
           const name = e.kind === 'keep' && info ? QUALITY_NAMES[info.quality] : displayName(e.tower.id);
           const text = e.kind === 'downgrade' ? `${name} ↓` : `${name}${tier >= 5 ? '!!' : e.kind === 'keep' ? '' : '!'}`;
           this.vfx.label(top.x, top.y - 0.8, text.toUpperCase(), TIERS[tier].trim ?? palette.light, tier >= 4 ? 0.95 : 0.75);
+          break;
+        }
+        case 'hold': {
+          // a burst of chains from the slate to the grabbed unit
+          const color = towerColor(e.tower.id);
+          const sx = e.tower.x + 0.5, sy = e.tower.y + 0.5;
+          for (let i = 0; i <= 8; i++) {
+            const k = i / 8;
+            this.vfx.spark(sx + (e.x - sx) * k, sy + (e.y - sy) * k, 0, -0.2, 0.45, 0.06, i % 2 ? '#ffd84a' : color);
+          }
+          this.vfx.ring(e.x, e.y - 0.2, 0.6, '#ffd84a', 0.5, 3);
+          this.anim(e.tower).flash = 1;
+          break;
+        }
+        case 'blast': {
+          this.vfx.ring(e.x, e.y, e.r, '#ff8a2a', 0.55, 4);
+          this.vfx.burst(e.x, e.y - 0.2, 30, 6, ['#ff8a2a', '#ffd84a', '#ffffff']);
           break;
         }
       }
@@ -306,7 +332,7 @@ export class Renderer {
       // rising motes from Flawless+ pedestals (only when they are big enough to see)
       const { palette, tier } = lookOf(t.id);
       const rate = motesPerSecond(tier);
-      if (rate && lod > 0 && !t.fresh) {
+      if (rate && lod > 0 && !t.fresh && !isSlate(t.id)) {
         let acc = (this.moteAcc.get(t.uid) ?? Math.random()) + rate * dt * (lod === 1 ? 0.4 : 1);
         while (acc >= 1) {
           acc -= 1;
@@ -450,6 +476,47 @@ export class Renderer {
       ctx.ellipse((t.x + 0.5) * tile, (t.y + 0.5 + PEDESTAL_DROP + 0.2) * tile, tile * 0.6, tile * 0.24, 0, 0, Math.PI * 2);
       ctx.stroke();
       ctx.restore();
+    }
+  }
+
+  private drawSlate(game: Game, t: Tower, lod: Lod) {
+    const { ctx, tile } = this;
+    const special = SLATE_SPECIALS.some((s) => s.result === t.id);
+    const s = tile * ART_SCALE;
+    ctx.save();
+    ctx.translate((t.x + 0.5) * tile, (t.y + 0.5) * tile);
+    ctx.scale(s, s);
+    drawSlateArt(ctx, towerColor(t.id), special, this.clock, this.anim(t), lod);
+    ctx.restore();
+    if (game.selected === t) {
+      ctx.save();
+      ctx.strokeStyle = COLORS.select;
+      ctx.lineWidth = Math.max(1.5, tile * 0.08);
+      ctx.globalAlpha = 0.6 + 0.4 * Math.sin(this.clock * 6);
+      ctx.strokeRect(t.x * tile + 1, t.y * tile + 1, tile - 2, tile - 2);
+      ctx.restore();
+    }
+  }
+
+  /** Teleport targeting: range circle plus a green/red preview under the pointer. */
+  private drawTeleport(game: Game) {
+    const src = game.teleportSource;
+    if (!src) return;
+    const { ctx, tile } = this;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(120,220,255,0.6)';
+    ctx.fillStyle = 'rgba(120,220,255,0.05)';
+    ctx.setLineDash([tile * 0.3, tile * 0.3]);
+    ctx.lineDashOffset = -this.clock * tile;
+    ctx.beginPath();
+    ctx.arc((src.x + 0.5) * tile, (src.y + 0.5) * tile, toTiles(SLATE_TELEPORT_RANGE) * tile, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+    const h = this.hover ?? this.cursor;
+    if (h && game.inBounds(h.x, h.y)) {
+      ctx.fillStyle = game.isTeleportTarget(h.x, h.y) ? COLORS.ok : COLORS.bad;
+      ctx.fillRect(h.x * tile, h.y * tile, tile, tile);
     }
   }
 
@@ -625,7 +692,8 @@ export class Renderer {
       ctx.stroke();
       ctx.restore();
     };
-    if (!a.noAttack) circle(TOWERS[t.id].range, hexA(palette.base, 0.55), hexA(palette.base, 0.05), true);
+    if (!a.noAttack) circle(Math.max(TOWERS[t.id].range, 96), hexA(palette.base, 0.55), hexA(palette.base, 0.05), true);
+    if (a.airRange) circle(a.airRange, 'rgba(200,180,255,0.55)', 'rgba(200,180,255,0.03)', true);
     const aura = a.auraSpeed ?? a.auraDamage ?? a.armorAura;
     if (aura) circle(aura.range, 'rgba(120,255,160,0.5)', 'rgba(120,255,160,0.04)', false);
     if (a.burn) circle(a.burn.range, 'rgba(255,140,60,0.6)', 'rgba(255,140,60,0.06)', false);

@@ -2,6 +2,7 @@ import { CHECKPOINTS, GRID, type Point } from '../game/config';
 import { findRoute } from '../game/path';
 import { GEM_INFO, isSpecial, towerColor } from '../data/gems';
 import type { RemoteBoard } from '../net/match';
+import { isSlate } from '../data/slates';
 
 /** Small read-only view of the opponent's board, drawn from network snapshots. */
 export class MiniRenderer {
@@ -42,7 +43,7 @@ export class MiniRenderer {
     if (this.routeVersion !== board.layoutVersion) {
       this.routeVersion = board.layoutVersion;
       const blocked = new Set<number>(layout.rocks);
-      for (const [, x, y] of layout.towers) blocked.add(y * GRID + x);
+      for (const [id, x, y] of layout.towers) if (!isSlate(id)) blocked.add(y * GRID + x);
       this.route = findRoute((x, y) => blocked.has(y * GRID + x)) ?? [];
     }
 
@@ -62,6 +63,13 @@ export class MiniRenderer {
     for (const k of layout.rocks) ctx.fillRect((k % GRID) * tile + 1, Math.floor(k / GRID) * tile + 1, tile - 2, tile - 2);
 
     for (const [id, x, y] of layout.towers) {
+      if (isSlate(id)) {
+        ctx.fillStyle = towerColor(id);
+        ctx.globalAlpha = 0.6;
+        ctx.fillRect(x * tile + 1, y * tile + 1, tile - 2, tile - 2);
+        ctx.globalAlpha = 1;
+        continue;
+      }
       const cx = (x + 0.5) * tile, cy = (y + 0.5) * tile;
       const r = tile * (isSpecial(id) ? 0.55 : 0.3 + 0.04 * (GEM_INFO[id]?.quality ?? 0));
       ctx.fillStyle = towerColor(id);

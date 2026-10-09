@@ -250,6 +250,11 @@ button.special {
   border-color: var(--special);
 }
 
+button.slate {
+  background: #0f4650;
+  border-color: #2bb5c4;
+}
+
 button.ghost {
   background: transparent;
   margin-left: auto;

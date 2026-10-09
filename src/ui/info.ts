@@ -1,4 +1,5 @@
 import { SWAP_COST, type Game } from '../game/game';
+import { SLATE_RECIPES, SLATE_SPECIALS, SLATE_TELEPORT_RANGE } from '../data/slates';
 import {
   BASE_GEMS, GEM_TYPES, GREAT, PERFECT, QUALITY_NAMES, RECIPES, TOWERS, abilityOf, describeAbility, displayName, towerColor,
 } from '../data/gems';
@@ -11,7 +12,7 @@ const dmgText = (id: string) => {
   return d.dmg + d.dice === 0 ? '—' : `${d.dmg + d.dice}–${d.dmg + d.dice * d.sides}`;
 };
 
-type Tab = 'combine' | 'specials' | 'upgrades';
+type Tab = 'combine' | 'specials' | 'slates' | 'upgrades';
 
 /** Full-screen reference overlay: combine rules, special recipes and upgrade trees. */
 export class InfoModal {
@@ -30,6 +31,7 @@ export class InfoModal {
           <div class="tabs">
             <button data-tab="combine">Combine</button>
             <button data-tab="specials">Special recipes</button>
+            <button data-tab="slates">Slates</button>
             <button data-tab="upgrades">Upgrade paths</button>
           </div>
           <button class="ghost close" data-close aria-label="Close">✕</button>
@@ -65,7 +67,8 @@ export class InfoModal {
     this.tab = tab;
     this.root.hidden = false;
     this.root.querySelectorAll<HTMLElement>('[data-tab]').forEach((b) => b.classList.toggle('on', b.dataset.tab === tab));
-    this.body.innerHTML = tab === 'combine' ? this.combineHtml() : tab === 'specials' ? this.specialsHtml() : this.upgradesHtml();
+    this.body.innerHTML =
+      tab === 'combine' ? this.combineHtml() : tab === 'specials' ? this.specialsHtml() : tab === 'slates' ? this.slatesHtml() : this.upgradesHtml();
     this.body.scrollTop = 0;
   }
 
@@ -128,6 +131,38 @@ export class InfoModal {
       <div class="table-wrap"><table class="recipes-table">
         <thead><tr><th>Special</th><th>Ingredients</th><th>Have</th><th>Ability</th></tr></thead>
         <tbody>${rows}</tbody>
+      </table></div>`;
+  }
+
+  private slatesHtml(): string {
+    const have = new Set(this.getGame().towers.map((t) => t.id));
+    const ing = (id: string) => `<span class="ing ${have.has(id) ? 'have' : ''}">${label(id)}</span>`;
+    const basic = SLATE_RECIPES.map((r) => `<tr>
+        <td class="res">${label(r.result)}</td>
+        <td>${ing(r.core)}<span class="plus">+</span>${r.partners.map(ing).join('<span class="plus">or</span>')}</td>
+        <td class="note">${esc(describeAbility(abilityOf(r.result)).join(', ') || `${TOWERS[r.result].dmg + TOWERS[r.result].dice} damage`)}</td>
+      </tr>`).join('');
+    const special = SLATE_SPECIALS.map((s) => `<tr>
+        <td class="res">${label(s.result)}</td>
+        <td>${s.ingredients.map(ing).join('<span class="plus">+</span>')}</td>
+        <td class="note">${esc(describeAbility(abilityOf(s.result)).join(', '))}</td>
+      </tr>`).join('');
+    return `
+      <ul class="rules">
+        <li>Slates lie flat on the ground: <b>creeps walk over them</b>, so put them right on the path. They do not block the maze.</li>
+        <li>To create one: among this round's 5 gems, select the <b>Normal</b> gem and have one of its <b>Flawed</b> partners placed too, then press <b>Create slate</b>. The other gems become rocks.</li>
+        <li>Two slates combine into a <b>special slate</b> at any time (the partner slate is used up).</li>
+        <li><b>Teleport</b>: each slate can move once, within ${SLATE_TELEPORT_RANGE} range. Slates of the same kind (or their combination) cannot sit next to each other.</li>
+      </ul>
+      <h3>Basic slates</h3>
+      <div class="table-wrap"><table class="recipes-table">
+        <thead><tr><th>Slate</th><th>Normal gem + Flawed partner</th><th>Ability</th></tr></thead>
+        <tbody>${basic}</tbody>
+      </table></div>
+      <h3 style="margin-top:14px">Special slates</h3>
+      <div class="table-wrap"><table class="recipes-table">
+        <thead><tr><th>Slate</th><th>Slates</th><th>Ability</th></tr></thead>
+        <tbody>${special}</tbody>
       </table></div>`;
   }
 

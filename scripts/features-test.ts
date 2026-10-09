@@ -103,4 +103,67 @@ function chooseRound(game: Game, y: number) {
   g.gold = 1000;
   assert(g.upgradeTower(a, 'h02K') && !a.swapUsed, 'upgrading renews swap');
 }
+// ---------- slates ----------
+{
+  const g = new Game({ seed: 21 });
+  // put the future slate on a tile the creeps currently walk through
+  const onRoute = g.route[12];
+  assert(g.placeGem(onRoute.x, onRoute.y), 'placed a gem on the route');
+  for (let x = 20; x < 24; x++) g.placeGem(x, 30);
+  const [core, partner] = g.freshTowers;
+  core.id = 'h00H'; // Amethyst
+  partner.id = 'h009'; // Flawed Emerald
+  const opts = g.slateOptions(core);
+  assert(opts.length === 1 && opts[0].result === 'n000', 'Amethyst + Flawed Emerald offers an Air Slate');
+  assert(g.slateOptions(partner).length === 0, 'the Flawed partner itself cannot become the slate');
+  const routeBlocked = g.route.some((p) => p.x === onRoute.x && p.y === onRoute.y);
+  assert(!routeBlocked, 'while it is a gem, the route avoids that tile');
+  g.createSlate(core, opts[0]);
+  assert(core.id === 'n000' && g.rocks.size === 4 && g.phase === 'wave', 'slate created, other four gems became rocks, wave started');
+  assert(g.route.some((p) => p.x === onRoute.x && p.y === onRoute.y), 'creeps walk over the slate again');
+  assert(!g.canPlace(onRoute.x, onRoute.y), 'cannot build on a slate');
+  assert(!g.isSwapTarget(onRoute.x, onRoute.y), 'slates are not swap targets');
+
+  // the Air Slate fights while creeps walk over it
+  let fired = false;
+  for (let i = 0; i < 60 * 60 && g.phase === 'wave'; i++) {
+    g.update(1 / 60);
+    if (g.events.some((e) => e.type === 'fire' && e.tower === core)) fired = true;
+    g.events.length = 0;
+  }
+  assert(fired, 'Air Slate attacked creeps walking over it');
+  assert(core.kills > 0 || g.stats.kills > 0, `creeps died (slate kills ${core.kills})`);
+
+  // teleport once
+  assert(g.canTeleport(core) && g.beginTeleport(core), 'teleport mode started');
+  assert(!g.isTeleportTarget(36, 36), 'cannot teleport out of range');
+  const dest = { x: core.x + 2, y: core.y };
+  while (!g.isTeleportTarget(dest.x, dest.y)) dest.y++;
+  assert(g.teleportTo(dest.x, dest.y) && core.x === dest.x && core.y === dest.y, 'slate teleported');
+  assert(!g.canTeleport(core), 'teleport is single-use');
+
+  // second round: a Hold Slate, then combine Air + Hold into Ancient
+  while (g.phase === 'wave') g.update(1 / 30);
+  const route2 = g.route[20];
+  g.placeGem(route2.x, route2.y);
+  for (let x = 20; x < 24; x++) g.placeGem(x, 33);
+  const [core2, partner2] = g.freshTowers;
+  core2.id = 'e002'; // Topaz
+  partner2.id = 'h00B'; // Flawed Sapphire
+  g.createSlate(core2, g.slateOptions(core2)[0]);
+  assert(core2.id === 'n002', 'Hold Slate created');
+  let held = false;
+  for (let i = 0; i < 60 * 90 && g.phase === 'wave'; i++) {
+    g.update(1 / 60);
+    if (g.events.some((e) => e.type === 'hold')) held = true;
+    g.events.length = 0;
+  }
+  assert(held, 'Hold Slate grabbed a creep');
+  const combos = g.slateSpecialOptions(core);
+  assert(combos.length === 1 && combos[0].result === 'n003', 'Air + Hold can become an Ancient Slate');
+  const [px, py] = [core2.x, core2.y];
+  assert(g.combineSlates(core, 'n003') && core.id === 'n003', 'Ancient Slate created');
+  assert(!g.towerAt(px, py) && !g.isRock(px, py), 'the used Hold Slate leaves an empty tile');
+}
+
 console.log('all feature checks passed');
