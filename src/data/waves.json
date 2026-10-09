@@ -1,0 +1,766 @@
+{
+ "classic": [
+  {
+   "id": "h00D",
+   "name": "Summon Egg",
+   "hp": 10,
+   "speed": 265,
+   "armor": 0,
+   "bounty": 1,
+   "lives": 1,
+   "air": false
+  },
+  {
+   "id": "h00Z",
+   "name": "Mini Gecko",
+   "hp": 25,
+   "speed": 265,
+   "armor": 0,
+   "bounty": 1,
+   "lives": 1,
+   "air": false
+  },
+  {
+   "id": "h010",
+   "name": "Cute Chicken",
+   "hp": 50,
+   "speed": 265,
+   "armor": 0,
+   "bounty": 1,
+   "lives": 1,
+   "air": false
+  },
+  {
+   "id": "h011",
+   "name": "Bat",
+   "hp": 100,
+   "speed": 230,
+   "armor": 0,
+   "bounty": 2,
+   "lives": 2,
+   "air": true
+  },
+  {
+   "id": "h012",
+   "name": "Rockmen",
+   "hp": 100,
+   "speed": 200,
+   "armor": 0,
+   "bounty": 2,
+   "lives": 2,
+   "air": false
+  },
+  {
+   "id": "h013",
+   "name": "Bigger Rockmen",
+   "hp": 150,
+   "speed": 275,
+   "armor": 0,
+   "bounty": 2,
+   "lives": 2,
+   "air": false
+  },
+  {
+   "id": "h01C",
+   "name": "Summon",
+   "hp": 444,
+   "speed": 285,
+   "armor": 0,
+   "bounty": 20,
+   "lives": 2,
+   "air": false
+  },
+  {
+   "id": "h01D",
+   "name": "Flying Machine",
+   "hp": 260,
+   "speed": 230,
+   "armor": 0,
+   "bounty": 4,
+   "lives": 3,
+   "air": true
+  },
+  {
+   "id": "h01E",
+   "name": "Hoodsmen",
+   "hp": 230,
+   "speed": 285,
+   "armor": 0,
+   "bounty": 3,
+   "lives": 3,
+   "air": false
+  },
+  {
+   "id": "h01F",
+   "name": "Merc",
+   "hp": 450,
+   "speed": 285,
+   "armor": 1,
+   "bounty": 3,
+   "lives": 3,
+   "air": false
+  },
+  {
+   "id": "h01G",
+   "name": "Giant Slug",
+   "hp": 530,
+   "speed": 285,
+   "armor": 1,
+   "bounty": 3,
+   "lives": 3,
+   "air": false
+  },
+  {
+   "id": "h01H",
+   "name": "Green Dragon",
+   "hp": 600,
+   "speed": 250,
+   "armor": 1,
+   "bounty": 5,
+   "lives": 4,
+   "air": true
+  },
+  {
+   "id": "h01I",
+   "name": "Long spider",
+   "hp": 750,
+   "speed": 295,
+   "armor": 1,
+   "bounty": 4,
+   "lives": 4,
+   "air": false
+  },
+  {
+   "id": "h01J",
+   "name": "Summon",
+   "hp": 4567,
+   "speed": 295,
+   "armor": 1,
+   "bounty": 30,
+   "lives": 4,
+   "air": false
+  },
+  {
+   "id": "h01K",
+   "name": "Demon",
+   "hp": 1050,
+   "speed": 295,
+   "armor": 1,
+   "bounty": 4,
+   "lives": 4,
+   "air": false
+  },
+  {
+   "id": "h01L",
+   "name": "Bird",
+   "hp": 1300,
+   "speed": 250,
+   "armor": 1,
+   "bounty": 6,
+   "lives": 5,
+   "air": true
+  },
+  {
+   "id": "h01M",
+   "name": "Raider",
+   "hp": 1050,
+   "speed": 295,
+   "armor": 1,
+   "bounty": 5,
+   "lives": 5,
+   "air": false
+  },
+  {
+   "id": "h01P",
+   "name": "Razormane",
+   "hp": 1200,
+   "speed": 300,
+   "armor": 1,
+   "bounty": 5,
+   "lives": 5,
+   "air": false
+  },
+  {
+   "id": "h01Q",
+   "name": "Water",
+   "hp": 1500,
+   "speed": 300,
+   "armor": 1,
+   "bounty": 5,
+   "lives": 5,
+   "air": false
+  },
+  {
+   "id": "h01R",
+   "name": "Tamed Bird",
+   "hp": 4200,
+   "speed": 280,
+   "armor": 1,
+   "bounty": 7,
+   "lives": 6,
+   "air": true
+  },
+  {
+   "id": "h01S",
+   "name": "Summon",
+   "hp": 23456,
+   "speed": 315,
+   "armor": 0,
+   "bounty": 60,
+   "lives": 6,
+   "air": false
+  },
+  {
+   "id": "h01T",
+   "name": "Mine Cart",
+   "hp": 1950,
+   "speed": 315,
+   "armor": 0,
+   "bounty": 6,
+   "lives": 6,
+   "air": false
+  },
+  {
+   "id": "h01U",
+   "name": "Dead Miner",
+   "hp": 2250,
+   "speed": 315,
+   "armor": 0,
+   "bounty": 6,
+   "lives": 6,
+   "air": false
+  },
+  {
+   "id": "h01X",
+   "name": "Ghost Bird",
+   "hp": 8800,
+   "speed": 280,
+   "armor": 1,
+   "bounty": 8,
+   "lives": 7,
+   "air": true
+  },
+  {
+   "id": "h01Y",
+   "name": "Mine Disease",
+   "hp": 3000,
+   "speed": 335,
+   "armor": 0,
+   "bounty": 7,
+   "lives": 7,
+   "air": false
+  },
+  {
+   "id": "h01Z",
+   "name": "Wild Pig",
+   "hp": 3750,
+   "speed": 340,
+   "armor": 0,
+   "bounty": 7,
+   "lives": 7,
+   "air": false
+  },
+  {
+   "id": "h020",
+   "name": "Kitty",
+   "hp": 3750,
+   "speed": 340,
+   "armor": 0,
+   "bounty": 7,
+   "lives": 7,
+   "air": false
+  },
+  {
+   "id": "h021",
+   "name": "Summon Air",
+   "hp": 22000,
+   "speed": 275,
+   "armor": 10,
+   "bounty": 40,
+   "lives": 8,
+   "air": true
+  },
+  {
+   "id": "h022",
+   "name": "Turtle",
+   "hp": 5250,
+   "speed": 345,
+   "armor": 0,
+   "bounty": 8,
+   "lives": 8,
+   "air": false
+  },
+  {
+   "id": "h023",
+   "name": "Orge Lord",
+   "hp": 5250,
+   "speed": 350,
+   "armor": 3,
+   "bounty": 8,
+   "lives": 8,
+   "air": false
+  },
+  {
+   "id": "h024",
+   "name": "Blue Panda",
+   "hp": 6000,
+   "speed": 350,
+   "armor": 3,
+   "bounty": 8,
+   "lives": 8,
+   "air": false
+  },
+  {
+   "id": "h025",
+   "name": "Black Dragon",
+   "hp": 38000,
+   "speed": 320,
+   "armor": 0,
+   "bounty": 10,
+   "lives": 9,
+   "air": true
+  },
+  {
+   "id": "h026",
+   "name": "Warlock Orc",
+   "hp": 7500,
+   "speed": 355,
+   "armor": 3,
+   "bounty": 9,
+   "lives": 9,
+   "air": false
+  },
+  {
+   "id": "h028",
+   "name": "Succubus",
+   "hp": 7800,
+   "speed": 355,
+   "armor": 3,
+   "bounty": 9,
+   "lives": 9,
+   "air": false
+  },
+  {
+   "id": "h02A",
+   "name": "Summon",
+   "hp": 234567,
+   "speed": 355,
+   "armor": 40,
+   "bounty": 90,
+   "lives": 9,
+   "air": false
+  },
+  {
+   "id": "h02B",
+   "name": "Red Dragon",
+   "hp": 66000,
+   "speed": 320,
+   "armor": 0,
+   "bounty": 11,
+   "lives": 10,
+   "air": true
+  },
+  {
+   "id": "h02C",
+   "name": "Tauren",
+   "hp": 10500,
+   "speed": 360,
+   "armor": 3,
+   "bounty": 10,
+   "lives": 10,
+   "air": false
+  },
+  {
+   "id": "h02D",
+   "name": "Tauren Chief",
+   "hp": 12000,
+   "speed": 365,
+   "armor": 3,
+   "bounty": 10,
+   "lives": 10,
+   "air": false
+  },
+  {
+   "id": "h02E",
+   "name": "Prisoner",
+   "hp": 13500,
+   "speed": 365,
+   "armor": 3,
+   "bounty": 10,
+   "lives": 10,
+   "air": false
+  },
+  {
+   "id": "h02F",
+   "name": "Spirit Bird",
+   "hp": 150000,
+   "speed": 330,
+   "armor": 0,
+   "bounty": 12,
+   "lives": 11,
+   "air": true
+  },
+  {
+   "id": "h02G",
+   "name": "Kon",
+   "hp": 30000,
+   "speed": 380,
+   "armor": 7,
+   "bounty": 20,
+   "lives": 11,
+   "air": false
+  },
+  {
+   "id": "h02H",
+   "name": "Summon",
+   "hp": 456789,
+   "speed": 410,
+   "armor": 100,
+   "bounty": 120,
+   "lives": 16,
+   "air": false
+  },
+  {
+   "id": "h04C",
+   "name": "NecroGem",
+   "hp": 60000,
+   "speed": 400,
+   "armor": 15,
+   "bounty": 30,
+   "lives": 16,
+   "air": false
+  },
+  {
+   "id": "h04I",
+   "name": "Wisp",
+   "hp": 420000,
+   "speed": 370,
+   "armor": 20,
+   "bounty": 20,
+   "lives": 16,
+   "air": true
+  },
+  {
+   "id": "h04D",
+   "name": "Scorpion",
+   "hp": 90000,
+   "speed": 400,
+   "armor": 15,
+   "bounty": 40,
+   "lives": 18,
+   "air": false
+  },
+  {
+   "id": "h04E",
+   "name": "MaulMorl",
+   "hp": 120000,
+   "speed": 400,
+   "armor": 15,
+   "bounty": 50,
+   "lives": 18,
+   "air": false
+  },
+  {
+   "id": "h04F",
+   "name": "PitBoss",
+   "hp": 200000,
+   "speed": 400,
+   "armor": 15,
+   "bounty": 60,
+   "lives": 18,
+   "air": false
+  },
+  {
+   "id": "h04J",
+   "name": "Phoenix",
+   "hp": 500000,
+   "speed": 380,
+   "armor": 50,
+   "bounty": 50,
+   "lives": 20,
+   "air": true
+  },
+  {
+   "id": "h04G",
+   "name": "Summon",
+   "hp": 500000,
+   "speed": 500,
+   "armor": 150,
+   "bounty": 150,
+   "lives": 20,
+   "air": false
+  },
+  {
+   "id": "h04H",
+   "name": "MadMiner",
+   "hp": 500000,
+   "speed": 522,
+   "armor": 350,
+   "bounty": 100,
+   "lives": 20,
+   "air": false
+  }
+ ],
+ "extreme": {
+  "17": {
+   "id": "h02I",
+   "name": "Extreme Raider",
+   "hp": 1350,
+   "speed": 325,
+   "armor": 1,
+   "bounty": 5,
+   "lives": 5,
+   "air": false
+  },
+  "18": {
+   "id": "h037",
+   "name": "Extreme Razormane",
+   "hp": 1440,
+   "speed": 325,
+   "armor": 1,
+   "bounty": 5,
+   "lives": 5,
+   "air": false
+  },
+  "19": {
+   "id": "h038",
+   "name": "Extreme Water",
+   "hp": 2040,
+   "speed": 350,
+   "armor": 1,
+   "bounty": 5,
+   "lives": 5,
+   "air": false
+  },
+  "21": {
+   "id": "h039",
+   "name": "Summon",
+   "hp": 23456,
+   "speed": 400,
+   "armor": 0,
+   "bounty": 60,
+   "lives": 6,
+   "air": false
+  },
+  "22": {
+   "id": "h03A",
+   "name": "Extreme Mine Cart",
+   "hp": 2700,
+   "speed": 420,
+   "armor": 0,
+   "bounty": 6,
+   "lives": 6,
+   "air": false
+  },
+  "23": {
+   "id": "h03B",
+   "name": "Extreme Dead Miner",
+   "hp": 3300,
+   "speed": 440,
+   "armor": 0,
+   "bounty": 6,
+   "lives": 6,
+   "air": false
+  },
+  "25": {
+   "id": "h03C",
+   "name": "Extreme Mine Disease",
+   "hp": 4050,
+   "speed": 435,
+   "armor": 0,
+   "bounty": 7,
+   "lives": 7,
+   "air": false
+  },
+  "26": {
+   "id": "h03D",
+   "name": "Extreme Sb",
+   "hp": 5250,
+   "speed": 440,
+   "armor": 0,
+   "bounty": 7,
+   "lives": 7,
+   "air": false
+  },
+  "27": {
+   "id": "h03E",
+   "name": "Extreme Kitty",
+   "hp": 6000,
+   "speed": 445,
+   "armor": 0,
+   "bounty": 7,
+   "lives": 7,
+   "air": false
+  },
+  "29": {
+   "id": "h03F",
+   "name": "Extreme Turtle",
+   "hp": 7500,
+   "speed": 450,
+   "armor": 0,
+   "bounty": 8,
+   "lives": 8,
+   "air": false
+  },
+  "30": {
+   "id": "h03G",
+   "name": "Extreme Orge Lord",
+   "hp": 9000,
+   "speed": 455,
+   "armor": 3,
+   "bounty": 8,
+   "lives": 8,
+   "air": false
+  },
+  "31": {
+   "id": "h03H",
+   "name": "Extreme Red Panda",
+   "hp": 9720,
+   "speed": 460,
+   "armor": 3,
+   "bounty": 8,
+   "lives": 8,
+   "air": false
+  },
+  "33": {
+   "id": "h03I",
+   "name": "Extreme Warlock Orc",
+   "hp": 11250,
+   "speed": 465,
+   "armor": 3,
+   "bounty": 9,
+   "lives": 9,
+   "air": false
+  },
+  "34": {
+   "id": "h03J",
+   "name": "Extreme Succubus",
+   "hp": 12750,
+   "speed": 470,
+   "armor": 3,
+   "bounty": 9,
+   "lives": 9,
+   "air": false
+  },
+  "35": {
+   "id": "h03K",
+   "name": "Summon",
+   "hp": 234567,
+   "speed": 475,
+   "armor": 40,
+   "bounty": 90,
+   "lives": 9,
+   "air": false
+  },
+  "37": {
+   "id": "h03L",
+   "name": "Extreme Tauren",
+   "hp": 16500,
+   "speed": 480,
+   "armor": 3,
+   "bounty": 10,
+   "lives": 10,
+   "air": false
+  },
+  "38": {
+   "id": "h03M",
+   "name": "Extreme Tauren Chief",
+   "hp": 18000,
+   "speed": 485,
+   "armor": 3,
+   "bounty": 10,
+   "lives": 10,
+   "air": false
+  },
+  "39": {
+   "id": "h03N",
+   "name": "Extreme Prisoner",
+   "hp": 18000,
+   "speed": 490,
+   "armor": 3,
+   "bounty": 10,
+   "lives": 10,
+   "air": false
+  },
+  "41": {
+   "id": "h03O",
+   "name": "Extreme Kon",
+   "hp": 30000,
+   "speed": 522,
+   "armor": 10,
+   "bounty": 20,
+   "lives": 11,
+   "air": false
+  },
+  "42": {
+   "id": "h03P",
+   "name": "Summon",
+   "hp": 456789,
+   "speed": 410,
+   "armor": 100,
+   "bounty": 120,
+   "lives": 16,
+   "air": false
+  },
+  "43": {
+   "id": "h04K",
+   "name": "Extreme Mingo",
+   "hp": 40000,
+   "speed": 522,
+   "armor": 10,
+   "bounty": 30,
+   "lives": 16,
+   "air": false
+  },
+  "45": {
+   "id": "h04L",
+   "name": "Extreme Tiger Bear",
+   "hp": 60000,
+   "speed": 522,
+   "armor": 10,
+   "bounty": 40,
+   "lives": 18,
+   "air": false
+  },
+  "46": {
+   "id": "h04M",
+   "name": "Extreme Jax",
+   "hp": 120000,
+   "speed": 522,
+   "armor": 15,
+   "bounty": 50,
+   "lives": 18,
+   "air": false
+  },
+  "47": {
+   "id": "h04N",
+   "name": "Extreme Pickled Lobster",
+   "hp": 200000,
+   "speed": 522,
+   "armor": 15,
+   "bounty": 60,
+   "lives": 18,
+   "air": false
+  },
+  "49": {
+   "id": "h04O",
+   "name": "Summon",
+   "hp": 500000,
+   "speed": 460,
+   "armor": 150,
+   "bounty": 150,
+   "lives": 20,
+   "air": false
+  },
+  "50": {
+   "id": "h04P",
+   "name": "Extreme BRYVX",
+   "hp": 500000,
+   "speed": 522,
+   "armor": 350,
+   "bounty": 100,
+   "lives": 20,
+   "air": false
+  }
+ }
+}

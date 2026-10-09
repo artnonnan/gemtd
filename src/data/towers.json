@@ -1,0 +1,1370 @@
+{
+ "h000": {
+  "name": "Chipped Diamond",
+  "dmg": 6,
+  "sides": 2,
+  "dice": 1,
+  "cd": 0.8,
+  "range": 700,
+  "cost": 0,
+  "upgrades": [],
+  "tip": ""
+ },
+ "e000": {
+  "name": "Chipped Topaz",
+  "dmg": 10,
+  "sides": 1,
+  "dice": 1,
+  "cd": 0.8,
+  "range": 400,
+  "cost": 0,
+  "upgrades": [],
+  "tip": ""
+ },
+ "h001": {
+  "name": "Chipped Sapphire",
+  "dmg": 6,
+  "sides": 2,
+  "dice": 1,
+  "cd": 0.8,
+  "range": 600,
+  "cost": 0,
+  "upgrades": [],
+  "tip": ""
+ },
+ "h002": {
+  "name": "Chipped Emerald",
+  "dmg": 5,
+  "sides": 2,
+  "dice": 1,
+  "cd": 0.8,
+  "range": 400,
+  "cost": 0,
+  "upgrades": [],
+  "tip": ""
+ },
+ "h003": {
+  "name": "Chipped Opal",
+  "dmg": 5,
+  "sides": 1,
+  "dice": 1,
+  "cd": 0.8,
+  "range": 700,
+  "cost": 0,
+  "upgrades": [],
+  "tip": ""
+ },
+ "h004": {
+  "name": "Chipped Amethyst",
+  "dmg": 8,
+  "sides": 2,
+  "dice": 1,
+  "cd": 0.8,
+  "range": 1000,
+  "cost": 0,
+  "upgrades": [],
+  "tip": ""
+ },
+ "h005": {
+  "name": "Chipped Ruby",
+  "dmg": 5,
+  "sides": 1,
+  "dice": 1,
+  "cd": 0.1,
+  "range": 800,
+  "cost": 0,
+  "upgrades": [],
+  "tip": ""
+ },
+ "h007": {
+  "name": "Flawed Amethyst",
+  "dmg": 18,
+  "sides": 4,
+  "dice": 1,
+  "cd": 1.0,
+  "range": 1200,
+  "cost": 0,
+  "upgrades": [],
+  "tip": ""
+ },
+ "h008": {
+  "name": "Flawed Diamond",
+  "dmg": 11,
+  "sides": 3,
+  "dice": 1,
+  "cd": 1.0,
+  "range": 700,
+  "cost": 0,
+  "upgrades": [],
+  "tip": ""
+ },
+ "h009": {
+  "name": "Flawed Emerald",
+  "dmg": 13,
+  "sides": 2,
+  "dice": 1,
+  "cd": 1.0,
+  "range": 700,
+  "cost": 0,
+  "upgrades": [],
+  "tip": ""
+ },
+ "h00A": {
+  "name": "Flawed Opal",
+  "dmg": 13,
+  "sides": 1,
+  "dice": 1,
+  "cd": 1.0,
+  "range": 700,
+  "cost": 0,
+  "upgrades": [],
+  "tip": ""
+ },
+ "h00B": {
+  "name": "Flawed Sapphire",
+  "dmg": 13,
+  "sides": 2,
+  "dice": 1,
+  "cd": 1.0,
+  "range": 750,
+  "cost": 0,
+  "upgrades": [],
+  "tip": ""
+ },
+ "h00C": {
+  "name": "Flawed Ruby",
+  "dmg": 14,
+  "sides": 3,
+  "dice": 1,
+  "cd": 1.0,
+  "range": 800,
+  "cost": 0,
+  "upgrades": [],
+  "tip": ""
+ },
+ "e001": {
+  "name": "Flawed Topaz",
+  "dmg": 21,
+  "sides": 1,
+  "dice": 1,
+  "cd": 1.0,
+  "range": 500,
+  "cost": 0,
+  "upgrades": [],
+  "tip": ""
+ },
+ "h00H": {
+  "name": "Amethyst",
+  "dmg": 31,
+  "sides": 3,
+  "dice": 1,
+  "cd": 1.0,
+  "range": 1600,
+  "cost": 0,
+  "upgrades": [],
+  "tip": ""
+ },
+ "h00I": {
+  "name": "Diamond",
+  "dmg": 20,
+  "sides": 4,
+  "dice": 1,
+  "cd": 1.0,
+  "range": 1000,
+  "cost": 0,
+  "upgrades": [],
+  "tip": ""
+ },
+ "h00J": {
+  "name": "Emerald",
+  "dmg": 20,
+  "sides": 6,
+  "dice": 1,
+  "cd": 1.0,
+  "range": 600,
+  "cost": 0,
+  "upgrades": [],
+  "tip": ""
+ },
+ "h00K": {
+  "name": "Opal",
+  "dmg": 21,
+  "sides": 1,
+  "dice": 1,
+  "cd": 1.0,
+  "range": 800,
+  "cost": 0,
+  "upgrades": [],
+  "tip": ""
+ },
+ "h00L": {
+  "name": "Sapphire",
+  "dmg": 20,
+  "sides": 4,
+  "dice": 1,
+  "cd": 1.0,
+  "range": 800,
+  "cost": 0,
+  "upgrades": [],
+  "tip": ""
+ },
+ "h00M": {
+  "name": "Ruby",
+  "dmg": 24,
+  "sides": 4,
+  "dice": 1,
+  "cd": 1.0,
+  "range": 800,
+  "cost": 0,
+  "upgrades": [],
+  "tip": ""
+ },
+ "e002": {
+  "name": "Topaz",
+  "dmg": 32,
+  "sides": 1,
+  "dice": 1,
+  "cd": 1.0,
+  "range": 500,
+  "cost": 0,
+  "upgrades": [],
+  "tip": ""
+ },
+ "h00N": {
+  "name": "Flawless Amethyst",
+  "dmg": 45,
+  "sides": 6,
+  "dice": 1,
+  "cd": 1.0,
+  "range": 1350,
+  "cost": 0,
+  "upgrades": [],
+  "tip": ""
+ },
+ "h00O": {
+  "name": "Flawless Diamond",
+  "dmg": 30,
+  "sides": 4,
+  "dice": 1,
+  "cd": 1.0,
+  "range": 700,
+  "cost": 0,
+  "upgrades": [],
+  "tip": ""
+ },
+ "h00P": {
+  "name": "Flawless Opal",
+  "dmg": 32,
+  "sides": 1,
+  "dice": 1,
+  "cd": 1.0,
+  "range": 900,
+  "cost": 0,
+  "upgrades": [],
+  "tip": ""
+ },
+ "h00Q": {
+  "name": "Flawless Sapphire",
+  "dmg": 32,
+  "sides": 1,
+  "dice": 1,
+  "cd": 1.0,
+  "range": 800,
+  "cost": 0,
+  "upgrades": [],
+  "tip": ""
+ },
+ "e003": {
+  "name": "Flawless Topaz",
+  "dmg": 43,
+  "sides": 1,
+  "dice": 1,
+  "cd": 1.0,
+  "range": 500,
+  "cost": 0,
+  "upgrades": [],
+  "tip": ""
+ },
+ "h00R": {
+  "name": "Flawless Ruby",
+  "dmg": 35,
+  "sides": 5,
+  "dice": 1,
+  "cd": 1.0,
+  "range": 800,
+  "cost": 0,
+  "upgrades": [],
+  "tip": ""
+ },
+ "h00S": {
+  "name": "Flawless Emerald",
+  "dmg": 31,
+  "sides": 4,
+  "dice": 1,
+  "cd": 1.0,
+  "range": 700,
+  "cost": 0,
+  "upgrades": [],
+  "tip": ""
+ },
+ "e004": {
+  "name": "Perfect Topaz",
+  "dmg": 65,
+  "sides": 1,
+  "dice": 1,
+  "cd": 1.0,
+  "range": 600,
+  "cost": 0,
+  "upgrades": [],
+  "tip": ""
+ },
+ "h00T": {
+  "name": "Perfect Ruby",
+  "dmg": 54,
+  "sides": 10,
+  "dice": 1,
+  "cd": 1.0,
+  "range": 1200,
+  "cost": 0,
+  "upgrades": [],
+  "tip": ""
+ },
+ "h00U": {
+  "name": "Perfect Emerald",
+  "dmg": 54,
+  "sides": 8,
+  "dice": 1,
+  "cd": 1.0,
+  "range": 800,
+  "cost": 0,
+  "upgrades": [],
+  "tip": ""
+ },
+ "h00V": {
+  "name": "Perfect Amethyst",
+  "dmg": 65,
+  "sides": 11,
+  "dice": 1,
+  "cd": 1.0,
+  "range": 1200,
+  "cost": 0,
+  "upgrades": [],
+  "tip": ""
+ },
+ "h00W": {
+  "name": "Perfect Sapphire",
+  "dmg": 54,
+  "sides": 11,
+  "dice": 1,
+  "cd": 1.0,
+  "range": 1000,
+  "cost": 0,
+  "upgrades": [],
+  "tip": ""
+ },
+ "h00X": {
+  "name": "Perfect Opal",
+  "dmg": 49,
+  "sides": 1,
+  "dice": 1,
+  "cd": 1.0,
+  "range": 1000,
+  "cost": 0,
+  "upgrades": [],
+  "tip": ""
+ },
+ "h00Y": {
+  "name": "Perfect Diamond",
+  "dmg": 54,
+  "sides": 1,
+  "dice": 1,
+  "cd": 1.0,
+  "range": 1000,
+  "cost": 0,
+  "upgrades": [],
+  "tip": ""
+ },
+ "h014": {
+  "name": "Yellow Sapphire",
+  "dmg": 99,
+  "sides": 1,
+  "dice": 1,
+  "cd": 1.0,
+  "range": 800,
+  "cost": 100,
+  "upgrades": [
+   "h02R"
+  ],
+  "tip": ""
+ },
+ "h015": {
+  "name": "Black Opal",
+  "dmg": 74,
+  "sides": 1,
+  "dice": 1,
+  "cd": 1.0,
+  "range": 800,
+  "cost": 100,
+  "upgrades": [
+   "h02K"
+  ],
+  "tip": ""
+ },
+ "h016": {
+  "name": "Star Ruby",
+  "dmg": 37,
+  "sides": 6,
+  "dice": 1,
+  "cd": 1.0,
+  "range": 800,
+  "cost": 0,
+  "upgrades": [
+   "h02M"
+  ],
+  "tip": ""
+ },
+ "h017": {
+  "name": "Pink Diamond",
+  "dmg": 249,
+  "sides": 26,
+  "dice": 1,
+  "cd": 0.75,
+  "range": 800,
+  "cost": 100,
+  "upgrades": [
+   "h02P"
+  ],
+  "tip": ""
+ },
+ "h018": {
+  "name": "Jade",
+  "dmg": 29,
+  "sides": 6,
+  "dice": 1,
+  "cd": 0.5,
+  "range": 800,
+  "cost": 0,
+  "upgrades": [
+   "h02L"
+  ],
+  "tip": ""
+ },
+ "h019": {
+  "name": "Uranium 238",
+  "dmg": 0,
+  "sides": 1,
+  "dice": 1,
+  "cd": 1.0,
+  "range": 800,
+  "cost": 100,
+  "upgrades": [
+   "h02N"
+  ],
+  "tip": "Primary defensive structure. Can learn the Magic Sentry ability. Attacks land and air units."
+ },
+ "h01A": {
+  "name": "Silver",
+  "dmg": 19,
+  "sides": 6,
+  "dice": 1,
+  "cd": 1.0,
+  "range": 600,
+  "cost": 0,
+  "upgrades": [
+   "h02O"
+  ],
+  "tip": ""
+ },
+ "h01B": {
+  "name": "Gold",
+  "dmg": 159,
+  "sides": 31,
+  "dice": 1,
+  "cd": 1.0,
+  "range": 800,
+  "cost": 100,
+  "upgrades": [
+   "h02W"
+  ],
+  "tip": ""
+ },
+ "h01N": {
+  "name": "Dark Emerald",
+  "dmg": 89,
+  "sides": 51,
+  "dice": 1,
+  "cd": 0.8,
+  "range": 600,
+  "cost": 100,
+  "upgrades": [
+   "h02V"
+  ],
+  "tip": ""
+ },
+ "h01O": {
+  "name": "Blood Stone",
+  "dmg": 199,
+  "sides": 1,
+  "dice": 1,
+  "cd": 1.5,
+  "range": 700,
+  "cost": 100,
+  "upgrades": [
+   "h02U"
+  ],
+  "tip": "From this gem, you can upgrade to Hell or Extreme."
+ },
+ "h029": {
+  "name": "Red Crystal",
+  "dmg": 49,
+  "sides": 26,
+  "dice": 1,
+  "cd": 0.8,
+  "range": 1300,
+  "cost": 0,
+  "upgrades": [
+   "h02J"
+  ],
+  "tip": ""
+ },
+ "h02J": {
+  "name": "Red Facet",
+  "dmg": 99,
+  "sides": 51,
+  "dice": 1,
+  "cd": 0.8,
+  "range": 1400,
+  "cost": 50,
+  "upgrades": [
+   "h02Q"
+  ],
+  "tip": ""
+ },
+ "h02K": {
+  "name": "Mystic Black Opal",
+  "dmg": 169,
+  "sides": 1,
+  "dice": 1,
+  "cd": 1.0,
+  "range": 1000,
+  "cost": 275,
+  "upgrades": [
+   "h059"
+  ],
+  "tip": "Damage: 170                                  Cooldown: 1 seconds                        Abilities: 40% damage aura with 1200 range.                                                                           Range: 1000"
+ },
+ "h02L": {
+  "name": "China Jade",
+  "dmg": 49,
+  "sides": 1,
+  "dice": 1,
+  "cd": 0.5,
+  "range": 800,
+  "cost": 45,
+  "upgrades": [
+   "h035"
+  ],
+  "tip": "Damage: 50                                  Cooldown: 0.5 seconds                        Abilities: Slows targets 50% for 3 seconds.                                                                        Range: 800"
+ },
+ "h02M": {
+  "name": "Star",
+  "dmg": 59,
+  "sides": 6,
+  "dice": 1,
+  "cd": 1.0,
+  "range": 800,
+  "cost": 30,
+  "upgrades": [
+   "e006"
+  ],
+  "tip": "Abilities: 50 damage per second to units within 800 range."
+ },
+ "h02N": {
+  "name": "Uranium 235",
+  "dmg": 199,
+  "sides": 1,
+  "dice": 1,
+  "cd": 1.0,
+  "range": 900,
+  "cost": 190,
+  "upgrades": [
+   "h04Z"
+  ],
+  "tip": "Add Gamma rays which will deal 200 damage per second to enemies within 900 range."
+ },
+ "h02O": {
+  "name": "Sterling Silver",
+  "dmg": 69,
+  "sides": 1,
+  "dice": 1,
+  "cd": 1.0,
+  "range": 800,
+  "cost": 25,
+  "upgrades": [
+   "h033"
+  ],
+  "tip": "Damage: 70                                              Cooldown: 1 second                             Abilities: Cold splash damage.               Range: 800"
+ },
+ "h02P": {
+  "name": "Great Pink Diamond",
+  "dmg": 1999,
+  "sides": 1,
+  "dice": 1,
+  "cd": 0.65,
+  "range": 1000,
+  "cost": 300,
+  "upgrades": [
+   "n00H",
+   "h04T"
+  ],
+  "tip": "Damage: 2000                                  Cooldown: 0.65 seconds                        Abilities: 20% chance to do 20x damage. Ground units only.                                               Range: 1000"
+ },
+ "h02Q": {
+  "name": "Rose Quartz Crystal",
+  "dmg": 599,
+  "sides": 1,
+  "dice": 1,
+  "cd": 0.8,
+  "range": 1500,
+  "cost": 200,
+  "upgrades": [
+   "h02X"
+  ],
+  "tip": "Damage: 600                                  Cooldown: 0.8 seconds                           Abilities: -6 armor aura to air units. Attacks air and ground                                                    Range: 1500"
+ },
+ "h02R": {
+  "name": "Star Yellow Sapphire",
+  "dmg": 499,
+  "sides": 1,
+  "dice": 1,
+  "cd": 0.8,
+  "range": 900,
+  "cost": 180,
+  "upgrades": [
+   "h052"
+  ],
+  "tip": "Damage: 500                                           Cooldown: 0.8 seconds                              Abilities: 400 area of effect slows. Gives 20% Damage Aura to all towers within 1200 range."
+ },
+ "h02U": {
+  "name": "Ancient Blood Stone",
+  "dmg": 899,
+  "sides": 1,
+  "dice": 1,
+  "cd": 0.8,
+  "range": 900,
+  "cost": 200,
+  "upgrades": [
+   "h05E"
+  ],
+  "tip": "Damage: 900                                      Cooldown: 0.8 second                              Abilities: 10% chance to x10 damage. 10% chance to cast 350 damage per second Blood lightning. Max level gives 10% chance to deal x30 damage to all enemy."
+ },
+ "h02V": {
+  "name": "Enchanted Emerald",
+  "dmg": 349,
+  "sides": 51,
+  "dice": 1,
+  "cd": 0.7,
+  "range": 700,
+  "cost": 225,
+  "upgrades": [
+   "h058"
+  ],
+  "tip": "Damage: 350-400                                  Cooldown: 0.7 seconds                         Abilities: 12.5% chance to stun for 1.5 seconds. 25% chance to do 8x damage.                                                                  Range: 700"
+ },
+ "h02W": {
+  "name": "Egyptian Gold",
+  "dmg": 499,
+  "sides": 1,
+  "dice": 1,
+  "cd": 0.75,
+  "range": 800,
+  "cost": 400,
+  "upgrades": [
+   "h05D"
+  ],
+  "tip": "Damage: 500                                       Cooldown: 0.75 seconds                        Abilities: 30% chance to do 2x damage. Desolates 8 armor.                                                          Range: 800"
+ },
+ "h02X": {
+  "name": "Great Amethyst",
+  "dmg": 799,
+  "sides": 1,
+  "dice": 1,
+  "cd": 1.0,
+  "range": 1000,
+  "cost": 1000,
+  "upgrades": [
+   "hatw"
+  ],
+  "tip": "Damage: 800                                  Abilities: The Great Amethyst destroy -6 armor of all enemy within 1000 range."
+ },
+ "e005": {
+  "name": "Great Topaz",
+  "dmg": 299,
+  "sides": 1,
+  "dice": 1,
+  "cd": 0.6,
+  "range": 1200,
+  "cost": 1000,
+  "upgrades": [
+   "h058"
+  ],
+  "tip": ""
+ },
+ "h02Y": {
+  "name": "Great Ruby",
+  "dmg": 299,
+  "sides": 1,
+  "dice": 1,
+  "cd": 0.6,
+  "range": 1000,
+  "cost": 1000,
+  "upgrades": [
+   "h04V"
+  ],
+  "tip": "Damage: 300                                  Abilities: Any enemy within 1000 range, Great Ruby can attack 3 targets every half second."
+ },
+ "h02Z": {
+  "name": "Great Sapphire",
+  "dmg": 499,
+  "sides": 1,
+  "dice": 1,
+  "cd": 1.0,
+  "range": 1000,
+  "cost": 1000,
+  "upgrades": [
+   "h058"
+  ],
+  "tip": ""
+ },
+ "h030": {
+  "name": "Great Opal",
+  "dmg": 599,
+  "sides": 1,
+  "dice": 1,
+  "cd": 1.0,
+  "range": 1000,
+  "cost": 1000,
+  "upgrades": [
+   "hatw"
+  ],
+  "tip": "Damage: 600                                  Abilities: Gives 50% Speed Aura to all towers within 1500 range."
+ },
+ "h031": {
+  "name": "Great Diamond",
+  "dmg": 699,
+  "sides": 1,
+  "dice": 1,
+  "cd": 1.0,
+  "range": 1000,
+  "cost": 1000,
+  "upgrades": [
+   "h058"
+  ],
+  "tip": ""
+ },
+ "h032": {
+  "name": "Great Emerald",
+  "dmg": 499,
+  "sides": 1,
+  "dice": 1,
+  "cd": 1.0,
+  "range": 1000,
+  "cost": 1000,
+  "upgrades": [
+   "n00H"
+  ],
+  "tip": ""
+ },
+ "e006": {
+  "name": "Fire Star",
+  "dmg": 199,
+  "sides": 1,
+  "dice": 1,
+  "cd": 0.5,
+  "range": 600,
+  "cost": 290,
+  "upgrades": [
+   "h04U"
+  ],
+  "tip": "Damage: 200                                               Cooldown: 0.5 Seconds                                     Abilities: Attacks all targets within 600 range.                                                                             Range: 600"
+ },
+ "h033": {
+  "name": "Silver Knight",
+  "dmg": 249,
+  "sides": 1,
+  "dice": 1,
+  "cd": 1.0,
+  "range": 1000,
+  "cost": 290,
+  "upgrades": [
+   "h030",
+   "h03W"
+  ],
+  "tip": "Damage: 250                                             Cooldown: 1 second                             Abilities: Cold splash damage.               Range: 1000"
+ },
+ "n000": {
+  "name": "Air Slate",
+  "dmg": 39,
+  "sides": 1,
+  "dice": 1,
+  "cd": 0.5,
+  "range": 130,
+  "cost": 0,
+  "upgrades": [],
+  "tip": ""
+ },
+ "n001": {
+  "name": "Slow Slate",
+  "dmg": 99,
+  "sides": 1,
+  "dice": 1,
+  "cd": 0.5,
+  "range": 150,
+  "cost": 0,
+  "upgrades": [],
+  "tip": ""
+ },
+ "n003": {
+  "name": "Ancient Slate",
+  "dmg": 1,
+  "sides": 1,
+  "dice": 1,
+  "cd": 0.05,
+  "range": 130,
+  "cost": 0,
+  "upgrades": [],
+  "tip": ""
+ },
+ "n004": {
+  "name": "Opal Vein Slate",
+  "dmg": 98,
+  "sides": 1,
+  "dice": 1,
+  "cd": 0.5,
+  "range": 130,
+  "cost": 0,
+  "upgrades": [],
+  "tip": ""
+ },
+ "n005": {
+  "name": "Wraith Slate",
+  "dmg": 299,
+  "sides": 1,
+  "dice": 1,
+  "cd": 0.3,
+  "range": 200,
+  "cost": 0,
+  "upgrades": [],
+  "tip": ""
+ },
+ "h035": {
+  "name": "Lucky China Jade",
+  "dmg": 89,
+  "sides": 1,
+  "dice": 1,
+  "cd": 0.35,
+  "range": 900,
+  "cost": 250,
+  "upgrades": [
+   "h04V",
+   "h04A"
+  ],
+  "tip": "Damage: 90                                   Cooldown: 0.35 seconds                        Abilities: Slows targets 50% for 4 seconds. Lucky charm Ability                                                Range: 900"
+ },
+ "h03R": {
+  "name": "Aquamarine",
+  "dmg": 21,
+  "sides": 3,
+  "dice": 1,
+  "cd": 0.5,
+  "range": 500,
+  "cost": 0,
+  "upgrades": [],
+  "tip": ""
+ },
+ "h03S": {
+  "name": "Flawed Aquamarine",
+  "dmg": 13,
+  "sides": 2,
+  "dice": 1,
+  "cd": 0.5,
+  "range": 400,
+  "cost": 0,
+  "upgrades": [],
+  "tip": ""
+ },
+ "h03T": {
+  "name": "Chipped Aquamarine",
+  "dmg": 5,
+  "sides": 2,
+  "dice": 1,
+  "cd": 0.5,
+  "range": 350,
+  "cost": 0,
+  "upgrades": [],
+  "tip": ""
+ },
+ "h03U": {
+  "name": "Flawless Aquamarine",
+  "dmg": 30,
+  "sides": 4,
+  "dice": 1,
+  "cd": 0.5,
+  "range": 600,
+  "cost": 0,
+  "upgrades": [],
+  "tip": ""
+ },
+ "h03V": {
+  "name": "Perfect Aquamarine",
+  "dmg": 49,
+  "sides": 15,
+  "dice": 1,
+  "cd": 0.5,
+  "range": 700,
+  "cost": 0,
+  "upgrades": [],
+  "tip": ""
+ },
+ "h03W": {
+  "name": "Great Aquamarine",
+  "dmg": 499,
+  "sides": 1,
+  "dice": 1,
+  "cd": 0.4,
+  "range": 600,
+  "cost": 1000,
+  "upgrades": [
+   "hatw"
+  ],
+  "tip": "Damage: 500                                  Abilities: The Great Aquamarine gives 10% speed and 30% damage for all gem within 600 range."
+ },
+ "h03X": {
+  "name": "Malachite",
+  "dmg": 8,
+  "sides": 1,
+  "dice": 1,
+  "cd": 0.5,
+  "range": 600,
+  "cost": 0,
+  "upgrades": [
+   "h03Y"
+  ],
+  "tip": ""
+ },
+ "h03Y": {
+  "name": "Vivid Malachite",
+  "dmg": 21,
+  "sides": 1,
+  "dice": 1,
+  "cd": 0.5,
+  "range": 700,
+  "cost": 25,
+  "upgrades": [
+   "h03Z"
+  ],
+  "tip": "Damage: 22                                               Cooldown: 0.5 Seconds                                     Abilities: Attacks 4 targets within 800 range.                                                                             Range: 700"
+ },
+ "h03Z": {
+  "name": "Mighty Malachite",
+  "dmg": 65,
+  "sides": 1,
+  "dice": 1,
+  "cd": 0.55,
+  "range": 800,
+  "cost": 280,
+  "upgrades": [
+   "h030",
+   "h03W"
+  ],
+  "tip": "Damage: 66                                               Cooldown: 0.55 Seconds                                    Abilities: Attacks all targets within 800 range.                                                                             Range: 800"
+ },
+ "h040": {
+  "name": "Paraiba Tourmaline",
+  "dmg": 49,
+  "sides": 1,
+  "dice": 1,
+  "cd": 0.75,
+  "range": 850,
+  "cost": 100,
+  "upgrades": [
+   "h041"
+  ],
+  "tip": ""
+ },
+ "h041": {
+  "name": "Paraiba Tourmaline Facet",
+  "dmg": 599,
+  "sides": 1,
+  "dice": 1,
+  "cd": 0.75,
+  "range": 900,
+  "cost": 275,
+  "upgrades": [
+   "h056"
+  ],
+  "tip": "Damage: 600                                  Cooldown: 0.75 seconds                        Abilities: -4 armor aura to ground units. 20% cast 250 damage frost nova."
+ },
+ "n008": {
+  "name": "Poison Slate",
+  "dmg": 99,
+  "sides": 1,
+  "dice": 1,
+  "cd": 0.05,
+  "range": 300,
+  "cost": 0,
+  "upgrades": [],
+  "tip": ""
+ },
+ "n009": {
+  "name": "Spell Slate",
+  "dmg": 98,
+  "sides": 1,
+  "dice": 1,
+  "cd": 0.5,
+  "range": 300,
+  "cost": 0,
+  "upgrades": [],
+  "tip": ""
+ },
+ "n00A": {
+  "name": "Elder Slate",
+  "dmg": 199,
+  "sides": 1,
+  "dice": 1,
+  "cd": 0.33,
+  "range": 390,
+  "cost": 0,
+  "upgrades": [],
+  "tip": ""
+ },
+ "h04A": {
+  "name": "Stone of Life",
+  "dmg": 899,
+  "sides": 1,
+  "dice": 1,
+  "cd": 1.0,
+  "range": 900,
+  "cost": 1000,
+  "upgrades": [
+   "h04T"
+  ],
+  "tip": "Damage: 900                                  Abilities: 10% chance to x10 damage to enemy within 900 range, Stone of Life can attack 3 targets every second."
+ },
+ "n00E": {
+  "name": "Range Slate",
+  "dmg": 59,
+  "sides": 1,
+  "dice": 1,
+  "cd": 0.5,
+  "range": 600,
+  "cost": 0,
+  "upgrades": [],
+  "tip": ""
+ },
+ "n00F": {
+  "name": "Viper Slate",
+  "dmg": 119,
+  "sides": 1,
+  "dice": 1,
+  "cd": 0.5,
+  "range": 800,
+  "cost": 0,
+  "upgrades": [],
+  "tip": ""
+ },
+ "h04T": {
+  "name": "Extreme",
+  "dmg": 999,
+  "sides": 1,
+  "dice": 1,
+  "cd": 0.1,
+  "range": 1000,
+  "cost": 2000,
+  "upgrades": [
+   "h04W"
+  ],
+  "tip": "Damage: 1000 and gives 20% attack speed to all gem."
+ },
+ "n00H": {
+  "name": "Professional King",
+  "dmg": 2999,
+  "sides": 1,
+  "dice": 1,
+  "cd": 0.22,
+  "range": 1200,
+  "cost": 4000,
+  "upgrades": [
+   "h04Y"
+  ],
+  "tip": "Damage: 3000                                     Abilities: 100% damage aura with 1200 range."
+ },
+ "h04W": {
+  "name": "Legend",
+  "dmg": 5999,
+  "sides": 1,
+  "dice": 1,
+  "cd": 1.5,
+  "range": 1200,
+  "cost": 4000,
+  "upgrades": [
+   "h05C"
+  ],
+  "tip": "Legend 50% Chance to do 60x damage and increases 100% damage to all gem."
+ },
+ "h04Y": {
+  "name": "GOD Shadow",
+  "dmg": 6999,
+  "sides": 1,
+  "dice": 1,
+  "cd": 1.5,
+  "range": 1200,
+  "cost": 6000,
+  "upgrades": [],
+  "tip": "Terrible Damage and increases 200% damage to all gem within 1200 range."
+ },
+ "h04V": {
+  "name": "Helltaker",
+  "dmg": 999,
+  "sides": 1,
+  "dice": 1,
+  "cd": 0.0,
+  "range": 1200,
+  "cost": 1000,
+  "upgrades": [
+   "n00H"
+  ],
+  "tip": "From Helltaker, you can upgrades to God Gem or Pro Gem."
+ },
+ "h051": {
+  "name": "Aura Max",
+  "dmg": 4999,
+  "sides": 1,
+  "dice": 1,
+  "cd": 1.0,
+  "range": 1000,
+  "cost": 5000,
+  "upgrades": [],
+  "tip": "Damage: 5000                                     Abilities: Aura within 1600 range gives 60% attack speed and 300% damage by Control and 300% damage by Stone to all towers. 50% with 55x damage."
+ },
+ "h052": {
+  "name": "Ultimate Sapphire I",
+  "dmg": 599,
+  "sides": 1,
+  "dice": 1,
+  "cd": 0.8,
+  "range": 1200,
+  "cost": 3000,
+  "upgrades": [
+   "h04X"
+  ],
+  "tip": "Damage: 600                                           Cooldown: 0.8 seconds                              Abilities: 400 area of effect slows. Gives 100% Damage Aura to all towers within 1200 range. 50% chance to do 25x damage."
+ },
+ "h053": {
+  "name": "Ultimate Sapphire III",
+  "dmg": 699,
+  "sides": 1,
+  "dice": 1,
+  "cd": 0.8,
+  "range": 1200,
+  "cost": 3000,
+  "upgrades": [
+   "h054"
+  ],
+  "tip": "Damage: 700                                           Cooldown: 0.8 seconds                              Abilities: 400 area of effect slows. Gives 300% Damage Aura to all towers within 1200 range. 50% chance to do 120x damage."
+ },
+ "h054": {
+  "name": "Ultimate Sapphire IV",
+  "dmg": 699,
+  "sides": 1,
+  "dice": 1,
+  "cd": 0.8,
+  "range": 1200,
+  "cost": 6000,
+  "upgrades": [
+   "h055"
+  ],
+  "tip": "Damage: 700                                           Cooldown: 0.8 seconds                              Abilities: 400 area of effect slows. Gives 400% Damage Aura to all towers within 1200 range. 50% chance to do 200x damage."
+ },
+ "h055": {
+  "name": "Ultimate Sapphire V",
+  "dmg": 799,
+  "sides": 1,
+  "dice": 1,
+  "cd": 0.8,
+  "range": 1200,
+  "cost": 6000,
+  "upgrades": [
+   "h057"
+  ],
+  "tip": "Damage: 800                                           Cooldown: 0.8 seconds                              Abilities: 400 area of effect slows. Gives 500% Damage Aura to all towers within 1200 range. 60% chance to do 350x damage."
+ },
+ "h057": {
+  "name": "Ultimate MAX",
+  "dmg": 7999,
+  "sides": 1,
+  "dice": 1,
+  "cd": 0.8,
+  "range": 1200,
+  "cost": 6000,
+  "upgrades": [],
+  "tip": "Damage: 8000                                           Cooldown: 0.8 seconds                              Abilities: Effect slows + 20% attack speed to all gems. Gives 600% Damage Aura to all towers within 1200 range. 60% chance to do 60x damage."
+ },
+ "h058": {
+  "name": "Galaxy",
+  "dmg": 6999,
+  "sides": 1,
+  "dice": 1,
+  "cd": 1.5,
+  "range": 1200,
+  "cost": 7000,
+  "upgrades": [
+   "h05B"
+  ],
+  "tip": "Damage: 7000                                     Abilities: Galaxy gives 20% attack speed within 1200 range and 44% chance to do 44x damage."
+ },
+ "h059": {
+  "name": "BIG Opal",
+  "dmg": 299,
+  "sides": 1,
+  "dice": 1,
+  "cd": 0.6,
+  "range": 1200,
+  "cost": 1000,
+  "upgrades": [
+   "h05A"
+  ],
+  "tip": "Damage: 300 with Abilities: 100% damage aura \r\r\nwith 1200 range. 10% chance to do 20x damage."
+ },
+ "h05A": {
+  "name": "Master Opal",
+  "dmg": 6999,
+  "sides": 1,
+  "dice": 1,
+  "cd": 1.5,
+  "range": 1200,
+  "cost": 8000,
+  "upgrades": [
+   "h05F"
+  ],
+  "tip": "Terrible Damage and increases 200% damage to all gem within 1200 range."
+ },
+ "h05B": {
+  "name": "Universe",
+  "dmg": 7999,
+  "sides": 1,
+  "dice": 1,
+  "cd": 0.0,
+  "range": 1200,
+  "cost": 7000,
+  "upgrades": [],
+  "tip": "Abilities: Universe gives 20% attack speed within 1200 range and 200% damage to all gems. 10% Chance to do 100x damage"
+ },
+ "h05C": {
+  "name": "Secret gem",
+  "dmg": 6999,
+  "sides": 1,
+  "dice": 1,
+  "cd": 3.0,
+  "range": 1400,
+  "cost": 8000,
+  "upgrades": [],
+  "tip": "Abilities: Secret gem gives 20% attack speed and increase 100% damage within 1200 range and 35% to 350x damage."
+ },
+ "h056": {
+  "name": "Dimas Barbosa",
+  "dmg": 699,
+  "sides": 1,
+  "dice": 1,
+  "cd": 0.5,
+  "range": 1000,
+  "cost": 1000,
+  "upgrades": [
+   "h04S"
+  ],
+  "tip": "Damage: 700                                  Cooldown: 0.50 seconds                        Abilities: -6 armor aura to ground units. 20% cast 350 damage frost nova within 40% to 10x damage."
+ },
+ "h04X": {
+  "name": "Ultimate Sapphire II",
+  "dmg": 599,
+  "sides": 1,
+  "dice": 1,
+  "cd": 0.8,
+  "range": 1200,
+  "cost": 3000,
+  "upgrades": [
+   "h053"
+  ],
+  "tip": "Damage: 600                                           Cooldown: 0.8 seconds                              Abilities: 400 area of effect slows. Gives 200% Damage Aura to all towers within 1200 range. 50% chance to do 50x damage."
+ },
+ "h04Z": {
+  "name": "Atomic",
+  "dmg": 665,
+  "sides": 1,
+  "dice": 1,
+  "cd": 0.5,
+  "range": 900,
+  "cost": 12000,
+  "upgrades": [],
+  "tip": "Damage: 666                                  Cooldown: 0.50 seconds                        Abilities: Effect slows within 50% to 500x damage."
+ },
+ "h05D": {
+  "name": "Egyptian Diamond",
+  "dmg": 499,
+  "sides": 1,
+  "dice": 1,
+  "cd": 0.75,
+  "range": 800,
+  "cost": 2000,
+  "upgrades": [
+   "h05G"
+  ],
+  "tip": "Damage: 500                                       Cooldown: 0.75 seconds                        Abilities: 50% chance to do 25x damage. Desolates 8 armor. Buff 60% attack speed from Great Opal, Great Aquamarine."
+ },
+ "h05E": {
+  "name": "Bloody Sovereign's Orb",
+  "dmg": 1999,
+  "sides": 1,
+  "dice": 1,
+  "cd": 0.8,
+  "range": 900,
+  "cost": 5000,
+  "upgrades": [
+   "h04Y"
+  ],
+  "tip": "Damage: 2000                                           Cooldown: 0.8 seconds                              Abilities: Sovereign's Orb 55% Chance to do 55x damage and increases 200% damage to all gem within 1200 range."
+ },
+ "h05F": {
+  "name": "Hero Opal",
+  "dmg": 7999,
+  "sides": 1,
+  "dice": 1,
+  "cd": 1.5,
+  "range": 1200,
+  "cost": 8000,
+  "upgrades": [],
+  "tip": "Terrible Damage and increases 400% damage to all gem within 1200 range. 66% Chance to do 88x damage"
+ },
+ "h05G": {
+  "name": "Serendibite",
+  "dmg": 6999,
+  "sides": 1,
+  "dice": 1,
+  "cd": 1.5,
+  "range": 1200,
+  "cost": 8000,
+  "upgrades": [],
+  "tip": "Terrible Damage and increases 400% damage to all gem within 1200 range. 44% chance to do 55x damage. Desolates 8 armor. Buff 60% attack speed from Great Opal, Great Aquamarine."
+ },
+ "h04S": {
+  "name": "Infinity Stone",
+  "dmg": 6999,
+  "sides": 1,
+  "dice": 1,
+  "cd": 1.5,
+  "range": 1200,
+  "cost": 10000,
+  "upgrades": [],
+  "tip": "Abilities: -6 armor aura to ground units. 20% cast 350 damage frost nova within 60% to 90x damage."
+ }
+}
