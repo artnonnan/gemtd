@@ -22,7 +22,7 @@ const controls: Controls = {
   paused: false,
   restart: (difficulty) => setGame(new Game({ difficulty })),
 };
-const panel = new Panel(document.querySelector('#panel')!, getGame, controls, match);
+const panel = new Panel(document.querySelector('#topbar')!, document.querySelector('#bottom')!, getGame, controls, match);
 
 // invite links look like ?room=ABCDE
 const room = new URLSearchParams(location.search).get('room');
@@ -32,7 +32,8 @@ if (room) {
 }
 
 renderer.resize();
-window.addEventListener('resize', () => renderer.resize());
+// the board gets whatever space the top and bottom bars leave, which changes as the bottom bar re-renders
+new ResizeObserver(() => renderer.resize()).observe(document.querySelector('.board-wrap')!);
 
 const input = new BoardInput(canvas, renderer, getGame);
 
@@ -45,6 +46,8 @@ window.addEventListener('keydown', (e) => {
     controls.speed = +e.key;
   } else if (e.key.toLowerCase() === 'i') {
     panel.info.toggle();
+  } else if (e.key.toLowerCase() === 's') {
+    panel.toggleSettings();
   } else if (e.key.toLowerCase() === 'k' && game.selected) {
     game.keep(game.selected);
   } else if (e.key === 'Escape') {

@@ -25,19 +25,108 @@ body {
   font: 14px/1.4 system-ui, -apple-system, 'Segoe UI', sans-serif;
 }
 
+/* top bar / board / bottom bar */
 #app {
-  display: flex;
-  gap: 16px;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 10px;
   height: 100vh;
-  padding: 16px;
+  height: 100dvh;
+  padding: 10px 16px;
 }
 
 .board-wrap {
-  flex: 1;
   min-width: 0;
+  min-height: 0;
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+#topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 6px 10px;
+}
+
+.top-actions {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+#settings-btn.badge {
+  border-color: var(--gold);
+}
+
+#bottom {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+  max-height: 34vh;
+  overflow-y: auto;
+}
+
+#bottom .card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+#bottom .choose {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+#bottom .mine {
+  flex: 0 0 240px;
+}
+
+#bottom .log {
+  flex: 0 1 280px;
+  min-width: 0;
+}
+
+.selected {
+  border-top: 1px solid var(--line);
+  padding-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sel-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.sel-head h3 {
+  margin: 0;
+}
+
+.settings-box {
+  width: min(560px, 100%);
+}
+
+.settings-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.settings-body h3 {
+  margin-top: 6px;
+}
+
+.credit {
+  font-size: 11px;
 }
 
 canvas {
@@ -48,29 +137,11 @@ canvas {
   cursor: crosshair;
 }
 
-#panel {
-  width: 340px;
-  flex-shrink: 0;
-  overflow-y: auto;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-header {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-}
-
 h1 {
   margin: 0;
-  font-size: 22px;
+  font-size: 18px;
   letter-spacing: 0.5px;
+  white-space: nowrap;
 }
 
 h3 {
@@ -88,40 +159,47 @@ p {
 }
 
 .stats {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  display: flex;
+  flex-wrap: wrap;
   gap: 6px;
+  min-width: 0;
 }
 
-.stats div {
+.stat {
   background: var(--card);
   border-radius: 6px;
-  padding: 6px 8px;
+  padding: 3px 10px;
   display: flex;
   flex-direction: column;
+  line-height: 1.2;
 }
 
-.stats .wide {
-  grid-column: span 4;
-  flex-direction: row;
-  gap: 8px;
-}
-
-.stats b {
-  font-size: 11px;
+.stat b {
+  font-size: 10px;
   color: var(--muted);
   font-weight: 600;
   text-transform: uppercase;
 }
 
-.stats span {
+.stat > span {
   font-size: 16px;
   font-weight: 600;
+  white-space: nowrap;
 }
 
-.stats .wide span {
+.stat.next > span,
+.stat.vs > span {
   font-size: 13px;
   font-weight: 500;
+}
+
+.stat small {
+  color: var(--muted);
+}
+
+.stat.paused {
+  justify-content: center;
+  color: var(--gold);
 }
 
 .gold {
@@ -278,22 +356,6 @@ button.ghost {
   display: none !important;
 }
 
-.recipes summary {
-  cursor: pointer;
-  color: var(--muted);
-}
-
-.recipes ul {
-  padding-left: 4px;
-  list-style: none;
-  font-size: 12px;
-  margin: 6px 0 0;
-}
-
-.recipes li {
-  margin: 3px 0;
-}
-
 .log {
   font-size: 12px;
   color: var(--muted);
@@ -301,12 +363,6 @@ button.ghost {
 
 .log p:first-child {
   color: var(--text);
-}
-
-footer {
-  margin-top: auto;
-  font-size: 11px;
-  color: var(--muted);
 }
 
 .board-stack {
@@ -352,11 +408,6 @@ footer {
   color: var(--muted);
   font-size: 12px;
   min-height: 1em;
-}
-
-.info-btn {
-  margin-left: auto;
-  padding: 4px 10px;
 }
 
 .modal {
@@ -546,17 +597,48 @@ td.note {
 }
 
 @media (max-width: 860px) {
+  /* stacked: the page scrolls, the board sizes from width; keep the top bar pinned */
   #app {
+    display: flex;
     flex-direction: column;
     height: auto;
-    padding: 16px;
+    padding: 8px;
+    gap: 8px;
   }
 
-  .board-wrap {
-    width: 100%;
+  #topbar {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    flex-wrap: wrap;
+    gap: 6px;
   }
 
-  #panel {
-    width: 100%;
+  #topbar h1,
+  .top-actions .lbl {
+    display: none;
+  }
+
+  .top-actions {
+    order: -1;
+    margin-left: 0;
+  }
+
+  .stat {
+    padding: 2px 7px;
+  }
+
+  .stat > span {
+    font-size: 14px;
+  }
+
+  #bottom {
+    flex-direction: column;
+    max-height: none;
+  }
+
+  #bottom .mine,
+  #bottom .log {
+    flex: none;
   }
 }

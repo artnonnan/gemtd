@@ -17,67 +17,97 @@ const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&l
 const swatch = (id: string) => `<span class="sw" style="background:${towerColor(id)}"></span>`;
 const gemLabel = (id: string) => `${swatch(id)}${esc(displayName(id))}`;
 
+/** Re-render an element only when its markup changed (keeps buttons alive between frames). */
+function setHtml(el: HTMLElement, html: string, cache: Map<HTMLElement, string>) {
+  if (cache.get(el) === html) return;
+  el.innerHTML = html;
+  cache.set(el, html);
+}
+
+/**
+ * HUD: top bar (stats, Info, Settings), bottom bar (gem choice, selected tower, mine, log)
+ * and a Settings window (speed, restart, difficulty, versus).
+ */
 export class Panel {
+  readonly info: InfoModal;
   private stats: HTMLElement;
-  private actions: HTMLElement;
-  private log: HTMLElement;
+  private bottom: HTMLElement;
+  private settings: HTMLElement;
+  private gameSettings: HTMLElement;
   private versusIdle: HTMLElement;
   private versusInfo: HTMLElement;
-  private speedControls: HTMLElement;
-  private restartBtn: HTMLButtonElement;
   private codeInput: HTMLInputElement;
   private mini: MiniRenderer;
   private miniWrap: HTMLElement;
-  private lastActions = '';
-  private lastLog = '';
-  private lastVersus = '';
-  readonly info: InfoModal;
+  private settingsBtn: HTMLElement;
+  private html = new Map<HTMLElement, string>();
 
-  constructor(root: HTMLElement, private getGame: () => Game, private controls: Controls, private match: Match) {
-    root.innerHTML = `
-      <header><h1>Gem TD</h1><span class="sub">browser prototype</span><button data-act="info" class="info-btn" title="Gem combining tables (I)">ⓘ Info</button></header>
-      <section id="stats" class="stats"></section>
-      <section class="row controls">
-        <span id="speed-controls" class="row">
-          <button data-act="pause">Pause</button>
-          <button data-act="speed" data-v="1">1x</button>
-          <button data-act="speed" data-v="2">2x</button>
-          <button data-act="speed" data-v="4">4x</button>
-        </span>
-        <button data-act="restart" id="restart" class="ghost">Restart</button>
-      </section>
-      <section class="card versus">
-        <h3>Versus online</h3>
-        <div id="vs-idle">
-          <p class="muted">Play against a friend: same gems, separate boards, last one standing wins.</p>
-          <div class="btns">
-            <button data-act="host" class="primary">Host game</button>
-            <input id="vs-code" placeholder="CODE" maxlength="5" autocomplete="off" spellcheck="false" />
-            <button data-act="join">Join</button>
-          </div>
+  constructor(top: HTMLElement, bottom: HTMLElement, private getGame: () => Game, private controls: Controls, private match: Match) {
+    top.innerHTML = `
+      <h1>Gem TD</h1>
+      <div id="stats" class="stats"></div>
+      <div class="top-actions">
+        <button data-act="info" title="Gem combining tables (I)">ⓘ <span class="lbl">Info</span></button>
+        <button data-act="settings" id="settings-btn" title="Settings (S)">⚙ <span class="lbl">Settings</span></button>
+      </div>`;
+    this.stats = top.querySelector('#stats')!;
+    this.settingsBtn = top.querySelector('#settings-btn')!;
+    this.bottom = bottom;
+
+    this.settings = document.createElement('div');
+    this.settings.className = 'modal';
+    this.settings.hidden = true;
+    this.settings.innerHTML = `
+      <div class="modal-box settings-box" role="dialog" aria-modal="true" aria-label="Settings">
+        <div class="modal-head">
+          <h2>Settings</h2>
+          <button class="ghost close" data-act="close-settings" aria-label="Close">✕</button>
         </div>
-        <div id="vs-info"></div>
-        <div id="vs-mini" class="mini"><canvas></canvas></div>
-      </section>
-      <section id="actions"></section>
-      <section id="log" class="log"></section>
-      <footer>Fan prototype inspired by <em>[BK's] Gem TD</em> by Bryvx (Warcraft III).</footer>`;
-    this.stats = root.querySelector('#stats')!;
-    this.actions = root.querySelector('#actions')!;
-    this.log = root.querySelector('#log')!;
-    this.versusIdle = root.querySelector('#vs-idle')!;
-    this.versusInfo = root.querySelector('#vs-info')!;
-    this.speedControls = root.querySelector('#speed-controls')!;
-    this.restartBtn = root.querySelector('#restart')!;
-    this.codeInput = root.querySelector('#vs-code')!;
-    this.miniWrap = root.querySelector('#vs-mini')!;
+        <div class="modal-body settings-body">
+          <section id="game-settings"></section>
+          <section class="versus">
+            <h3>Versus online</h3>
+            <div id="vs-idle">
+              <p class="muted">Play against a friend: same gems, separate boards, last one standing wins.</p>
+              <div class="btns">
+                <button data-act="host" class="primary">Host game</button>
+                <input id="vs-code" placeholder="CODE" maxlength="5" autocomplete="off" spellcheck="false" />
+                <button data-act="join">Join</button>
+              </div>
+            </div>
+            <div id="vs-info"></div>
+            <div id="vs-mini" class="mini"><canvas></canvas></div>
+          </section>
+          <p class="muted credit">Fan prototype inspired by <em>[BK's] Gem TD</em> by Bryvx (Warcraft III).</p>
+        </div>
+      </div>`;
+    document.body.appendChild(this.settings);
+    this.gameSettings = this.settings.querySelector('#game-settings')!;
+    this.versusIdle = this.settings.querySelector('#vs-idle')!;
+    this.versusInfo = this.settings.querySelector('#vs-info')!;
+    this.codeInput = this.settings.querySelector('#vs-code')!;
+    this.miniWrap = this.settings.querySelector('#vs-mini')!;
     this.mini = new MiniRenderer(this.miniWrap.querySelector('canvas')!);
     this.info = new InfoModal(getGame);
+
     this.codeInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && this.codeInput.value.trim()) this.match.session.join(this.codeInput.value);
     });
-    // pointerdown instead of click: the action list can re-render mid-click while a wave runs
-    root.addEventListener('pointerdown', (e) => this.onAction(e));
+    this.settings.addEventListener('pointerdown', (e) => {
+      if (e.target === this.settings) this.toggleSettings(false);
+    });
+    window.addEventListener('keydown', (e) => {
+      if (!this.settings.hidden && e.key === 'Escape') {
+        this.toggleSettings(false);
+        e.stopImmediatePropagation();
+      }
+    }, true);
+    // pointerdown instead of click: the bottom bar can re-render mid-click while a wave runs
+    for (const root of [top, bottom, this.settings]) root.addEventListener('pointerdown', (e) => this.onAction(e));
+  }
+
+  toggleSettings(open = this.settings.hidden) {
+    this.settings.hidden = !open;
   }
 
   private onAction(e: PointerEvent) {
@@ -87,12 +117,16 @@ export class Panel {
     const t = game.selected;
     const v = el.dataset.v ?? '';
     switch (el.dataset.act) {
+      case 'info': this.info.toggle(); break;
+      case 'settings': this.toggleSettings(); break;
+      case 'close-settings': this.toggleSettings(false); break;
       case 'pause': this.controls.paused = !this.controls.paused; break;
-      case 'speed': this.controls.speed = +v; break;
+      case 'speed': this.controls.speed = +v; this.controls.paused = false; break;
       case 'restart':
         if (!confirm(this.match.active ? 'Restart the match for both players?' : 'Restart the game?')) break;
         if (this.match.active) this.match.start(game.difficulty);
         else this.controls.restart(game.difficulty);
+        this.toggleSettings(false);
         break;
       case 'difficulty':
         if (this.match.active) this.match.start(v as Difficulty);
@@ -102,7 +136,6 @@ export class Panel {
       case 'join': if (this.codeInput.value.trim()) this.match.session.join(this.codeInput.value); break;
       case 'copy': void navigator.clipboard?.writeText(this.inviteLink()); break;
       case 'leave': this.match.leave(); break;
-      case 'info': this.info.toggle(); break;
       case 'quality': game.upgradeQuality(); break;
       case 'life': game.buyLife(); break;
       case 'keep': if (t) game.keep(t); break;
@@ -115,91 +148,50 @@ export class Panel {
         game.touch();
         break;
       }
+      default: return;
     }
     e.preventDefault();
   }
 
   update() {
     const g = this.getGame();
+    setHtml(this.stats, this.statsHtml(g), this.html);
+    setHtml(this.bottom, this.bottomHtml(g), this.html);
+    const s = this.match.session.status;
+    this.settingsBtn.classList.toggle('badge', this.match.active || s === 'hosting' || s === 'connecting');
+    if (!this.settings.hidden) {
+      setHtml(this.gameSettings, this.gameSettingsHtml(g), this.html);
+      this.updateVersus();
+    }
+  }
+
+  // ---------- top bar ----------
+
+  private statsHtml(g: Game): string {
     const w = g.nextWave;
-    this.stats.innerHTML = `
-      <div><b>Level</b><span>${g.level}</span></div>
-      <div><b>Lives</b><span class="${g.lives <= 10 ? 'warn' : ''}">${g.lives}</span></div>
-      <div><b>Gold</b><span class="gold">${g.gold}</span></div>
-      <div><b>Kills</b><span>${g.stats.kills}</span></div>
-      <div class="wide"><b>${g.phase === 'wave' ? 'Now' : 'Next'}</b><span>${w ? `${esc(w.name)}${w.air ? ' ✈' : ''} · ${w.hp.toLocaleString()} HP · armor ${w.armor}` : '—'}</span></div>
-      <div class="wide"><b>Speed</b><span>${this.controls.paused ? 'paused' : `${this.controls.speed}x`} · route ${g.routeLen.toFixed(0)} tiles</span></div>`;
-
-    this.updateVersus();
-
-    const html = this.actionsHtml(g);
-    if (html !== this.lastActions) {
-      this.actions.innerHTML = html;
-      this.lastActions = html;
-    }
-    const log = g.log.map((m) => `<p>${esc(m)}</p>`).join('');
-    if (log !== this.lastLog) {
-      this.log.innerHTML = log;
-      this.lastLog = log;
-    }
+    const op = this.match.active ? this.match.remote?.snap : undefined;
+    const paused = !this.match.active && this.controls.paused;
+    return `
+      <div class="stat"><b>Level</b><span>${g.level}</span></div>
+      <div class="stat"><b>Lives</b><span class="${g.lives <= 10 ? 'warn' : ''}">${g.lives}</span></div>
+      <div class="stat"><b>Gold</b><span class="gold">${g.gold}</span></div>
+      <div class="stat"><b>Kills</b><span>${g.stats.kills}</span></div>
+      <div class="stat next"><b>${g.phase === 'wave' ? 'Now' : 'Next'}</b><span>${w ? `${esc(w.name)}${w.air ? ' ✈' : ''} <small>${w.hp.toLocaleString()} HP · armor ${w.armor}</small>` : '—'}</span></div>
+      ${op ? `<div class="stat vs"><b>Opponent</b><span>Lv ${op.level} · <span class="${op.lives <= 10 ? 'warn' : ''}">♥ ${op.lives}</span></span></div>` : ''}
+      ${paused ? '<div class="stat paused"><span>⏸ Paused</span></div>' : !this.match.active && this.controls.speed !== 1 ? `<div class="stat"><span>${this.controls.speed}x</span></div>` : ''}`;
   }
 
-  private inviteLink(): string {
-    return `${location.origin}${location.pathname}?room=${this.match.session.code}`;
-  }
+  // ---------- bottom bar ----------
 
-  private updateVersus() {
-    const { match } = this;
-    const s = match.session;
-    const versus = match.active;
-    this.versusIdle.hidden = s.status !== 'idle' && s.status !== 'error';
-    this.speedControls.hidden = versus;
-    this.restartBtn.disabled = versus && !match.isHost;
-    this.miniWrap.hidden = !versus;
-    if (versus) this.mini.draw(match.remote);
-
-    const lines: string[] = [];
-    if (s.status === 'error') lines.push(`<p class="warn">${esc(s.error)}</p>`);
-    if (s.status === 'hosting') {
-      lines.push(`<p>Room code <b class="code">${s.code}</b></p>
-        <p class="muted">Send the code or link to your friend. Waiting for them to join…</p>
-        <div class="btns"><button data-act="copy">Copy invite link</button><button data-act="leave" class="ghost">Cancel</button></div>`);
-    } else if (s.status === 'connecting') {
-      lines.push(`<p>Joining room <b class="code">${esc(s.code)}</b>…</p><div class="btns"><button data-act="leave" class="ghost">Cancel</button></div>`);
-    } else if (versus) {
-      const op = match.remote?.snap;
-      const g = this.getGame();
-      lines.push(`<p class="muted">${s.connected ? `Connected · room ${s.code} · you are ${match.isHost ? 'host' : 'guest'}` : 'Disconnected'}</p>`);
-      if (op) {
-        lines.push(`<div class="vs-row"><span>Opponent</span><span>Lv ${op.level}</span><span class="${op.lives <= 10 ? 'warn' : ''}">♥ ${op.lives}</span><span>${op.kills} kills</span><span class="muted">${op.phase === 'waiting' ? 'ready' : op.phase}</span></div>`);
-      }
-      if (g.phase === 'waiting') lines.push('<p class="muted">Waiting for opponent to choose…</p>');
-      const result = match.result;
-      if (result) lines.push(`<p class="result">${esc(result)}</p>`);
-      if (match.notice) lines.push(`<p class="warn">${esc(match.notice)}</p>`);
-      lines.push(`<div class="btns"><button data-act="leave" class="ghost">Leave match</button></div>`);
+  private bottomHtml(g: Game): string {
+    const choose: string[] = [`<div class="phase phase-${g.phase}">${this.phaseText(g)}</div>`];
+    if (g.phase === 'gameover' || g.phase === 'victory') {
+      choose.push(`<div class="btns"><button data-act="restart" class="primary">Restart</button></div>`);
     }
-    const html = lines.join('');
-    if (html !== this.lastVersus) {
-      this.versusInfo.innerHTML = html;
-      this.lastVersus = html;
-    }
-  }
-
-  private actionsHtml(g: Game): string {
-    const parts: string[] = [];
-    parts.push(`<div class="phase phase-${g.phase}">${this.phaseText(g)}</div>`);
-
-    if (g.canChangeDifficulty && (!this.match.active || this.match.isHost)) {
-      const opts = (Object.keys(DIFFICULTIES) as Difficulty[]).map((d) => {
-        const armor = DIFFICULTIES[d];
-        return `<button data-act="difficulty" data-v="${d}" class="${g.difficulty === d ? 'primary' : ''}">${d} <span class="muted">${armor > 0 ? '+' : ''}${armor} armor</span></button>`;
-      });
-      parts.push(`<div class="card"><h3>Difficulty</h3><div class="btns">${opts.join('')}</div></div>`);
-    }
-
+    const result = this.match.result;
+    if (result) choose.push(`<p class="result">${esc(result)}</p>`);
     if (g.phase === 'choose') {
-      parts.push('<div class="chips">' + g.freshTowers
+      choose.push('<div class="chips">' + g.freshTowers
         .map((t) => `<button class="chip ${g.selected === t ? 'on' : ''}" data-act="select" data-v="${t.uid}">${gemLabel(t.id)}</button>`)
         .join('') + '</div>');
     }
@@ -209,13 +201,6 @@ export class Panel {
       const def = TOWERS[t.id];
       const a = abilityOf(t.id);
       const info = GEM_INFO[t.id];
-      parts.push(`<div class="card">
-        <h3>${gemLabel(t.id)}</h3>
-        <p class="muted">${info ? `${QUALITY_NAMES[info.quality]} gem` : 'Special tower'} · kills ${t.kills}</p>
-        <p>${a.noAttack ? '' : `Damage ${def.dmg + def.dice}–${def.dmg + def.dice * def.sides} · Cooldown ${def.cd}s · `}Range ${def.range}</p>
-        <ul>${describeAbility(a).map((s) => `<li>${esc(s)}</li>`).join('')}</ul>
-      </div>`);
-
       const btns: string[] = [];
       if (g.phase === 'choose' && t.fresh) {
         btns.push(`<button data-act="keep" class="primary">Keep</button>`);
@@ -229,33 +214,98 @@ export class Panel {
       for (const u of g.upgradeOptions(t)) {
         btns.push(`<button data-act="upgrade" data-v="${u.id}" ${g.gold < u.cost ? 'disabled' : ''}>Upgrade → ${gemLabel(u.id)} <span class="cost">${u.cost}g</span></button>`);
       }
-      if (btns.length) parts.push(`<div class="btns">${btns.join('')}</div>`);
+      choose.push(`<div class="selected">
+        <div class="sel-head"><h3>${gemLabel(t.id)}</h3><span class="muted">${info ? `${QUALITY_NAMES[info.quality]} gem` : 'Special tower'} · ${t.kills} kills</span></div>
+        <p class="muted">${a.noAttack ? '' : `Damage ${def.dmg + def.dice}–${def.dmg + def.dice * def.sides} · Cooldown ${def.cd}s · `}Range ${def.range}${describeAbility(a).length ? ' · ' + esc(describeAbility(a).join(' · ')) : ''}</p>
+        ${btns.length ? `<div class="btns">${btns.join('')}</div>` : ''}
+      </div>`);
     }
 
     const ql = g.qualityLevel;
     const chances = QUALITY_CHANCES[ql].map((c, i) => (c ? `${QUALITY_NAMES[i][0]}${c}` : '')).filter(Boolean).join(' ');
-    parts.push(`<div class="card mine">
+    const mine = `<div class="card mine">
       <h3>Mine</h3>
-      <p class="muted">Gem quality Lv ${ql}: ${chances}</p>
+      <p class="muted">Quality Lv ${ql}: ${chances}</p>
       <div class="btns">
         ${ql < MAX_QUALITY_LEVEL
-          ? `<button data-act="quality" ${g.gold < qualityUpgradeCost(ql) ? 'disabled' : ''}>Increase gem quality <span class="cost">${qualityUpgradeCost(ql)}g</span></button>`
-          : '<button disabled>Gem quality maxed</button>'}
+          ? `<button data-act="quality" ${g.gold < qualityUpgradeCost(ql) ? 'disabled' : ''}>Gem quality + <span class="cost">${qualityUpgradeCost(ql)}g</span></button>`
+          : '<button disabled>Quality maxed</button>'}
         <button data-act="life" ${g.gold < 10 || g.lives >= 50 ? 'disabled' : ''}>Buy life <span class="cost">10g</span></button>
       </div>
-    </div>`);
-    return parts.join('');
+    </div>`;
+    const log = `<div class="card log">${g.log.slice(0, 4).map((m) => `<p>${esc(m)}</p>`).join('')}</div>`;
+    return `<div class="card choose">${choose.join('')}</div>${mine}${log}`;
   }
 
   private phaseText(g: Game): string {
     switch (g.phase) {
-      case 'build': return `Place gems: <b>${g.gemsLeft}</b> left. Click an empty tile — don't block the path.`;
+      case 'build': return `Place gems: <b>${g.gemsLeft}</b> left — tap an empty tile, don't block the path.`;
       case 'choose': return 'Pick one gem to <b>Keep</b>, <b>Combine</b> or turn into a <b>Special</b>. The rest become rocks.';
       case 'waiting': return `Level ${g.level} ready — waiting for your opponent to finish choosing.`;
-      case 'wave': return `Wave ${g.level} in progress…`;
-      case 'gameover': return `<b>Game over</b> on level ${g.level}. Press Restart.`;
+      case 'wave': return `Wave ${g.level} in progress… Select a tower to see or upgrade it.`;
+      case 'gameover': return `<b>Game over</b> on level ${g.level}.`;
       case 'victory': return '<b>Victory!</b> All 50 levels cleared.';
     }
   }
 
+  // ---------- settings ----------
+
+  private gameSettingsHtml(g: Game): string {
+    const versus = this.match.active;
+    const parts: string[] = ['<h3>Game</h3>'];
+    if (versus) {
+      parts.push('<p class="muted">Speed and pause are locked during a versus match.</p>');
+    } else {
+      const speedBtn = (n: number) => `<button data-act="speed" data-v="${n}" class="${!this.controls.paused && this.controls.speed === n ? 'primary' : ''}">${n}x</button>`;
+      parts.push(`<div class="btns">
+        <button data-act="pause" class="${this.controls.paused ? 'primary' : ''}">${this.controls.paused ? '▶ Resume' : '⏸ Pause'}</button>
+        ${[1, 2, 4].map(speedBtn).join('')}
+      </div>`);
+    }
+    parts.push(`<div class="btns"><button data-act="restart" ${versus && !this.match.isHost ? 'disabled' : ''}>Restart</button></div>`);
+
+    const canChange = g.canChangeDifficulty && (!versus || this.match.isHost);
+    const opts = (Object.keys(DIFFICULTIES) as Difficulty[]).map((d) => {
+      const armor = DIFFICULTIES[d];
+      return `<button data-act="difficulty" data-v="${d}" class="${g.difficulty === d ? 'primary' : ''}" ${canChange ? '' : 'disabled'}>${d} <span class="muted">${armor > 0 ? '+' : ''}${armor} armor</span></button>`;
+    });
+    parts.push(`<h3>Difficulty</h3><div class="btns">${opts.join('')}</div>`);
+    if (!canChange) parts.push('<p class="muted">Difficulty can only change before the first gem is placed (host only in versus).</p>');
+    parts.push('<p class="muted">Keys: Space pause · 1/2/4 speed · K keep · I info · S settings</p>');
+    return parts.join('');
+  }
+
+  private inviteLink(): string {
+    return `${location.origin}${location.pathname}?room=${this.match.session.code}`;
+  }
+
+  private updateVersus() {
+    const { match } = this;
+    const s = match.session;
+    const versus = match.active;
+    this.versusIdle.hidden = s.status !== 'idle' && s.status !== 'error';
+    this.miniWrap.hidden = !versus;
+    if (versus) this.mini.draw(match.remote);
+
+    const lines: string[] = [];
+    if (s.status === 'error') lines.push(`<p class="warn">${esc(s.error)}</p>`);
+    if (s.status === 'hosting') {
+      lines.push(`<p>Room code <b class="code">${s.code}</b></p>
+        <p class="muted">Send the code or link to your friend. Waiting for them to join…</p>
+        <div class="btns"><button data-act="copy">Copy invite link</button><button data-act="leave" class="ghost">Cancel</button></div>`);
+    } else if (s.status === 'connecting') {
+      lines.push(`<p>Joining room <b class="code">${esc(s.code)}</b>…</p><div class="btns"><button data-act="leave" class="ghost">Cancel</button></div>`);
+    } else if (versus) {
+      const op = match.remote?.snap;
+      lines.push(`<p class="muted">${s.connected ? `Connected · room ${s.code} · you are ${match.isHost ? 'host' : 'guest'}` : 'Disconnected'}</p>`);
+      if (op) {
+        lines.push(`<div class="vs-row"><span>Opponent</span><span>Lv ${op.level}</span><span class="${op.lives <= 10 ? 'warn' : ''}">♥ ${op.lives}</span><span>${op.kills} kills</span><span class="muted">${op.phase === 'waiting' ? 'ready' : op.phase}</span></div>`);
+      }
+      const result = match.result;
+      if (result) lines.push(`<p class="result">${esc(result)}</p>`);
+      if (match.notice) lines.push(`<p class="warn">${esc(match.notice)}</p>`);
+      lines.push(`<div class="btns"><button data-act="leave" class="ghost">Leave match</button></div>`);
+    }
+    setHtml(this.versusInfo, lines.join(''), this.html);
+  }
 }
