@@ -17,6 +17,13 @@ export interface BotGameOptions {
   seed: number;
   difficulty: Difficulty;
   weights: Weights;
+  /** sees every move before it is made and the game after every update (the recorder uses this) */
+  observer?: GameObserver;
+}
+
+export interface GameObserver {
+  beforeMove(game: Game, a: Action): void;
+  afterUpdate(game: Game): void;
 }
 
 /** ~3 hours of game time; no real game comes close */
@@ -34,12 +41,14 @@ export function playBotGame(opts: BotGameOptions): { game: Game; log: LoggedActi
       if (n > MAX_MOVES_PER_STEP) throw new Error(`bot keeps moving without progress (seed ${opts.seed})`);
       const a = bot.nextAction(game);
       if (!a) break;
+      opts.observer?.beforeMove(game, a);
       if (!applyAction(game, a)) throw new Error(`game refused bot move ${JSON.stringify(a)} (seed ${opts.seed})`);
       log.push({ step, a });
     }
     game.update(STEP);
     // nothing drains render events headless
     game.events.length = 0;
+    opts.observer?.afterUpdate(game);
   }
   return { game, log };
 }

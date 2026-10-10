@@ -47,6 +47,8 @@ export interface Tower {
   y: number;
   cooldown: number;
   kills: number;
+  /** damage dealt after armor, not counting overkill (for balance stats) */
+  damage: number;
   /** placed this round and still waiting for keep/combine */
   fresh: boolean;
   /** last time it fired, for the muzzle flash */
@@ -253,7 +255,7 @@ export class Game {
 
   placeGem(x: number, y: number): boolean {
     if (this.phase !== 'build' || this.gemsLeft <= 0 || !this.canPlace(x, y)) return false;
-    const tower: Tower = { uid: nextUid++, id: this.rollGem(), x, y, cooldown: 0, kills: 0, fresh: true, firedAt: -1, swapUsed: false, teleportUsed: false };
+    const tower: Tower = { uid: nextUid++, id: this.rollGem(), x, y, cooldown: 0, kills: 0, damage: 0, fresh: true, firedAt: -1, swapUsed: false, teleportUsed: false };
     this.towers.push(tower);
     this.grid[y * GRID + x] = tower;
     this.gemsLeft--;
@@ -373,6 +375,7 @@ export class Game {
     const others = this.freshTowers.filter((o) => o !== t && o.id === t.id).slice(0, count - 1);
     for (const o of others) {
       t.kills += o.kills;
+      t.damage += o.damage;
       this.toRock(o);
     }
     this.say(`Combined ${count}x ${displayName(t.id)} into ${displayName(opt.result)}.`);
@@ -388,6 +391,7 @@ export class Game {
     for (const p of parts) {
       if (p === t) continue;
       t.kills += p.kills;
+      t.damage += p.damage;
       this.toRock(p);
     }
     t.id = recipe.result;
@@ -434,6 +438,7 @@ export class Game {
     if (!opt) return false;
     const p = opt.partner;
     t.kills += p.kills;
+    t.damage += p.damage;
     this.towers = this.towers.filter((o) => o !== p);
     this.grid[p.y * GRID + p.x] = null; // a slate leaves an empty, walkable tile behind
     if (this.selected === p) this.selected = null;
@@ -973,7 +978,9 @@ export class Game {
     const armor = this.armorOf(c);
     // Warcraft III armor formula
     const mult = armor >= 0 ? 1 - (0.06 * armor) / (1 + 0.06 * armor) : 2 - Math.pow(0.94, -armor);
-    c.hp -= raw * mult;
+    const dealt = raw * mult;
+    src.damage += Math.max(0, Math.min(dealt, c.hp));
+    c.hp -= dealt;
     if (c.hp <= 0) {
       c.alive = false;
       this.gold += c.def.bounty;
