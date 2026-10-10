@@ -9,6 +9,7 @@ import { BLUEPRINTS, BLUEPRINT_IDS } from '../src/ai/blueprint';
 import { Game } from '../src/game/game';
 import { mulberry32 } from '../src/game/rng';
 import { AutoPlay } from '../src/ai/autoplay';
+import { Bot, applyAction } from '../src/ai/bot';
 import { playBotGame } from '../src/ai/runner';
 import { recordBotGame, type GameRecord } from '../src/ai/recorder';
 import { checkExpectation, metricOf, paired, summarize, waveKind } from '../src/ai/analyze';
@@ -153,6 +154,30 @@ assert(w.mazeGain === 5 && w.source === 'manual' && w.qualityReserve === DEFAULT
   st.blueprints = ['spiral', 'none'];
   const props = proposeHill({ ...base, blueprintId: 'none' }, st, 40);
   assert(props.some((p) => p.blueprintId === 'spiral' && p.blueprintWeight > 0), 'hill-climbing sometimes switches to another blueprint (with some pull)');
+  // spiral2: hub cells stay free when asked, reserve cells wait for their level
+  const s2 = BLUEPRINTS.spiral2;
+  const hubCells = [...s2.at.values()].filter((c) => c.role === 'hub');
+  const reserve = s2.sorted.filter((c) => c.role === 'reserve');
+  assert(!!s2.hub && hubCells.length > 0 && reserve.every((c) => c.unlockLevel === 25), 'spiral2 has a hub and reserve cells unlocking at level 25');
+  const g2 = new Game({ seed: 8 });
+  const bot2 = new Bot({ ...base, id: 'h', blueprintId: 'spiral2', blueprintWeight: 5, reserveRespect: 5 }, 8);
+  let hubBuilt = 0, reserveEarly = 0;
+  while (g2.phase !== 'gameover' && g2.phase !== 'victory') {
+    for (let a; (a = bot2.nextAction(g2)); ) {
+      if (a.type === 'place') {
+        const c = s2.at.get(a.y * 37 + a.x);
+        if (c?.role === 'hub') hubBuilt++;
+        if (c?.role === 'reserve' && g2.level < 25) reserveEarly++;
+      }
+      applyAction(g2, a);
+    }
+    g2.update(STEP);
+    g2.events.length = 0;
+  }
+  assert(hubBuilt === 0 && reserveEarly === 0, `with reserveRespect 5 the bot never builds on the hub or on reserve before level 25 (game reached level ${g2.level})`);
+  const passes = recordBotGame({ seed: 8, difficulty: 'normal', weights: { ...base, id: 'h', blueprintId: 'spiral2', blueprintWeight: 5, reserveRespect: 5 } }).hubPasses ?? [];
+  assert(passes.length > 0 && Math.min(...passes) >= 2, `records hub passes per wave (${passes.join(",")})`);
+
   const fromLlm = { ...base, id: 'x', source: 'llm' as const, proposal: { id: 'p', hypothesis: 'h', expect: [] } };
   const pre = newState('t', 'normal', 6, fromLlm);
   pre.idPrefix = 'spiral-';

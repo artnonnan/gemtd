@@ -9,7 +9,7 @@ import { mulberry32 } from '../game/rng';
 import { TOWERS, abilityOf, qualityUpgradeCost, MAX_QUALITY_LEVEL } from '../data/gems';
 import { AIR_PATH, AIR_WAVE_SHARE, GEM_ODDS, cover, dpsMaps, exposureOf, hitsAir, hitsGround, type DpsMaps } from './exposure';
 import type { Weights } from './weights';
-import { blueprintOf, type LoadedBlueprint } from './blueprint';
+import { blueprintOf, isTowerSpot, type BlueprintCell, type LoadedBlueprint } from './blueprint';
 
 export type Action =
   | { type: 'quality' }
@@ -128,16 +128,24 @@ export class Bot {
    * Bonus for the next plan cells: the first blueprintWindow cells (in build order) that are still empty and
    * can be built right now. The first gets 10 × blueprintWeight, later ones step down. A plan cell that is taken
    * or would cut the route (other gems and rocks can make that happen) is skipped, so the window moves on.
+   * Reserve cells join only from their unlock level. Hub cells, and reserve cells still locked, cost
+   * 10 × reserveRespect instead, so the bot keeps them free.
    */
   private planBonus(game: Game): Map<number, number> | null {
     const bp = this.blueprint;
     if (!bp) return null;
     const w = this.weights;
     const out = new Map<number, number>();
+    const locked = (c: BlueprintCell) => c.role === 'reserve' && game.level < (c.unlockLevel ?? 0);
+    let rank = 0;
     for (const c of bp.sorted) {
-      if (out.size >= w.blueprintWindow) break;
-      if (game.towerAt(c.x, c.y) || game.isRock(c.x, c.y) || !game.canPlace(c.x, c.y)) continue;
-      out.set(c.y * GRID + c.x, 10 * w.blueprintWeight * (1 - out.size / w.blueprintWindow));
+      if (rank >= w.blueprintWindow) break;
+      if (locked(c) || game.towerAt(c.x, c.y) || game.isRock(c.x, c.y) || !game.canPlace(c.x, c.y)) continue;
+      out.set(c.y * GRID + c.x, 10 * w.blueprintWeight * (1 - rank / w.blueprintWindow));
+      rank++;
+    }
+    if (w.reserveRespect > 0) {
+      for (const c of bp.at.values()) if (c.role === 'hub' || locked(c)) out.set(c.y * GRID + c.x, -10 * w.reserveRespect);
     }
     return out;
   }
@@ -208,7 +216,7 @@ export class Bot {
     let best: { a: Action; v: number } | null = null;
     const consider = (a: Action, result: string, bonus: number) => {
       let p = towerPower(result, w);
-      if (this.blueprint && w.slotKeepBonus > 0 && this.blueprint.at.get((a as { y: number }).y * GRID + (a as { x: number }).x)?.role === 'slot') {
+      if (this.blueprint && w.slotKeepBonus > 0 && isTowerSpot(this.blueprint.at.get((a as { y: number }).y * GRID + (a as { x: number }).x))) {
         p *= 1 + w.slotKeepBonus;
       }
       if (w.keepExposure > 0 && a.type !== 'quality' && a.type !== 'buyLife') {

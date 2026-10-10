@@ -5,15 +5,16 @@
  *   npm run blueprint -- validate <id>              in bounds, buildable, no duplicates, every build prefix keeps a route
  *   npm run blueprint -- stats <id>                 route length as it is built, what each slot covers
  *   npm run blueprint -- reorder <id>               greedy build order (longest route first), saved as a new id
- * Legend: S spawn, 1–5 checkpoints, E mine (exit), # wall, O slot, * ground route, ~ flight path,
- *         + both routes, , no-build tile next to a checkpoint, . empty
+ * Legend: S spawn, 1–5 checkpoints, E mine (exit), # wall, O slot, F final slot, R reserve (built late),
+ *         H hub (kept empty), * ground route, ~ flight path, + both routes, , no-build tile, . empty
+ * Built cells show their role letter; hub cells show H unless the route runs through them (then *).
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { CHECKPOINTS, GEMS_PER_ROUND, GRID, type Point } from '../src/game/config';
 import { Game } from '../src/game/game';
 import { findRoute, routeLength } from '../src/game/path';
 import { AIR_PATH, GEM_ODDS, cover } from '../src/ai/exposure';
-import { load, type Blueprint, type BlueprintCell } from '../src/ai/blueprint';
+import { hubPasses, load, type Blueprint, type BlueprintCell } from '../src/ai/blueprint';
 import { BLUEPRINT_FILES } from '../src/data/blueprints';
 
 declare const process: { argv: string[]; exitCode: number };
@@ -44,9 +45,12 @@ function prefix(bp: Blueprint): BlueprintCell[] {
   return sorted;
 }
 
-function draw(cells: BlueprintCell[], title: string) {
+const LETTER: Record<string, string> = { wall: '#', slot: 'O', final: 'F', reserve: 'R' };
+
+function draw(cells: BlueprintCell[], title: string, bp?: Blueprint) {
   const walls = new Set(cells.map((c) => key(c.x, c.y)));
-  const slots = new Set(cells.filter((c) => c.role === 'slot').map((c) => key(c.x, c.y)));
+  const roleAt = new Map(cells.map((c) => [key(c.x, c.y), LETTER[c.role]]));
+  const hub = new Set((bp?.cells ?? []).filter((c) => c.role === 'hub').map((c) => key(c.x, c.y)));
   const route = routeWith(walls);
   const ground = new Set((route ?? []).map((p) => key(p.x, p.y)));
   const air = new Set(AIR_PATH.map((p) => key(p.x, p.y)));
@@ -58,11 +62,11 @@ function draw(cells: BlueprintCell[], title: string) {
     let row = '';
     for (let x = 0; x < GRID; x++) {
       const k = key(x, y);
-      row += cp.get(k) ?? (slots.has(k) ? 'O' : walls.has(k) ? '#' : ground.has(k) && air.has(k) ? '+' : ground.has(k) ? '*' : air.has(k) ? '~' : reserved(x, y) ? ',' : '.');
+      row += cp.get(k) ?? roleAt.get(k) ?? (ground.has(k) && air.has(k) ? '+' : ground.has(k) ? '*' : hub.has(k) ? 'H' : air.has(k) ? '~' : reserved(x, y) ? ',' : '.');
     }
     console.log(String(y).padStart(3) + ' ' + row);
   }
-  console.log(route ? `ground route ${routeLength(route).toFixed(1)} tiles (${route.length} steps)` : 'ROUTE BLOCKED');
+  console.log(route ? `ground route ${routeLength(route).toFixed(1)} tiles (${route.length} steps)` + (bp?.hub ? `, passes the hub ${hubPasses(route, bp.hub)} times` : '') : 'ROUTE BLOCKED');
 }
 
 function validate(bp: Blueprint): string[] {
@@ -72,8 +76,10 @@ function validate(bp: Blueprint): string[] {
     if (!Number.isInteger(c.x) || !Number.isInteger(c.y) || c.x < 0 || c.y < 0 || c.x >= GRID || c.y >= GRID) problems.push(`(${c.x},${c.y}) is off the board`);
     else if (reserved(c.x, c.y)) problems.push(`(${c.x},${c.y}) is next to a checkpoint: no building there`);
     if (seen.has(key(c.x, c.y))) problems.push(`(${c.x},${c.y}) appears twice`);
-    if (orders.has(c.order)) problems.push(`order ${c.order} is used twice`);
-    if (c.role !== 'wall' && c.role !== 'slot') problems.push(`(${c.x},${c.y}) has role "${c.role}"`);
+    if (c.role !== 'hub' && orders.has(c.order)) problems.push(`order ${c.order} is used twice`);
+    if (!['wall', 'slot', 'final', 'reserve', 'hub'].includes(c.role)) problems.push(`(${c.x},${c.y}) has role "${c.role}"`);
+    if (c.role === 'reserve' && !c.unlockLevel) problems.push(`reserve (${c.x},${c.y}) has no unlockLevel`);
+    if (bp.hub && c.role !== 'hub' && c.x >= bp.hub.x0 && c.x <= bp.hub.x1 && c.y >= bp.hub.y0 && c.y <= bp.hub.y1 && c.role !== 'wall' && c.role !== 'slot') problems.push(`(${c.x},${c.y}) is a ${c.role} inside the hub`);
     seen.add(key(c.x, c.y));
     orders.add(c.order);
   }
@@ -84,6 +90,16 @@ function validate(bp: Blueprint): string[] {
     if (!routeWith(walls)) {
       problems.push(`placing order ${c.order} (${c.x},${c.y}) cuts the route`);
       break;
+    }
+  }
+  // each phase: building up to its level must make the route pass the hub often enough
+  if (bp.hub) {
+    for (const ph of bp.phases ?? []) {
+      const w = new Set(load(bp).sorted.slice(0, ph.level * GEMS_PER_ROUND).map((c) => key(c.x, c.y)));
+      const r = routeWith(w);
+      const got = r ? hubPasses(r, bp.hub) : 0;
+      if (got < ph.minPasses) problems.push(`phase to level ${ph.level} (${ph.goal}): hub passed ${got} times, wants ${ph.minPasses}`);
+      else console.log(`phase to level ${ph.level}: hub passed ${got} times (wants ${ph.minPasses}) - ${ph.goal}`);
     }
   }
   return problems;
@@ -104,21 +120,25 @@ function stats(bp: Blueprint) {
     return r ? routeLength(r) : NaN;
   };
   console.log('route length while building:');
-  for (const lv of [2, 5, 10, 15, 20, 25, 30]) {
+  const passesAt = (n: number) => {
+    const r = bp.hub ? routeWith(new Set(sorted.slice(0, n).map((c) => key(c.x, c.y)))) : null;
+    return r && bp.hub ? `, hub passes ${hubPasses(r, bp.hub)}` : '';
+  };
+  for (const lv of [2, 5, 10, 13, 15, 20, 25, 30, 35]) {
     const n = Math.min(sorted.length, lv * GEMS_PER_ROUND);
-    console.log(`  level ${String(lv).padStart(2)} (${String(n).padStart(3)} cells): ${at(n).toFixed(1)} (+${(at(n) - empty).toFixed(1)})`);
+    console.log(`  level ${String(lv).padStart(2)} (${String(n).padStart(3)} cells): ${at(n).toFixed(1)} (+${(at(n) - empty).toFixed(1)})${passesAt(n)}`);
     if (n === sorted.length) break;
   }
   for (const p of [25, 50, 75, 100]) console.log(`  ${String(p).padStart(3)}%: ${at(Math.round((sorted.length * p) / 100)).toFixed(1)}`);
   const full = routeWith(new Set(sorted.map((c) => key(c.x, c.y))))!;
-  const slots = sorted.filter((c) => c.role === 'slot');
+  const slots = sorted.filter((c) => c.role === 'slot' || c.role === 'final' || c.role === 'reserve');
   const r = GEM_ODDS.range;
   console.log(`slots (${slots.length}), route tiles in reach at average gem range ${r.toFixed(1)} on the finished maze:`);
   let airSlots = 0;
   for (const s of slots) {
     const g = cover(full, s.x, s.y, r), a = cover(AIR_PATH, s.x, s.y, r);
     if (a) airSlots++;
-    console.log(`  order ${String(s.order).padStart(3)} (level ${Math.ceil(s.order / GEMS_PER_ROUND)}) at (${s.x},${s.y}): ground ${g}, flight path ${a}`);
+    console.log(`  ${s.role.padEnd(7)} order ${String(s.order).padStart(3)} (level ${Math.ceil(s.order / GEMS_PER_ROUND)}${s.unlockLevel ? `, unlocks ${s.unlockLevel}` : ''}) at (${s.x},${s.y}): ground ${g}, flight path ${a}`);
   }
   console.log(`slots reaching the flight path: ${airSlots}/${slots.length} (${Math.round((airSlots / Math.max(1, slots.length)) * 100)}%)`);
 }
@@ -160,11 +180,11 @@ try {
   else if (cmd === 'render') {
     const bp = read(id);
     const cells = prefix(bp);
-    draw(cells, `${bp.id}: ${bp.style} — first ${cells.length}/${bp.cells.length} cells`);
+    draw(cells, `${bp.id}: ${bp.style} — first ${cells.length}/${load(bp).sorted.length} cells`, bp);
   } else if (cmd === 'validate') {
     const bp = read(id);
     const p = validate(bp);
-    console.log(`${bp.id}: ${budget(bp.cells.length)}`);
+    console.log(`${bp.id}: ${budget(load(bp).sorted.length)}`);
     if (!BLUEPRINT_FILES.some((b) => b.id === bp.id)) console.log(`note: not registered in ${DIR}/index.ts yet`);
     console.log(p.length ? p.map((x) => `FAIL: ${x}`).join('\n') : 'ok - valid: every build prefix keeps a route');
     if (p.length) process.exitCode = 1;

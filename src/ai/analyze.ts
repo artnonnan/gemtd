@@ -58,6 +58,8 @@ export interface EvalSummary {
     /** avg highest plan order / plan cells standing when the last wave started (lost games) */
     progressAtDeath: number;
     builtAtDeath: number;
+    /** avg times the route passed the hub when the last wave started (lost games), for plans with a hub */
+    hubPassesAtDeath?: number;
     /** slot order → share of games where that slot got the kept tower */
     slotsKept: Record<number, number>;
   };
@@ -162,6 +164,7 @@ export function summarize(recs: GameRecord[]): EvalSummary {
       adherence: r2(mean(withBp.flatMap((r) => r.blueprintAdherence ?? []))),
       progressAtDeath: r2(mean(lostBp.map((r) => last(r.blueprintProgress)))),
       builtAtDeath: r2(mean(lostBp.map((r) => last(r.blueprintBuilt)))),
+      ...(withBp.some((r) => r.hubPasses) ? { hubPassesAtDeath: r2(mean(lostBp.map((r) => last(r.hubPasses)))) } : {}),
       slotsKept: Object.fromEntries(Object.entries(slotsKept).map(([o, c]) => [o, r2(c / withBp.length)])),
     };
   }

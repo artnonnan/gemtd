@@ -417,11 +417,22 @@ export class Renderer {
     ctx.font = `${Math.max(6, tile * 0.32)}px sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
+    for (const c of bp.at.values()) {
+      if (c.role !== 'hub') continue;
+      ctx.fillStyle = 'rgba(120,255,200,0.10)';
+      ctx.fillRect(c.x * tile, c.y * tile, tile, tile);
+    }
     for (const c of bp.sorted) {
       if (game.towerAt(c.x, c.y) || game.isRock(c.x, c.y)) continue;
       const x = c.x * tile, y = c.y * tile;
-      if (c.role === 'slot') {
-        ctx.strokeStyle = 'rgba(255,215,90,0.65)';
+      if (c.role === 'reserve') {
+        // dashed while locked, solid once its level comes
+        ctx.strokeStyle = 'rgba(150,255,170,0.55)';
+        if (game.level < (c.unlockLevel ?? 0)) ctx.setLineDash([tile * 0.12, tile * 0.12]);
+        ctx.strokeRect(x + tile * 0.15, y + tile * 0.15, tile * 0.7, tile * 0.7);
+        ctx.setLineDash([]);
+      } else if (c.role === 'slot' || c.role === 'final') {
+        ctx.strokeStyle = c.role === 'final' ? 'rgba(255,150,90,0.7)' : 'rgba(255,215,90,0.65)';
         ctx.beginPath();
         ctx.arc(x + tile / 2, y + tile / 2, tile * 0.36, 0, Math.PI * 2);
         ctx.stroke();

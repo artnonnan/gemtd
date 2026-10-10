@@ -1,0 +1,1253 @@
+{
+ "id": "spiral2b",
+ "style": "spiral ครบก่อน แล้วต่อกำแพง hub + reserve",
+ "note": "เหมือน spiral2 แต่สร้างก้นหอยทั้ง 6 วงก่อน (ลำดับเดียวกับ spiral) แล้วจึงกำแพง x=20, y=16 และ reserve; spiral2 แทรกกำแพง hub ก่อนวงนอก ทำให้ก้นหอยโตช้าลง ~7 ด่าน และตายที่เวฟอากาศด่าน 16/20 เร็วกว่า spiral ~4 ด่าน (ทดสอบ 40 seed)",
+ "author": "llm",
+ "parent": "spiral2",
+ "hub": {
+  "x0": 16,
+  "y0": 16,
+  "x1": 20,
+  "y1": 20
+ },
+ "phases": [
+  {
+   "level": 5,
+   "minPasses": 2,
+   "goal": "ทาง 1→2 และ 4→5 ผ่าน hub อยู่แล้ว"
+  },
+  {
+   "level": 34,
+   "minPasses": 5,
+   "goal": "ก้นหอยครบ + กำแพง hub: 3→4, 5→E, S→1 ผ่าน hub"
+  }
+ ],
+ "cells": [
+  {
+   "x": 36,
+   "y": 6,
+   "order": 1,
+   "role": "wall"
+  },
+  {
+   "x": 35,
+   "y": 6,
+   "order": 2,
+   "role": "wall"
+  },
+  {
+   "x": 34,
+   "y": 6,
+   "order": 3,
+   "role": "wall"
+  },
+  {
+   "x": 33,
+   "y": 6,
+   "order": 4,
+   "role": "wall"
+  },
+  {
+   "x": 32,
+   "y": 6,
+   "order": 5,
+   "role": "wall"
+  },
+  {
+   "x": 31,
+   "y": 6,
+   "order": 6,
+   "role": "wall"
+  },
+  {
+   "x": 30,
+   "y": 6,
+   "order": 7,
+   "role": "slot"
+  },
+  {
+   "x": 30,
+   "y": 5,
+   "order": 8,
+   "role": "wall"
+  },
+  {
+   "x": 30,
+   "y": 4,
+   "order": 9,
+   "role": "wall"
+  },
+  {
+   "x": 30,
+   "y": 3,
+   "order": 10,
+   "role": "wall"
+  },
+  {
+   "x": 30,
+   "y": 2,
+   "order": 11,
+   "role": "wall"
+  },
+  {
+   "x": 30,
+   "y": 1,
+   "order": 12,
+   "role": "wall"
+  },
+  {
+   "x": 28,
+   "y": 0,
+   "order": 13,
+   "role": "wall"
+  },
+  {
+   "x": 28,
+   "y": 1,
+   "order": 14,
+   "role": "wall"
+  },
+  {
+   "x": 28,
+   "y": 2,
+   "order": 15,
+   "role": "wall"
+  },
+  {
+   "x": 28,
+   "y": 3,
+   "order": 16,
+   "role": "wall"
+  },
+  {
+   "x": 28,
+   "y": 4,
+   "order": 17,
+   "role": "slot"
+  },
+  {
+   "x": 28,
+   "y": 5,
+   "order": 18,
+   "role": "wall"
+  },
+  {
+   "x": 28,
+   "y": 6,
+   "order": 19,
+   "role": "wall"
+  },
+  {
+   "x": 28,
+   "y": 7,
+   "order": 20,
+   "role": "wall"
+  },
+  {
+   "x": 28,
+   "y": 8,
+   "order": 21,
+   "role": "slot"
+  },
+  {
+   "x": 29,
+   "y": 8,
+   "order": 22,
+   "role": "wall"
+  },
+  {
+   "x": 30,
+   "y": 8,
+   "order": 23,
+   "role": "wall"
+  },
+  {
+   "x": 31,
+   "y": 8,
+   "order": 24,
+   "role": "wall"
+  },
+  {
+   "x": 32,
+   "y": 8,
+   "order": 25,
+   "role": "slot"
+  },
+  {
+   "x": 33,
+   "y": 8,
+   "order": 26,
+   "role": "wall"
+  },
+  {
+   "x": 34,
+   "y": 8,
+   "order": 27,
+   "role": "wall"
+  },
+  {
+   "x": 35,
+   "y": 8,
+   "order": 28,
+   "role": "wall"
+  },
+  {
+   "x": 36,
+   "y": 10,
+   "order": 29,
+   "role": "wall"
+  },
+  {
+   "x": 35,
+   "y": 10,
+   "order": 30,
+   "role": "wall"
+  },
+  {
+   "x": 34,
+   "y": 10,
+   "order": 31,
+   "role": "wall"
+  },
+  {
+   "x": 33,
+   "y": 10,
+   "order": 32,
+   "role": "wall"
+  },
+  {
+   "x": 32,
+   "y": 10,
+   "order": 33,
+   "role": "slot"
+  },
+  {
+   "x": 31,
+   "y": 10,
+   "order": 34,
+   "role": "wall"
+  },
+  {
+   "x": 30,
+   "y": 10,
+   "order": 35,
+   "role": "wall"
+  },
+  {
+   "x": 29,
+   "y": 10,
+   "order": 36,
+   "role": "wall"
+  },
+  {
+   "x": 28,
+   "y": 10,
+   "order": 37,
+   "role": "wall"
+  },
+  {
+   "x": 27,
+   "y": 10,
+   "order": 38,
+   "role": "wall"
+  },
+  {
+   "x": 26,
+   "y": 10,
+   "order": 39,
+   "role": "slot"
+  },
+  {
+   "x": 26,
+   "y": 9,
+   "order": 40,
+   "role": "wall"
+  },
+  {
+   "x": 26,
+   "y": 8,
+   "order": 41,
+   "role": "wall"
+  },
+  {
+   "x": 26,
+   "y": 7,
+   "order": 42,
+   "role": "wall"
+  },
+  {
+   "x": 26,
+   "y": 6,
+   "order": 43,
+   "role": "wall"
+  },
+  {
+   "x": 26,
+   "y": 5,
+   "order": 44,
+   "role": "wall"
+  },
+  {
+   "x": 26,
+   "y": 4,
+   "order": 45,
+   "role": "slot"
+  },
+  {
+   "x": 26,
+   "y": 3,
+   "order": 46,
+   "role": "wall"
+  },
+  {
+   "x": 26,
+   "y": 2,
+   "order": 47,
+   "role": "wall"
+  },
+  {
+   "x": 26,
+   "y": 1,
+   "order": 48,
+   "role": "wall"
+  },
+  {
+   "x": 24,
+   "y": 0,
+   "order": 49,
+   "role": "wall"
+  },
+  {
+   "x": 24,
+   "y": 1,
+   "order": 50,
+   "role": "wall"
+  },
+  {
+   "x": 24,
+   "y": 2,
+   "order": 51,
+   "role": "wall"
+  },
+  {
+   "x": 24,
+   "y": 3,
+   "order": 52,
+   "role": "wall"
+  },
+  {
+   "x": 24,
+   "y": 4,
+   "order": 53,
+   "role": "slot"
+  },
+  {
+   "x": 24,
+   "y": 5,
+   "order": 54,
+   "role": "wall"
+  },
+  {
+   "x": 24,
+   "y": 6,
+   "order": 55,
+   "role": "wall"
+  },
+  {
+   "x": 24,
+   "y": 7,
+   "order": 56,
+   "role": "wall"
+  },
+  {
+   "x": 24,
+   "y": 8,
+   "order": 57,
+   "role": "wall"
+  },
+  {
+   "x": 24,
+   "y": 9,
+   "order": 58,
+   "role": "wall"
+  },
+  {
+   "x": 24,
+   "y": 10,
+   "order": 59,
+   "role": "wall"
+  },
+  {
+   "x": 24,
+   "y": 11,
+   "order": 60,
+   "role": "wall"
+  },
+  {
+   "x": 24,
+   "y": 12,
+   "order": 61,
+   "role": "slot"
+  },
+  {
+   "x": 25,
+   "y": 12,
+   "order": 62,
+   "role": "wall"
+  },
+  {
+   "x": 26,
+   "y": 12,
+   "order": 63,
+   "role": "wall"
+  },
+  {
+   "x": 27,
+   "y": 12,
+   "order": 64,
+   "role": "wall"
+  },
+  {
+   "x": 28,
+   "y": 12,
+   "order": 65,
+   "role": "wall"
+  },
+  {
+   "x": 29,
+   "y": 12,
+   "order": 66,
+   "role": "wall"
+  },
+  {
+   "x": 30,
+   "y": 12,
+   "order": 67,
+   "role": "wall"
+  },
+  {
+   "x": 31,
+   "y": 12,
+   "order": 68,
+   "role": "wall"
+  },
+  {
+   "x": 32,
+   "y": 12,
+   "order": 69,
+   "role": "slot"
+  },
+  {
+   "x": 33,
+   "y": 12,
+   "order": 70,
+   "role": "wall"
+  },
+  {
+   "x": 34,
+   "y": 12,
+   "order": 71,
+   "role": "wall"
+  },
+  {
+   "x": 35,
+   "y": 12,
+   "order": 72,
+   "role": "wall"
+  },
+  {
+   "x": 36,
+   "y": 14,
+   "order": 73,
+   "role": "wall"
+  },
+  {
+   "x": 35,
+   "y": 14,
+   "order": 74,
+   "role": "wall"
+  },
+  {
+   "x": 34,
+   "y": 14,
+   "order": 75,
+   "role": "wall"
+  },
+  {
+   "x": 33,
+   "y": 14,
+   "order": 76,
+   "role": "wall"
+  },
+  {
+   "x": 32,
+   "y": 14,
+   "order": 77,
+   "role": "slot"
+  },
+  {
+   "x": 31,
+   "y": 14,
+   "order": 78,
+   "role": "wall"
+  },
+  {
+   "x": 30,
+   "y": 14,
+   "order": 79,
+   "role": "wall"
+  },
+  {
+   "x": 29,
+   "y": 14,
+   "order": 80,
+   "role": "wall"
+  },
+  {
+   "x": 28,
+   "y": 14,
+   "order": 81,
+   "role": "wall"
+  },
+  {
+   "x": 27,
+   "y": 14,
+   "order": 82,
+   "role": "wall"
+  },
+  {
+   "x": 26,
+   "y": 14,
+   "order": 83,
+   "role": "wall"
+  },
+  {
+   "x": 25,
+   "y": 14,
+   "order": 84,
+   "role": "wall"
+  },
+  {
+   "x": 24,
+   "y": 14,
+   "order": 85,
+   "role": "wall"
+  },
+  {
+   "x": 23,
+   "y": 14,
+   "order": 86,
+   "role": "wall"
+  },
+  {
+   "x": 22,
+   "y": 14,
+   "order": 87,
+   "role": "slot"
+  },
+  {
+   "x": 22,
+   "y": 13,
+   "order": 88,
+   "role": "wall"
+  },
+  {
+   "x": 22,
+   "y": 12,
+   "order": 89,
+   "role": "wall"
+  },
+  {
+   "x": 22,
+   "y": 11,
+   "order": 90,
+   "role": "wall"
+  },
+  {
+   "x": 22,
+   "y": 10,
+   "order": 91,
+   "role": "wall"
+  },
+  {
+   "x": 22,
+   "y": 9,
+   "order": 92,
+   "role": "wall"
+  },
+  {
+   "x": 22,
+   "y": 8,
+   "order": 93,
+   "role": "wall"
+  },
+  {
+   "x": 22,
+   "y": 7,
+   "order": 94,
+   "role": "wall"
+  },
+  {
+   "x": 22,
+   "y": 6,
+   "order": 95,
+   "role": "wall"
+  },
+  {
+   "x": 22,
+   "y": 5,
+   "order": 96,
+   "role": "wall"
+  },
+  {
+   "x": 22,
+   "y": 4,
+   "order": 97,
+   "role": "slot"
+  },
+  {
+   "x": 22,
+   "y": 3,
+   "order": 98,
+   "role": "wall"
+  },
+  {
+   "x": 22,
+   "y": 2,
+   "order": 99,
+   "role": "wall"
+  },
+  {
+   "x": 22,
+   "y": 1,
+   "order": 100,
+   "role": "wall"
+  },
+  {
+   "x": 20,
+   "y": 0,
+   "order": 101,
+   "role": "wall"
+  },
+  {
+   "x": 20,
+   "y": 1,
+   "order": 102,
+   "role": "wall"
+  },
+  {
+   "x": 20,
+   "y": 2,
+   "order": 103,
+   "role": "wall"
+  },
+  {
+   "x": 20,
+   "y": 3,
+   "order": 104,
+   "role": "wall"
+  },
+  {
+   "x": 20,
+   "y": 4,
+   "order": 105,
+   "role": "slot"
+  },
+  {
+   "x": 20,
+   "y": 5,
+   "order": 106,
+   "role": "wall"
+  },
+  {
+   "x": 20,
+   "y": 6,
+   "order": 107,
+   "role": "wall"
+  },
+  {
+   "x": 20,
+   "y": 7,
+   "order": 108,
+   "role": "wall"
+  },
+  {
+   "x": 20,
+   "y": 8,
+   "order": 109,
+   "role": "wall"
+  },
+  {
+   "x": 20,
+   "y": 9,
+   "order": 110,
+   "role": "wall"
+  },
+  {
+   "x": 20,
+   "y": 10,
+   "order": 111,
+   "role": "wall"
+  },
+  {
+   "x": 20,
+   "y": 11,
+   "order": 112,
+   "role": "wall"
+  },
+  {
+   "x": 20,
+   "y": 12,
+   "order": 113,
+   "role": "wall"
+  },
+  {
+   "x": 20,
+   "y": 13,
+   "order": 114,
+   "role": "wall"
+  },
+  {
+   "x": 20,
+   "y": 14,
+   "order": 115,
+   "role": "wall"
+  },
+  {
+   "x": 20,
+   "y": 15,
+   "order": 116,
+   "role": "wall"
+  },
+  {
+   "x": 20,
+   "y": 16,
+   "order": 117,
+   "role": "slot"
+  },
+  {
+   "x": 21,
+   "y": 16,
+   "order": 118,
+   "role": "wall"
+  },
+  {
+   "x": 22,
+   "y": 16,
+   "order": 119,
+   "role": "wall"
+  },
+  {
+   "x": 23,
+   "y": 16,
+   "order": 120,
+   "role": "wall"
+  },
+  {
+   "x": 24,
+   "y": 16,
+   "order": 121,
+   "role": "wall"
+  },
+  {
+   "x": 25,
+   "y": 16,
+   "order": 122,
+   "role": "wall"
+  },
+  {
+   "x": 26,
+   "y": 16,
+   "order": 123,
+   "role": "wall"
+  },
+  {
+   "x": 27,
+   "y": 16,
+   "order": 124,
+   "role": "wall"
+  },
+  {
+   "x": 28,
+   "y": 16,
+   "order": 125,
+   "role": "wall"
+  },
+  {
+   "x": 29,
+   "y": 16,
+   "order": 126,
+   "role": "wall"
+  },
+  {
+   "x": 30,
+   "y": 16,
+   "order": 127,
+   "role": "wall"
+  },
+  {
+   "x": 31,
+   "y": 16,
+   "order": 128,
+   "role": "wall"
+  },
+  {
+   "x": 32,
+   "y": 16,
+   "order": 129,
+   "role": "slot"
+  },
+  {
+   "x": 33,
+   "y": 16,
+   "order": 130,
+   "role": "wall"
+  },
+  {
+   "x": 34,
+   "y": 16,
+   "order": 131,
+   "role": "wall"
+  },
+  {
+   "x": 35,
+   "y": 16,
+   "order": 132,
+   "role": "wall"
+  },
+  {
+   "x": 20,
+   "y": 36,
+   "order": 133,
+   "role": "wall"
+  },
+  {
+   "x": 20,
+   "y": 35,
+   "order": 134,
+   "role": "wall"
+  },
+  {
+   "x": 20,
+   "y": 34,
+   "order": 135,
+   "role": "wall"
+  },
+  {
+   "x": 20,
+   "y": 33,
+   "order": 136,
+   "role": "wall"
+  },
+  {
+   "x": 20,
+   "y": 32,
+   "order": 137,
+   "role": "final"
+  },
+  {
+   "x": 20,
+   "y": 31,
+   "order": 138,
+   "role": "wall"
+  },
+  {
+   "x": 20,
+   "y": 30,
+   "order": 139,
+   "role": "wall"
+  },
+  {
+   "x": 20,
+   "y": 29,
+   "order": 140,
+   "role": "wall"
+  },
+  {
+   "x": 20,
+   "y": 28,
+   "order": 141,
+   "role": "final"
+  },
+  {
+   "x": 20,
+   "y": 27,
+   "order": 142,
+   "role": "wall"
+  },
+  {
+   "x": 20,
+   "y": 26,
+   "order": 143,
+   "role": "wall"
+  },
+  {
+   "x": 20,
+   "y": 25,
+   "order": 144,
+   "role": "wall"
+  },
+  {
+   "x": 20,
+   "y": 24,
+   "order": 145,
+   "role": "final"
+  },
+  {
+   "x": 20,
+   "y": 23,
+   "order": 146,
+   "role": "wall"
+  },
+  {
+   "x": 20,
+   "y": 22,
+   "order": 147,
+   "role": "wall"
+  },
+  {
+   "x": 20,
+   "y": 21,
+   "order": 148,
+   "role": "wall"
+  },
+  {
+   "x": 20,
+   "y": 20,
+   "order": 149,
+   "role": "slot"
+  },
+  {
+   "x": 0,
+   "y": 16,
+   "order": 150,
+   "role": "wall"
+  },
+  {
+   "x": 1,
+   "y": 16,
+   "order": 151,
+   "role": "wall"
+  },
+  {
+   "x": 2,
+   "y": 16,
+   "order": 152,
+   "role": "wall"
+  },
+  {
+   "x": 3,
+   "y": 16,
+   "order": 153,
+   "role": "wall"
+  },
+  {
+   "x": 4,
+   "y": 16,
+   "order": 154,
+   "role": "wall"
+  },
+  {
+   "x": 5,
+   "y": 16,
+   "order": 155,
+   "role": "wall"
+  },
+  {
+   "x": 6,
+   "y": 16,
+   "order": 156,
+   "role": "slot"
+  },
+  {
+   "x": 7,
+   "y": 16,
+   "order": 157,
+   "role": "wall"
+  },
+  {
+   "x": 8,
+   "y": 16,
+   "order": 158,
+   "role": "wall"
+  },
+  {
+   "x": 9,
+   "y": 16,
+   "order": 159,
+   "role": "wall"
+  },
+  {
+   "x": 10,
+   "y": 16,
+   "order": 160,
+   "role": "slot"
+  },
+  {
+   "x": 11,
+   "y": 16,
+   "order": 161,
+   "role": "wall"
+  },
+  {
+   "x": 12,
+   "y": 16,
+   "order": 162,
+   "role": "wall"
+  },
+  {
+   "x": 13,
+   "y": 16,
+   "order": 163,
+   "role": "wall"
+  },
+  {
+   "x": 14,
+   "y": 16,
+   "order": 164,
+   "role": "wall"
+  },
+  {
+   "x": 15,
+   "y": 16,
+   "order": 165,
+   "role": "slot"
+  },
+  {
+   "x": 16,
+   "y": 21,
+   "order": 166,
+   "role": "reserve",
+   "unlockLevel": 25
+  },
+  {
+   "x": 16,
+   "y": 22,
+   "order": 167,
+   "role": "reserve",
+   "unlockLevel": 25
+  },
+  {
+   "x": 16,
+   "y": 23,
+   "order": 168,
+   "role": "reserve",
+   "unlockLevel": 25
+  },
+  {
+   "x": 16,
+   "y": 24,
+   "order": 169,
+   "role": "reserve",
+   "unlockLevel": 25
+  },
+  {
+   "x": 16,
+   "y": 25,
+   "order": 170,
+   "role": "reserve",
+   "unlockLevel": 25
+  },
+  {
+   "x": 16,
+   "y": 26,
+   "order": 171,
+   "role": "reserve",
+   "unlockLevel": 25
+  },
+  {
+   "x": 16,
+   "y": 27,
+   "order": 172,
+   "role": "reserve",
+   "unlockLevel": 25
+  },
+  {
+   "x": 16,
+   "y": 28,
+   "order": 173,
+   "role": "reserve",
+   "unlockLevel": 25
+  },
+  {
+   "x": 16,
+   "y": 29,
+   "order": 174,
+   "role": "reserve",
+   "unlockLevel": 25
+  },
+  {
+   "x": 16,
+   "y": 30,
+   "order": 175,
+   "role": "reserve",
+   "unlockLevel": 25
+  },
+  {
+   "x": 16,
+   "y": 31,
+   "order": 176,
+   "role": "reserve",
+   "unlockLevel": 25
+  },
+  {
+   "x": 16,
+   "y": 32,
+   "order": 177,
+   "role": "reserve",
+   "unlockLevel": 25
+  },
+  {
+   "x": 16,
+   "y": 33,
+   "order": 178,
+   "role": "reserve",
+   "unlockLevel": 25
+  },
+  {
+   "x": 16,
+   "y": 34,
+   "order": 179,
+   "role": "reserve",
+   "unlockLevel": 25
+  },
+  {
+   "x": 16,
+   "y": 16,
+   "order": 0,
+   "role": "hub"
+  },
+  {
+   "x": 17,
+   "y": 16,
+   "order": 0,
+   "role": "hub"
+  },
+  {
+   "x": 18,
+   "y": 16,
+   "order": 0,
+   "role": "hub"
+  },
+  {
+   "x": 19,
+   "y": 16,
+   "order": 0,
+   "role": "hub"
+  },
+  {
+   "x": 16,
+   "y": 17,
+   "order": 0,
+   "role": "hub"
+  },
+  {
+   "x": 17,
+   "y": 17,
+   "order": 0,
+   "role": "hub"
+  },
+  {
+   "x": 18,
+   "y": 17,
+   "order": 0,
+   "role": "hub"
+  },
+  {
+   "x": 19,
+   "y": 17,
+   "order": 0,
+   "role": "hub"
+  },
+  {
+   "x": 20,
+   "y": 17,
+   "order": 0,
+   "role": "hub"
+  },
+  {
+   "x": 16,
+   "y": 18,
+   "order": 0,
+   "role": "hub"
+  },
+  {
+   "x": 17,
+   "y": 18,
+   "order": 0,
+   "role": "hub"
+  },
+  {
+   "x": 18,
+   "y": 18,
+   "order": 0,
+   "role": "hub"
+  },
+  {
+   "x": 19,
+   "y": 18,
+   "order": 0,
+   "role": "hub"
+  },
+  {
+   "x": 20,
+   "y": 18,
+   "order": 0,
+   "role": "hub"
+  },
+  {
+   "x": 16,
+   "y": 19,
+   "order": 0,
+   "role": "hub"
+  },
+  {
+   "x": 17,
+   "y": 19,
+   "order": 0,
+   "role": "hub"
+  },
+  {
+   "x": 18,
+   "y": 19,
+   "order": 0,
+   "role": "hub"
+  },
+  {
+   "x": 19,
+   "y": 19,
+   "order": 0,
+   "role": "hub"
+  },
+  {
+   "x": 20,
+   "y": 19,
+   "order": 0,
+   "role": "hub"
+  },
+  {
+   "x": 16,
+   "y": 20,
+   "order": 0,
+   "role": "hub"
+  },
+  {
+   "x": 17,
+   "y": 20,
+   "order": 0,
+   "role": "hub"
+  },
+  {
+   "x": 18,
+   "y": 20,
+   "order": 0,
+   "role": "hub"
+  },
+  {
+   "x": 19,
+   "y": 20,
+   "order": 0,
+   "role": "hub"
+  }
+ ]
+}

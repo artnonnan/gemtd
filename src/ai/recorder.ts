@@ -6,7 +6,7 @@ import type { Game } from '../game/game';
 import { TOWERS } from '../data/gems';
 import type { Action } from './bot';
 import { AIR_PATH, dpsMaps, exposureOf } from './exposure';
-import { blueprintOf, type LoadedBlueprint } from './blueprint';
+import { blueprintOf, hubPasses, isTowerSpot, type LoadedBlueprint } from './blueprint';
 import { GRID } from '../game/config';
 import { playBotGame, type BotGameOptions, type GameObserver } from './runner';
 
@@ -35,6 +35,8 @@ export interface GameRecord {
   /** with a blueprint: highest plan order built when each wave started (and how many plan cells stand) */
   blueprintProgress?: number[];
   blueprintBuilt?: number[];
+  /** with a blueprint that has a hub: how many times the ground route passed through it when each wave started */
+  hubPasses?: number[];
   /** with a blueprint: orders of the slots that got the kept tower */
   blueprintSlotsKept?: number[];
   /** per tower id (as it was at the end of each wave): damage dealt and number of tower-waves on the board */
@@ -60,6 +62,7 @@ class Recorder implements GameObserver {
   bpProgress: number[] = [];
   bpBuilt: number[] = [];
   bpSlotsKept: number[] = [];
+  hubPasses: number[] = [];
   constructor(private bp: LoadedBlueprint | null) {}
   towers: GameRecord['towers'] = {};
   picks: string[] = [];
@@ -73,7 +76,7 @@ class Recorder implements GameObserver {
       this.pending = { lives: game.lives, gold: game.gold };
       const t = game.towerAt(a.x, a.y)!;
       const cell = this.bp?.at.get(a.y * GRID + a.x);
-      if (cell?.role === 'slot') this.bpSlotsKept.push(cell.order);
+      if (isTowerSpot(cell)) this.bpSlotsKept.push(cell!.order);
       const result = a.type === 'keep' ? t.id : a.type === 'special' ? a.result : game.combineOptions(t).find((o) => o.count === a.count)!.result;
       this.picks.push(`${game.level}:${a.type === 'combine' ? `combine${a.count}` : a.type}:${result}`);
     } else if (a.type === 'place' && this.bp) {
@@ -103,6 +106,7 @@ class Recorder implements GameObserver {
         }
         this.bpProgress[game.level - 1] = top;
         this.bpBuilt[game.level - 1] = built;
+        if (this.bp.hub) this.hubPasses[game.level - 1] = hubPasses(game.route, this.bp.hub);
       }
       this.pending = null;
     } else if (this.wave && game.phase !== 'wave') {
@@ -143,6 +147,7 @@ export function recordBotGame(opts: Omit<BotGameOptions, 'observer'>): GameRecor
           blueprintProgress: rec.bpProgress,
           blueprintBuilt: rec.bpBuilt,
           blueprintSlotsKept: rec.bpSlotsKept,
+          ...(rec.hubPasses.length ? { hubPasses: rec.hubPasses } : {}),
         }
       : {}),
     towers: rec.towers,

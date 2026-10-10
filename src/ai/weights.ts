@@ -51,6 +51,8 @@ export interface Weights {
   keepExposure: number;
   /** keep/combine/special: power × (1 + this) for a gem standing on a blueprint slot */
   slotKeepBonus: number;
+  /** penalty (10 × this) for building on a blueprint hub cell, or a reserve cell before it unlocks */
+  reserveRespect: number;
   specialBonus: number;
   combine4Bonus: number;
   combine2Bonus: number;
@@ -130,7 +132,8 @@ export const WEIGHT_SPECS: Record<NumericWeightKey, WeightSpec> = {
   blueprintWeight: { min: 0, max: 20, desc: 'ให้คะแนนช่องในแปลน: ช่องแรกของ window ได้ 10 × ค่านี้ ช่องถัดไปลดลงเป็นขั้น (ค่า 1 ≈ 10 คะแนน; ช่องดีสุดปกติได้ราว 40–50 คะแนน); ยังเลือกช่องนอกแปลนได้ถ้าคะแนนสูงกว่า; 0 = ไม่ใช้แปลน' },
   blueprintWindow: { min: 1, max: 40, int: true, desc: 'จำนวนช่องแปลนถัดไป (ที่ยังไม่สร้างและวางได้ตอนนี้) ที่ได้โบนัส; น้อย = ทำตามลำดับเคร่ง, มาก = ยืดหยุ่น' },
   airExposure: { min: 0, max: 5, desc: 'คะแนนต่อจำนวนช่องบนเส้นทางบิน (บินตรงระหว่าง checkpoint) ที่เจมใหม่จะยิงถึง; ช่วยวางเจมไว้รับเวฟอากาศ; 0 = ไม่ใช้' },
-  slotKeepBonus: { min: 0, max: 3, desc: 'ตอนเลือก keep/combine/special: power × (1 + ค่านี้) ถ้าเจมอยู่บนช่อง slot ของแปลน (จุดที่ยิงถึงทางเดินมาก)' },
+  reserveRespect: { min: 0, max: 20, desc: 'หักคะแนน 10 × ค่านี้ เมื่อจะวางเจมลงช่อง hub ของแปลน (ที่ต้องเว้นว่างให้ทางผ่านหลายรอบ) หรือช่อง reserve ก่อนด่านที่ปลดล็อก; 0 = ไม่สนใจ' },
+  slotKeepBonus: { min: 0, max: 3, desc: 'ตอนเลือก keep/combine/special: power × (1 + ค่านี้) ถ้าเจมอยู่บนช่อง slot / final / reserve ของแปลน (จุดที่ยิงถึงทางเดินมาก)' },
   keepExposure: {
     min: 0, max: 3,
     desc: 'ตอนเลือก keep/combine/special คูณ power ด้วย (1 + ค่านี้ × จำนวนช่องทางที่ตำแหน่งนั้นยิงถึง / 10) โดยนับทางพื้นถ้ายิงพื้นได้ และทางบิน × สัดส่วนเวฟบินถ้ายิงอากาศได้; เจมแรงที่อยู่มุมที่ทางไม่ผ่านจะได้ค่าน้อย; 0 = ไม่ใช้',
@@ -169,6 +172,7 @@ export const DEFAULT_WEIGHTS: Weights = {
   buyLifeBelow: 0,
   keepExposure: 0,
   slotKeepBonus: 0,
+  reserveRespect: 0,
   specialBonus: 3000,
   combine4Bonus: 2000,
   combine2Bonus: 1000,
