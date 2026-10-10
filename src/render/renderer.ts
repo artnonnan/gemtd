@@ -6,6 +6,9 @@ import {
   type Lod, type TowerAnim,
 } from './art';
 import { SLATE_SPECIALS, SLATE_TELEPORT_RANGE, isSlate } from '../data/slates';
+import {
+  SWING_TIME, drawSpecialArt, drawSpecialShot, hasSpecialArt, specialShot, specialSwingStart, specialTopY,
+} from './specialArt';
 import { towerColor } from '../data/gems';
 import { Vfx, drawOrb } from './vfx';
 
@@ -178,6 +181,8 @@ export class Renderer {
     const visible = (t: Tower) => !(t.x < view.x0 - 2 || t.x > view.x1 + 2 || t.y < view.y0 - 2 || t.y > view.y1 + 3);
     for (const t of game.towers) if (isSlate(t.id) && visible(t)) this.drawSlate(game, t, lod);
     this.drawTeleport(game);
+    this.burners = game.towers.filter((t) => !t.fresh && abilityOf(t.id).burn);
+    for (const t of this.burners) if (t.id === 'h016' && visible(t)) this.drawFireRing(t, lod);
 
     // towers and creeps sorted by depth so lower things overlap higher ones
     const items: { y: number; draw: () => void }[] = [];
@@ -229,7 +234,7 @@ export class Renderer {
   private anim(t: Tower): TowerAnim {
     let a = this.towerAnims.get(t.uid);
     if (!a) {
-      a = { recoil: 0, flash: 0, aim: -Math.PI / 2, seed: hash(t.uid) * 10 };
+      a = { recoil: 0, flash: 0, aim: -Math.PI / 2, seed: hash(t.uid) * 10, swing: -1 };
       this.towerAnims.set(t.uid, a);
     }
     return a;
@@ -247,6 +252,7 @@ export class Renderer {
   /** Gem position in tiles for a tower (for muzzle sparks and celebrations); slates use their centre. */
   private gemTop(t: Tower, lod: Lod): Point {
     if (isSlate(t.id)) return { x: t.x + 0.5, y: t.y + 0.5 };
+    if (hasSpecialArt(t.id)) return { x: t.x + 0.5, y: t.y + 0.5 + PEDESTAL_DROP + specialTopY(t.id) * ART_SCALE };
     const { tier } = lookOf(t.id);
     const off = gemOffset(tier, this.clock, this.anim(t), lod);
     return { x: t.x + 0.5, y: t.y + 0.5 + PEDESTAL_DROP + off.y * ART_SCALE };
@@ -261,6 +267,7 @@ export class Renderer {
           const { palette, tier } = lookOf(e.tower.id);
           a.recoil = 1;
           a.flash = 0.8;
+          if (hasSpecialArt(e.tower.id)) a.swing = specialSwingStart(e.tower.id);
           const top = this.gemTop(e.tower, lod);
           a.aim = Math.atan2(e.ty - top.y, e.tx - top.x);
           for (let i = 0; i < 3 + tier * 2; i++) {
@@ -329,6 +336,10 @@ export class Renderer {
       const a = this.anim(t);
       a.recoil = Math.max(0, a.recoil - dt * 4);
       a.flash = Math.max(0, a.flash - dt * 5);
+      if (a.swing >= 0) {
+        a.swing += dt;
+        if (a.swing >= SWING_TIME) a.swing = -1;
+      }
       // rising motes from Flawless+ pedestals (only when they are big enough to see)
       const { palette, tier } = lookOf(t.id);
       const rate = motesPerSecond(tier);
@@ -455,7 +466,8 @@ export class Renderer {
     ctx.translate((t.x + 0.5) * tile, (t.y + 0.5 + PEDESTAL_DROP) * tile);
     ctx.scale(s, s);
     if (t.fresh) ctx.globalAlpha = 0.92;
-    drawTowerArt(ctx, palette, tier, this.clock, anim, lod);
+    if (hasSpecialArt(t.id)) drawSpecialArt(ctx, t.id, this.clock, anim, lod);
+    else drawTowerArt(ctx, palette, tier, this.clock, anim, lod);
     ctx.restore();
 
     if (t.fresh) {
@@ -518,6 +530,46 @@ export class Renderer {
       ctx.fillStyle = game.isTeleportTarget(h.x, h.y) ? COLORS.ok : COLORS.bad;
       ctx.fillRect(h.x * tile, h.y * tile, tile, tile);
     }
+  }
+
+  /** towers with a burn aura this frame (for flames on creeps) */
+  private burners: Tower[] = [];
+
+  private isBurning(c: Creep): boolean {
+    return this.burners.some((t) => {
+      const a = abilityOf(t.id);
+      if (a.targets !== 'both' && (a.targets === 'air') !== c.def.air) return false;
+      return Math.hypot(c.x - t.x - 0.5, c.y - t.y - 0.5) <= toTiles(a.burn!.range);
+    });
+  }
+
+  /** Star Ruby: a ring of fire on the floor showing its burn aura. */
+  private drawFireRing(t: Tower, lod: Lod) {
+    const { ctx, tile } = this;
+    const R = toTiles(abilityOf(t.id).burn!.range) * tile;
+    const cx = (t.x + 0.5) * tile, cy = (t.y + 0.5) * tile;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const g = ctx.createRadialGradient(cx, cy, R * 0.2, cx, cy, R);
+    g.addColorStop(0, 'rgba(255,90,40,0.02)');
+    g.addColorStop(0.8, `rgba(255,90,40,${0.1 + 0.04 * Math.sin(this.clock * 5)})`);
+    g.addColorStop(1, 'rgba(255,140,60,0.22)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.fill();
+    if (lod > 0) {
+      const n = 28;
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2 + this.clock * 0.3;
+        const h = tile * (0.12 + 0.1 * Math.abs(Math.sin(this.clock * 7 + i * 1.7)));
+        const x = cx + Math.cos(a) * R, y = cy + Math.sin(a) * R;
+        ctx.fillStyle = i % 2 ? 'rgba(255,120,40,0.55)' : 'rgba(255,200,80,0.45)';
+        ctx.beginPath();
+        ctx.moveTo(x - tile * 0.06, y);
+        ctx.quadraticCurveTo(x, y - h * 1.2, x + tile * 0.06, y);
+        ctx.fill();
+      }
+    }
+    ctx.restore();
   }
 
   // ---------- creeps ----------
@@ -602,6 +654,17 @@ export class Renderer {
         ctx.beginPath(); ctx.moveTo(s * 5, -10); ctx.lineTo(s * 9, -19); ctx.lineTo(s * 10, -8); ctx.fill();
       }
     }
+    if (this.isBurning(c)) {
+      // flames licking a unit inside a burn aura
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      for (let i = 0; i < 3; i++) {
+        const fx = -7 + i * 7, h = 10 + 6 * Math.abs(Math.sin(this.clock * 12 + i * 2 + c.uid));
+        ctx.fillStyle = i % 2 ? 'rgba(255,150,40,0.75)' : 'rgba(255,80,30,0.7)';
+        ctx.beginPath(); ctx.moveTo(fx - 4, 2); ctx.quadraticCurveTo(fx, 2 - h * 1.6, fx + 4, 2); ctx.fill();
+      }
+      ctx.restore();
+    }
     if (stunned) {
       for (let i = 0; i < 3; i++) {
         const a = this.clock * 5 + (i * Math.PI * 2) / 3;
@@ -627,6 +690,12 @@ export class Renderer {
   private drawShots(game: Game) {
     const { ctx, tile } = this;
     for (const s of game.shots) {
+      const kind = specialShot(s.tower.id);
+      if (kind) {
+        const angle = Math.atan2(s.target.y - s.y, s.target.x - s.x);
+        drawSpecialShot(ctx, kind, s.x * tile, s.y * tile, angle, Math.max(0.25, tile * (kind === 'needle' ? 0.019 : 0.016)));
+        continue;
+      }
       const { tier } = lookOf(s.tower.id);
       const r = Math.max(2.5, TIERS[tier].shot * tile * ART_SCALE * 1.6);
       drawOrb(ctx, s.x * tile, s.y * tile, r, s.color, tier >= 5, this.clock);

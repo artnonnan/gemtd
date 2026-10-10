@@ -20,6 +20,8 @@ export interface TowerAnim {
   aim: number;
   /** per-tower phase so neighbours don't bob in sync */
   seed: number;
+  /** special art: seconds into the current attack animation (e.g. Silver Knight's sword swing), -1 when idle */
+  swing: number;
 }
 
 /** 0 = tiny on screen (cheap), 1 = medium, 2 = close-up (everything). */
