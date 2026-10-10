@@ -105,7 +105,27 @@ renderer.draw(game);
   renderer.draw(g);
   const hits = g.freshTowers.filter((t) => [-1, -0.5, 0, 0.5, 1, 1.5, 2].some((dy) => renderer.hintAt((t.x + 0.5) * 18, (t.y + 1.2 + dy) * 18) === t));
   if (hits.length !== 2) throw new Error(`FAIL: expected a Silver and a combine label, found ${hits.length}`);
-  console.log('choice hints: frames ok, labels clickable');
+
+  // slate: Topaz (Normal) + Flawed Amethyst; the label sits on the Topaz
+  const s = new Game({ seed: 9 });
+  for (let x = 10; x < 15; x++) s.placeGem(x, 0);
+  const [core, partner, ...others] = s.freshTowers;
+  core.id = 'e002';
+  partner.id = 'h007';
+  others.forEach((t, k) => (t.id = BASE_GEMS[GEM_TYPES[k + 1]][0])); // three different Chipped gems
+  renderer.draw(s);
+  const onCore = [-1, -0.5, 0, 0.5, 1, 1.5, 2].some((dy) => renderer.hintAt((core.x + 0.5) * 18, (core.y + 1.2 + dy) * 18) === core);
+  if (!onCore) throw new Error('FAIL: no slate label on the Topaz');
+
+  // panel focus: the recipe's gems lit, lines into the selected one
+  renderer.focus = [{ tower: a, state: 'self' }, { tower: b, state: 'fresh' }, { tower: c, state: 'kept' }];
+  for (const zoom of [1, 5]) {
+    renderer.zoom = zoom;
+    for (let f = 0; f < 10; f++) renderer.draw(g);
+  }
+  renderer.focus = null;
+  renderer.zoom = 1;
+  console.log('choice hints: frames ok, special/slate/combine labels clickable, focus drawn');
 }
 if (nanArgs) throw new Error(`FAIL: ${nanArgs} draw calls received NaN/Infinity`);
 console.log('render smoke passed: no exceptions, no NaN geometry');

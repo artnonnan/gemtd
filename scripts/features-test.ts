@@ -59,6 +59,8 @@ function chooseRound(game: Game, y: number) {
   assert(s.parts.map((p) => p.state).join() === 'kept,fresh,fresh' && s.owned === 3 && s.ready, 'Silver: old gem kept, two from this round, ready');
   assert(g.recipeStatus(silver, rest[0]).ready, 'ready does not depend on the selected gem');
   rest[0].id = 'e000';
+  const lit = g.recipeStatus(silver, a).parts.map((p) => p.tower);
+  assert(lit.includes(b) && !lit.includes(rest[0]) && lit.includes(old), 'shown parts are the ones Special will use');
   g.makeSpecial(a, silver);
   assert(a.id === 'h01A' && g.isRock(old.x, old.y) && g.isRock(b.x, b.y), 'making it uses up the kept gem too');
 

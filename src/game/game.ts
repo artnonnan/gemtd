@@ -123,7 +123,7 @@ export type IngredientState = 'kept' | 'fresh' | 'missing';
 
 export interface RecipeStatus {
   recipe: Recipe;
-  parts: { id: string; state: IngredientState }[];
+  parts: { id: string; tower: Tower | null; state: IngredientState }[];
   /** ingredients on the board */
   owned: number;
   /** can be made right now (Special button on one of this round's gems) */
@@ -347,29 +347,32 @@ export class Game {
   }
 
   /**
-   * Which ingredients of a recipe are on the board, for display. `focus` (the selected tower) fills its own slot;
-   * the rest prefer kept towers, which stay put, over this round's gems.
+   * Which ingredients of a recipe are on the board, for display. `focus` (the selected tower) fills its own slot.
+   * When the focus can make the recipe now, the parts are exactly the towers Special would use up;
+   * otherwise they prefer kept towers, which stay put, over this round's gems.
    */
   recipeStatus(r: Recipe, focus?: Tower | null): RecipeStatus {
+    const actual = focus?.fresh && this.specialOptions(focus).includes(r) ? this.recipeParts(focus, r) : null;
     const used = new Set<Tower>();
-    const state = (t: Tower): IngredientState => (t.fresh ? 'fresh' : 'kept');
     const slots: (Tower | null)[] = r.ingredients.map(() => null);
+    const take = (i: number, t: Tower) => {
+      slots[i] = t;
+      used.add(t);
+    };
     const self = focus ? r.ingredients.indexOf(focus.id) : -1;
-    if (focus && self >= 0) {
-      slots[self] = focus;
-      used.add(focus);
-    }
+    if (focus && self >= 0) take(self, focus);
     r.ingredients.forEach((ing, i) => {
       if (slots[i]) return;
-      const pick =
-        this.towers.find((o) => !o.fresh && o.id === ing && !used.has(o)) ??
-        this.towers.find((o) => o.fresh && o.id === ing && !used.has(o));
-      if (pick) {
-        slots[i] = pick;
-        used.add(pick);
-      }
+      const free = (o: Tower) => o.id === ing && !used.has(o);
+      const pick = actual
+        ? actual.find(free)
+        : this.towers.find((o) => !o.fresh && free(o)) ?? this.towers.find((o) => o.fresh && free(o));
+      if (pick) take(i, pick);
     });
-    const parts = r.ingredients.map((id, i) => ({ id, state: slots[i] ? state(slots[i]!) : ('missing' as const) }));
+    const parts = r.ingredients.map((id, i) => {
+      const tower = slots[i];
+      return { id, tower, state: (tower ? (tower.fresh ? 'fresh' : 'kept') : 'missing') as IngredientState };
+    });
     return {
       recipe: r,
       parts,
@@ -413,11 +416,15 @@ export class Game {
     return true;
   }
 
+  /** The other gems a combine of `count` uses up. */
+  combineParts(t: Tower, count: 2 | 4): Tower[] {
+    return this.freshTowers.filter((o) => o !== t && o.id === t.id).slice(0, count - 1);
+  }
+
   combine(t: Tower, count: 2 | 4): boolean {
     const opt = this.combineOptions(t).find((o) => o.count === count);
     if (!opt) return false;
-    const others = this.freshTowers.filter((o) => o !== t && o.id === t.id).slice(0, count - 1);
-    for (const o of others) {
+    for (const o of this.combineParts(t, count)) {
       t.kills += o.kills;
       t.damage += o.damage;
       this.toRock(o);
@@ -451,7 +458,12 @@ export class Game {
   /** Create Slate: the selected Normal gem becomes a slate if a matching Flawed gem was placed this round. */
   slateOptions(t: Tower): SlateRecipe[] {
     if (this.phase !== 'choose' || !t.fresh) return [];
-    return SLATE_RECIPES.filter((r) => r.core === t.id && this.freshTowers.some((o) => o !== t && r.partners.includes(o.id)));
+    return SLATE_RECIPES.filter((r) => r.core === t.id && this.slatePartner(t, r));
+  }
+
+  /** The Flawed gem of this round that lets `t` become this slate. */
+  slatePartner(t: Tower, r: SlateRecipe): Tower | undefined {
+    return this.freshTowers.find((o) => o !== t && r.partners.includes(o.id));
   }
 
   createSlate(t: Tower, recipe: SlateRecipe): boolean {

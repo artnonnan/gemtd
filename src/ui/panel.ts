@@ -4,6 +4,7 @@ import { parseWeights } from '../ai/loadWeights';
 import type { Weights } from '../ai/weights';
 import type { Match } from '../net/match';
 import { MiniRenderer } from '../render/mini';
+import type { FocusTile } from '../render/renderer';
 import { InfoModal } from './info';
 import { SLATE_RECIPES, SLATE_TELEPORT_RANGE, isSlate } from '../data/slates';
 import {
@@ -69,6 +70,8 @@ export class Panel {
   private aiStatus: HTMLElement;
   private aiMessage = '';
   private html = new Map<HTMLElement, string>();
+  /** recipe or choice under the pointer ("special:3", "slate:1", "combine:2") and the gem it was shown for */
+  private focus: { key: string; uid: number } | null = null;
 
   constructor(top: HTMLElement, bottom: HTMLElement, private getGame: () => Game, private controls: Controls, private match: Match) {
     top.innerHTML = `
@@ -165,6 +168,37 @@ export class Panel {
     }, true);
     // pointerdown instead of click: the bottom bar can re-render mid-click while a wave runs
     for (const root of [top, bottom, this.settings]) root.addEventListener('pointerdown', (e) => this.onAction(e));
+    // pointing at a recipe or a choice highlights its gems on the board (on touch, a tap keeps it lit)
+    bottom.addEventListener('pointerover', (e) => {
+      const el = (e.target as HTMLElement).closest<HTMLElement>('[data-focus]');
+      const t = this.getGame().selected;
+      this.focus = el && t ? { key: el.dataset.focus!, uid: t.uid } : null;
+    });
+    bottom.addEventListener('pointerleave', (e) => {
+      if (e.pointerType === 'mouse') this.focus = null;
+    });
+  }
+
+  /** Gems the pointed-at recipe or choice would use, for the board highlight. */
+  focusTiles(): FocusTile[] | null {
+    const g = this.getGame();
+    const t = g.selected;
+    if (!this.focus || !t || t.uid !== this.focus.uid || !g.towers.includes(t)) return null;
+    const [kind, v] = this.focus.key.split(':');
+    const self: FocusTile = { tower: t, state: 'self' };
+    switch (kind) {
+      case 'special': {
+        const parts = g.recipeStatus(RECIPES[+v], t).parts.filter((p) => p.tower && p.tower !== t);
+        return [self, ...parts.map((p) => ({ tower: p.tower!, state: p.state }))];
+      }
+      case 'slate': {
+        const partner = g.slatePartner(t, SLATE_RECIPES[+v]);
+        return partner ? [self, { tower: partner, state: 'fresh' }] : [self];
+      }
+      case 'combine':
+        return [self, ...g.combineParts(t, +v as 2 | 4).map((o): FocusTile => ({ tower: o, state: 'fresh' }))];
+    }
+    return null;
   }
 
   toggleSettings(open = this.settings.hidden) {
@@ -362,13 +396,15 @@ export class Panel {
         const lower = g.downgradeOption(t);
         if (lower) btns.push(`<button data-act="downgrade" title="Keep this gem one quality lower (Downgrade)">Keep ↓ ${gemLabel(lower)}</button>`);
         for (const o of g.combineOptions(t)) {
-          btns.push(`<button data-act="combine" data-v="${o.count}" class="primary">Combine ${o.count} → ${gemLabel(o.result)}</button>`);
+          btns.push(`<button data-act="combine" data-v="${o.count}" data-focus="combine:${o.count}" class="primary">Combine ${o.count} → ${gemLabel(o.result)}</button>`);
         }
         for (const r of g.specialOptions(t)) {
-          btns.push(`<button data-act="special" data-v="${RECIPES.indexOf(r)}" class="special">Special → ${gemLabel(r.result)}</button>`);
+          const i = RECIPES.indexOf(r);
+          btns.push(`<button data-act="special" data-v="${i}" data-focus="special:${i}" class="special">Special → ${gemLabel(r.result)}</button>`);
         }
         for (const r of g.slateOptions(t)) {
-          btns.push(`<button data-act="slate" data-v="${SLATE_RECIPES.indexOf(r)}" class="slate" title="Turn this gem into a slate creeps can walk over">Create slate → ${gemLabel(r.result)}</button>`);
+          const i = SLATE_RECIPES.indexOf(r);
+          btns.push(`<button data-act="slate" data-v="${i}" data-focus="slate:${i}" class="slate" title="Turn this gem into a slate creeps can walk over">Create slate → ${gemLabel(r.result)}</button>`);
         }
       }
       for (const o of g.slateSpecialOptions(t)) {
@@ -417,7 +453,7 @@ export class Panel {
       .map((r) => g.recipeStatus(r, t))
       .sort((a, b) => +b.ready - +a.ready || b.owned / b.parts.length - a.owned / a.parts.length);
     if (!rows.length) return '';
-    const row = (s: RecipeStatus) => `<div class="use ${s.ready ? 'ready' : ''}">
+    const row = (s: RecipeStatus) => `<div class="use ${s.ready ? 'ready' : ''}" data-focus="special:${RECIPES.indexOf(s.recipe)}">
         <span class="res">${s.ready ? '★ ' : ''}${gemLabel(s.recipe.result)}</span>
         <span class="parts">${s.parts.map((p) => `<span class="ing ${p.state}">${gemLabel(p.id)}</span>`).join('<span class="plus">+</span>')}</span>
         <span class="count">${s.owned}/${s.parts.length}</span>

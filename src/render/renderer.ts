@@ -1,5 +1,5 @@
 import { CHECKPOINTS, GRID, toTiles, type Point } from '../game/config';
-import type { Creep, Game, GameEvent, Shot, Tower } from '../game/game';
+import type { Creep, Game, GameEvent, IngredientState, Shot, Tower } from '../game/game';
 import { GEM_INFO, QUALITY_NAMES, RECIPES, TOWERS, abilityOf, displayName } from '../data/gems';
 import {
   ART_PEDESTAL_WIDTH, TIERS, drawSlateArt, drawTowerArt, ease, gemOffset, hash, hexA, lookOf, motesPerSecond, star,
@@ -36,6 +36,30 @@ const ART_SCALE = 0.95 / ART_PEDESTAL_WIDTH;
 /** Pedestal sits a little below the tile centre so the floating gem stays mostly inside its tile. */
 const PEDESTAL_DROP = 0.18;
 
+/** A gem lit on the board because the player points at a recipe or choice that uses it. */
+export interface FocusTile {
+  tower: Tower;
+  /** self: the gem that becomes the result */
+  state: IngredientState | 'self';
+}
+
+const FOCUS_COLORS: Record<FocusTile['state'], string> = { self: '#ffffff', kept: '#3fae6a', fresh: '#ffd84a', missing: '#8b93a7' };
+
+/** A "can make" label over one of this round's gems. */
+interface Hint {
+  tower: Tower;
+  text: string;
+  color: string;
+  kind: 'special' | 'slate' | 'combine';
+}
+
+/** Label look per kind: background, border, glow, bottom of the text gradient (null: the result's colour). */
+const HINT_STYLE: Record<Hint['kind'], { bg: string; border: string | null; glow: boolean; text: string | null }> = {
+  special: { bg: 'rgba(40,28,6,0.9)', border: '#ffd84a', glow: true, text: '#ffd84a' },
+  slate: { bg: 'rgba(6,34,40,0.9)', border: '#2bb5c4', glow: true, text: '#7fe8f2' },
+  combine: { bg: 'rgba(14,16,22,0.82)', border: null, glow: false, text: null },
+};
+
 interface CreepFx {
   hit: number;
   shownHp: number;
@@ -58,6 +82,8 @@ export class Renderer {
   heatmap: 'off' | 'ground' | 'air' = 'off';
   /** maze plan drawn as a ghost under everything, or null */
   blueprint: LoadedBlueprint | null = null;
+  /** gems of the recipe or choice the player points at in the panel */
+  focus: FocusTile[] | null = null;
   offX = 0;
   offY = 0;
 
@@ -208,6 +234,7 @@ export class Renderer {
     this.vfx.draw(ctx, tile);
     this.drawRanges(game);
     this.drawRockAndSwap(game);
+    this.drawFocus(game);
     this.drawChoiceHints(game, lod);
   }
 
@@ -849,33 +876,69 @@ export class Renderer {
   }
 
   /**
-   * What this round's gems can become: one label per special (over the selected ingredient, else the last placed one),
-   * and a smaller one per combinable group that has no special.
+   * What this round's gems can become: one label per special (over the selected ingredient, else the last placed one)
+   * and per slate (over its Normal gem), and a smaller one per combinable group that has neither.
    */
-  private choiceHints(game: Game): { tower: Tower; text: string; color: string; special: boolean }[] {
+  private choiceHints(game: Game): Hint[] {
     const pick = (ts: Tower[]) => (game.selected && ts.includes(game.selected) ? game.selected : ts[ts.length - 1]);
-    const specials = new Map<Tower, string[]>();
+    const made = new Map<Tower, { kind: 'special' | 'slate'; id: string }[]>();
+    const add = (t: Tower, kind: 'special' | 'slate', id: string) => made.set(t, [...(made.get(t) ?? []), { kind, id }]);
     for (const r of RECIPES) {
       const makers = game.freshTowers.filter((t) => game.specialOptions(t).includes(r));
-      if (!makers.length) continue;
-      const at = pick(makers);
-      specials.set(at, [...(specials.get(at) ?? []), r.result]);
+      if (makers.length) add(pick(makers), 'special', r.result);
     }
-    const out: { tower: Tower; text: string; color: string; special: boolean }[] = [];
-    for (const [tower, ids] of specials) {
-      const more = ids.length > 1 ? ` +${ids.length - 1}` : '';
-      out.push({ tower, text: `★ ${displayName(ids[0]).toUpperCase()}${more}`, color: lookOf(ids[0]).palette.light, special: true });
+    for (const t of game.freshTowers) for (const r of game.slateOptions(t)) add(t, 'slate', r.result);
+    const out: Hint[] = [];
+    for (const [tower, list] of made) {
+      const { kind, id } = list[0];
+      const more = list.length > 1 ? ` +${list.length - 1}` : '';
+      out.push({ tower, text: `${kind === 'special' ? '★' : '◆'} ${displayName(id).toUpperCase()}${more}`, color: lookOf(id).palette.light, kind });
     }
     const groups = new Map<string, Tower[]>();
     for (const t of game.freshTowers) if (game.combineOptions(t).length) groups.set(t.id, [...(groups.get(t.id) ?? []), t]);
     for (const ts of groups.values()) {
-      if (ts.some((t) => specials.has(t))) continue;
+      if (ts.some((t) => made.has(t))) continue;
       const tower = pick(ts);
       const opts = game.combineOptions(tower);
       const best = opts[opts.length - 1];
-      out.push({ tower, text: `${best.count}× → ${displayName(best.result)}`, color: lookOf(best.result).palette.light, special: false });
+      out.push({ tower, text: `${best.count}× → ${displayName(best.result)}`, color: lookOf(best.result).palette.light, kind: 'combine' });
     }
     return out;
+  }
+
+  /** Lights the gems of the recipe the player points at, with lines into the gem that becomes the result. */
+  private drawFocus(game: Game) {
+    const focus = this.focus;
+    if (!focus?.length) return;
+    const { ctx, tile } = this;
+    const pulse = 0.5 + 0.5 * Math.sin(this.clock * 6);
+    const self = focus.find((f) => f.state === 'self')?.tower;
+    ctx.save();
+    if (self) {
+      ctx.lineWidth = Math.max(1.5, tile * 0.08);
+      ctx.setLineDash([tile * 0.2, tile * 0.15]);
+      ctx.lineDashOffset = this.clock * tile; // dashes flow into the result
+      for (const f of focus) {
+        if (f.tower === self) continue;
+        ctx.strokeStyle = hexA(FOCUS_COLORS[f.state], 0.75);
+        ctx.beginPath();
+        ctx.moveTo((f.tower.x + 0.5) * tile, (f.tower.y + 0.5) * tile);
+        ctx.lineTo((self.x + 0.5) * tile, (self.y + 0.5) * tile);
+        ctx.stroke();
+      }
+      ctx.setLineDash([]);
+    }
+    for (const f of focus) {
+      if (!game.towers.includes(f.tower)) continue;
+      const color = FOCUS_COLORS[f.state];
+      const x = f.tower.x * tile, y = f.tower.y * tile;
+      ctx.fillStyle = hexA(color, 0.14 + 0.12 * pulse);
+      ctx.fillRect(x, y, tile, tile);
+      ctx.strokeStyle = hexA(color, 0.6 + 0.4 * pulse);
+      ctx.lineWidth = Math.max(1.5, tile * (f.state === 'self' ? 0.12 : 0.09));
+      ctx.strokeRect(x + 1, y + 1, tile - 2, tile - 2);
+    }
+    ctx.restore();
   }
 
   private drawChoiceHints(game: Game, lod: Lod) {
@@ -892,21 +955,23 @@ export class Renderer {
     for (const h of this.choiceHints(game)) {
       const key = `${h.tower.uid}:${h.text}`;
       seen.add(key);
+      const style = HINT_STYLE[h.kind];
+      const big = h.kind !== 'combine';
       const top = this.gemTop(h.tower, lod);
       let born = this.hintBorn.get(key);
       if (born === undefined) {
         born = this.clock;
         this.hintBorn.set(key, born);
-        if (h.special) {
-          this.vfx.burst(top.x, top.y - 0.4, 18, 3, [h.color, '#ffd84a', '#ffffff']);
-          this.vfx.ring(top.x, top.y, 1.1, '#ffd84a', 0.5, 3);
+        if (big) {
+          this.vfx.burst(top.x, top.y - 0.4, 18, 3, [h.color, style.border!, '#ffffff']);
+          this.vfx.ring(top.x, top.y, 1.1, style.border!, 0.5, 3);
         }
       }
       const age = this.clock - born;
       const pop = age < 0.25 ? 0.4 + ease(age / 0.25) * 0.8 : 1.2 - Math.min(0.2, (age - 0.25) * 1.2);
-      const font = ((h.special ? screen : screen * 0.8) / zoom) * pop;
+      const font = ((big ? screen : screen * 0.8) / zoom) * pop;
       ctx.save();
-      ctx.font = `${h.special ? 900 : 700} ${font}px system-ui, sans-serif`;
+      ctx.font = `${big ? 900 : 700} ${font}px system-ui, sans-serif`;
       const w = ctx.measureText(h.text).width + font * 1.1, hgt = font * 1.6;
       const bob = Math.sin(this.clock * 3 + h.tower.uid) * tile * 0.05;
       let cx = top.x * tile;
@@ -923,21 +988,21 @@ export class Renderer {
       ctx.arcTo(x0, y0, x0 + w, y0, r);
       ctx.closePath();
       ctx.globalAlpha = Math.min(1, age * 6);
-      ctx.fillStyle = h.special ? 'rgba(40,28,6,0.9)' : 'rgba(14,16,22,0.82)';
-      if (h.special) {
+      ctx.fillStyle = style.bg;
+      if (style.glow) {
         ctx.shadowColor = hexA(h.color, 0.9);
         ctx.shadowBlur = (6 + 4 * Math.sin(this.clock * 4)) * (1 / zoom) * 2;
       }
       ctx.fill();
       ctx.shadowBlur = 0;
-      ctx.lineWidth = Math.max(1, font * (h.special ? 0.14 : 0.08));
-      ctx.strokeStyle = h.special ? '#ffd84a' : hexA(h.color, 0.7);
+      ctx.lineWidth = Math.max(1, font * (big ? 0.14 : 0.08));
+      ctx.strokeStyle = style.border ?? hexA(h.color, 0.7);
       ctx.stroke();
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       const g = ctx.createLinearGradient(0, y0, 0, y0 + hgt);
       g.addColorStop(0, '#ffffff');
-      g.addColorStop(1, h.special ? '#ffd84a' : h.color);
+      g.addColorStop(1, style.text ?? h.color);
       ctx.fillStyle = g;
       ctx.fillText(h.text, cx, cy + font * 0.05);
       ctx.restore();

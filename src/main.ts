@@ -139,6 +139,7 @@ function frame(now: number) {
   }
   input.update();
   renderer.heatmap = controls.heatmap;
+  renderer.focus = panel.focusTiles();
   renderer.blueprint = controls.showBlueprint ? (aiActive()?.bot.blueprint ?? null) : null;
   renderer.draw(game);
   panel.update();
