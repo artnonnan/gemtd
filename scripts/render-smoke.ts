@@ -125,6 +125,18 @@ renderer.draw(game);
   }
   renderer.focus = null;
   renderer.zoom = 1;
+
+  // a slate between tiles with a gem on it, and the teleport preview snapping to half tiles
+  const slate = s.freshTowers.find((t) => t.id === 'e002')!;
+  s.createSlate(slate, s.slateOptions(slate)[0]);
+  slate.x += 0.5;
+  slate.y += 0.5;
+  while (s.phase === 'wave') s.update(1 / 30);
+  s.placeGem(Math.floor(slate.x), Math.floor(slate.y));
+  s.beginTeleport(slate);
+  renderer.hoverBoard = { x: slate.x + 2.3, y: slate.y + 1.7 };
+  for (let f = 0; f < 10; f++) renderer.draw(s);
+  renderer.hoverBoard = null;
   console.log('choice hints: frames ok, special/slate/combine labels clickable, focus drawn');
 }
 if (nanArgs) throw new Error(`FAIL: ${nanArgs} draw calls received NaN/Infinity`);

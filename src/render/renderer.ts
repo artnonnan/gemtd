@@ -5,7 +5,7 @@ import {
   ART_PEDESTAL_WIDTH, TIERS, drawSlateArt, drawTowerArt, ease, gemOffset, hash, hexA, lookOf, motesPerSecond, star,
   type Lod, type TowerAnim,
 } from './art';
-import { SLATE_SPECIALS, SLATE_TELEPORT_RANGE, isSlate } from '../data/slates';
+import { SLATE_SPECIALS, SLATE_TELEPORT_RANGE, isSlate, slateSpot } from '../data/slates';
 import {
   drawSpecialArt, drawSpecialShot, hasSpecialArt, specialShot, specialShotScale, specialSwingStart, specialSwingTime,
   specialTopY,
@@ -74,6 +74,8 @@ export class Renderer {
   private dpr = 1;
   tile = 16;
   hover: Point | null = null;
+  /** mouse position in fractional tiles (slate teleport snaps to half tiles) */
+  hoverBoard: Point | null = null;
   /** touch placement target, confirmed with a second tap or the Place button */
   cursor: Point | null = null;
   /** camera: zoom factor and top-left offset in unzoomed board pixels */
@@ -172,10 +174,16 @@ export class Renderer {
 
   /** Screen point -> tile coordinate, through the camera. */
   tileAt(clientX: number, clientY: number): Point {
+    const b = this.boardAt(clientX, clientY);
+    return { x: Math.floor(b.x), y: Math.floor(b.y) };
+  }
+
+  /** Screen point -> board point in (fractional) tiles. */
+  boardAt(clientX: number, clientY: number): Point {
     const r = this.canvas.getBoundingClientRect();
     const bx = (clientX - r.left) / this.zoom + this.offX;
     const by = (clientY - r.top) / this.zoom + this.offY;
-    return { x: Math.floor(bx / this.tile), y: Math.floor(by / this.tile) };
+    return { x: bx / this.tile, y: by / this.tile };
   }
 
   // ---------- frame ----------
@@ -648,10 +656,12 @@ export class Renderer {
     ctx.fill();
     ctx.stroke();
     ctx.restore();
-    const h = this.hover ?? this.cursor;
-    if (h && game.inBounds(h.x, h.y)) {
-      ctx.fillStyle = game.isTeleportTarget(h.x, h.y) ? COLORS.ok : COLORS.bad;
-      ctx.fillRect(h.x * tile, h.y * tile, tile, tile);
+    // the slate snaps to half tiles under the mouse
+    const b = this.hoverBoard;
+    if (b && game.inBounds(Math.floor(b.x), Math.floor(b.y))) {
+      const s = slateSpot(b.x, b.y);
+      ctx.fillStyle = game.isTeleportTarget(s.x, s.y) ? COLORS.ok : COLORS.bad;
+      ctx.fillRect(s.x * tile, s.y * tile, tile, tile);
     }
   }
 

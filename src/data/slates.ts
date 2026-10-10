@@ -37,6 +37,12 @@ export const isSlate = (id: string) => SLATE_IDS.has(id);
 /** Teleport (A02J): once per slate, within 2000 range. */
 export const SLATE_TELEPORT_RANGE = 2000;
 
+/** "Slate Stacking": the map looks for slates of the same kind (or its combination) within 220 of a new slate. */
+export const SLATE_STACK_RANGE = 220;
+
+/** Slate spot (top-left, half-tile steps) centred nearest to a board point in tiles: slates may sit between tiles. */
+export const slateSpot = (bx: number, by: number) => ({ x: Math.round(bx * 2) / 2 - 0.5, y: Math.round(by * 2) / 2 - 0.5 });
+
 // Hold and Damage slates have no base damage in the map data (it is computed from kills), so the exporter skipped them.
 TOWERS.n002 ??= { name: 'Hold Slate', dmg: 0, dice: 0, sides: 1, cd: 2, range: 115, cost: 0, upgrades: [], swap: false, tip: '' };
 TOWERS.n00C ??= { name: 'Damage Slate', dmg: 0, dice: 0, sides: 1, cd: 1, range: 600, cost: 0, upgrades: [], swap: false, tip: '' };

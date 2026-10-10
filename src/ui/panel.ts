@@ -424,7 +424,7 @@ export class Panel {
         btns.push(`<button data-act="swap" ${g.gold < SWAP_COST ? 'disabled' : ''} title="Swap position with another gem or a rock (once per tower)">⇄ Swap <span class="cost">${SWAP_COST}g</span></button>`);
       }
       choose.push(`<div class="selected">
-        <div class="sel-head"><h3>${gemLabel(t.id)}</h3><span class="muted">${info ? `${QUALITY_NAMES[info.quality]} gem` : isSlate(t.id) ? 'Slate · creeps walk over it' : 'Special tower'} · ${t.kills} kills</span></div>
+        <div class="sel-head"><h3>${gemLabel(t.id)}</h3><span class="muted">${info ? `${QUALITY_NAMES[info.quality]} gem` : isSlate(t.id) ? 'Slate · creeps walk over it · click it again to build a gem on top' : 'Special tower'} · ${t.kills} kills</span></div>
         <p class="muted">${a.noAttack ? '' : `Damage ${def.dmg + def.dice}–${def.dmg + def.dice * def.sides} · Cooldown ${def.cd}s · `}Range ${def.range}${describeAbility(a).length ? ' · ' + esc(describeAbility(a).join(' · ')) : ''}</p>
         ${btns.length ? `<div class="btns">${btns.join('')}</div>` : ''}
         ${this.usesHtml(g, t)}

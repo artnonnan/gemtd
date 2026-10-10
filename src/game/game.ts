@@ -5,7 +5,7 @@ import {
 import { blockedGrid, findRoute, findRouteSegments, rerouteAround, routeLength } from './path';
 import { combatSeed, mulberry32, randomSeed } from './rng';
 import {
-  SLATE_RECIPES, SLATE_SPECIALS, SLATE_TELEPORT_RANGE, isSlate, slatesConflict, type SlateRecipe,
+  SLATE_RECIPES, SLATE_SPECIALS, SLATE_STACK_RANGE, SLATE_TELEPORT_RANGE, isSlate, slatesConflict, type SlateRecipe,
 } from '../data/slates';
 import {
   BASE_GEMS, GEM_INFO, GEM_TYPES, GREAT, MAX_QUALITY_LEVEL, PERFECT, QUALITY_CHANCES, RECIPES, TOWERS, WAVES,
@@ -215,14 +215,23 @@ export class Game {
     return CHECKPOINTS.some((c) => Math.max(Math.abs(c.x - x), Math.abs(c.y - y)) <= CHECKPOINT_CLEARANCE);
   }
 
-  /** Gems and rocks block creeps; slates lie flat and can be walked over. */
-  private blocked = (x: number, y: number) => {
-    const t = this.grid[y * GRID + x];
-    return (!!t && !isSlate(t.id)) || this.rocks.has(y * GRID + x);
-  };
+  /**
+   * Gems and rocks block creeps. Slates are not on the grid: they lie flat (no pathing in the map), so creeps
+   * walk over them and gems can be built on top, the slate still working underneath.
+   */
+  private blocked = (x: number, y: number) => !!this.grid[y * GRID + x] || this.rocks.has(y * GRID + x);
 
-  /** Tile has something on it (gem, slate or rock): nothing else can be built there. */
-  private occupied = (x: number, y: number) => !!this.grid[y * GRID + x] || this.rocks.has(y * GRID + x);
+  /** Tile has a gem or a rock on it: nothing else can be built there. */
+  private occupied = this.blocked;
+
+  /** Topmost slate whose 1x1 footprint covers a board point (in tiles); slates may sit between tiles. */
+  slateAt(bx: number, by: number): Tower | null {
+    for (let i = this.towers.length - 1; i >= 0; i--) {
+      const t = this.towers[i];
+      if (isSlate(t.id) && bx >= t.x && bx < t.x + 1 && by >= t.y && by < t.y + 1) return t;
+    }
+    return null;
+  }
 
   /** Empty, not reserved, and does not cut the route. */
   canPlace(x: number, y: number): boolean {
@@ -469,6 +478,7 @@ export class Game {
   createSlate(t: Tower, recipe: SlateRecipe): boolean {
     if (!this.slateOptions(t).includes(recipe)) return false;
     t.id = recipe.result;
+    this.grid[t.y * GRID + t.x] = null; // slates live off the grid
     this.stats.slates++;
     this.say(`Slate created: ${displayName(recipe.result)}. Creeps can walk over it.`);
     this.emit({ type: 'transform', tower: t, kind: 'slate' });
@@ -496,7 +506,6 @@ export class Game {
     t.kills += p.kills;
     t.damage += p.damage;
     this.towers = this.towers.filter((o) => o !== p);
-    this.grid[p.y * GRID + p.x] = null; // a slate leaves an empty, walkable tile behind
     if (this.selected === p) this.selected = null;
     t.id = result;
     t.teleportUsed = false;
@@ -516,7 +525,7 @@ export class Game {
     if (!this.canTeleport(t)) return false;
     this.swapSource = null;
     this.teleportSource = t;
-    this.say('Teleport: pick an empty tile in range.');
+    this.say('Teleport: pick a spot in range (half-tile steps, gems and rocks are fine).');
     this.touch();
     return true;
   }
@@ -527,12 +536,20 @@ export class Game {
     this.touch();
   }
 
-  /** Empty, buildable tile within range, not next to a slate of the same kind (the map forbids stacking them). */
+  /**
+   * A spot (top-left of the slate, in half-tile steps) within range, on the board, clear of checkpoints,
+   * and not within stacking range of a slate of the same kind (the map forbids stacking them).
+   * Gems, rocks and other slates may be there: slates have no pathing.
+   */
   isTeleportTarget(x: number, y: number): boolean {
     const src = this.teleportSource;
-    if (!src || !this.inBounds(x, y) || this.occupied(x, y) || this.isReserved(x, y)) return false;
+    if (!src || x * 2 !== Math.round(x * 2) || y * 2 !== Math.round(y * 2)) return false;
+    if (x < 0 || y < 0 || x > GRID - 1 || y > GRID - 1) return false;
+    for (const ty of new Set([Math.floor(y), Math.ceil(y)])) {
+      for (const tx of new Set([Math.floor(x), Math.ceil(x)])) if (this.isReserved(tx, ty)) return false;
+    }
     if (Math.hypot(x - src.x, y - src.y) > toTiles(SLATE_TELEPORT_RANGE)) return false;
-    return !this.towers.some((o) => o !== src && isSlate(o.id) && slatesConflict(o.id, src.id) && Math.max(Math.abs(o.x - x), Math.abs(o.y - y)) <= 1);
+    return !this.towers.some((o) => o !== src && isSlate(o.id) && slatesConflict(o.id, src.id) && Math.hypot(o.x - x, o.y - y) <= toTiles(SLATE_STACK_RANGE));
   }
 
   teleportTo(x: number, y: number): boolean {
@@ -541,10 +558,8 @@ export class Game {
       this.cancelTeleport();
       return false;
     }
-    this.grid[src.y * GRID + src.x] = null;
     src.x = x;
     src.y = y;
-    this.grid[y * GRID + x] = src;
     src.teleportUsed = true;
     this.teleportSource = null;
     this.say(`${displayName(src.id)} teleported.`);

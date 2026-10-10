@@ -1,5 +1,5 @@
 import { SWAP_COST, type Game } from '../game/game';
-import { SLATE_RECIPES, SLATE_SPECIALS, SLATE_TELEPORT_RANGE } from '../data/slates';
+import { SLATE_RECIPES, SLATE_SPECIALS, SLATE_STACK_RANGE, SLATE_TELEPORT_RANGE } from '../data/slates';
 import {
   BASE_GEMS, GEM_TYPES, GREAT, PERFECT, QUALITY_NAMES, RECIPES, TOWERS, abilityOf, describeAbility, displayName, towerColor,
 } from '../data/gems';
@@ -139,10 +139,10 @@ export class InfoModal {
       </tr>`).join('');
     return `
       <ul class="rules">
-        <li>Slates lie flat on the ground: <b>creeps walk over them</b>, so put them right on the path. They do not block the maze.</li>
+        <li>Slates lie flat on the ground: <b>creeps walk over them</b>, so put them right on the path. They do not block the maze, and a gem can be built on top of one (select the slate, then click it again); the slate keeps working underneath.</li>
         <li>To create one: among this round's 5 gems, select the <b>Normal</b> gem and have one of its <b>Flawed</b> partners placed too, then press <b>Create slate</b>. The other gems become rocks.</li>
         <li>Two slates combine into a <b>special slate</b> at any time (the partner slate is used up).</li>
-        <li><b>Teleport</b>: each slate can move once, within ${SLATE_TELEPORT_RANGE} range. Slates of the same kind (or their combination) cannot sit next to each other.</li>
+        <li><b>Teleport</b>: each slate can move once, within ${SLATE_TELEPORT_RANGE} range, to any spot in half-tile steps (between tiles, under gems or rocks). Slates of the same kind (or their combination) cannot sit within ${SLATE_STACK_RANGE} of each other.</li>
       </ul>
       <h3>Basic slates</h3>
       <div class="table-wrap"><table class="recipes-table">

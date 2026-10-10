@@ -1,6 +1,7 @@
 import { GRID, type Point } from '../game/config';
-import type { Game } from '../game/game';
+import type { Game, Tower } from '../game/game';
 import type { Renderer } from '../render/renderer';
+import { isSlate, slateSpot } from '../data/slates';
 
 const TAP_SLOP = 10; // px a finger may move and still count as a tap
 const TAP_ZOOM = 2.5; // zoom used when a tap needs a closer look
@@ -34,7 +35,7 @@ export class BoardInput {
     canvas.addEventListener('pointerup', (e) => this.up(e));
     canvas.addEventListener('pointercancel', (e) => this.cancel(e));
     canvas.addEventListener('pointerleave', (e) => {
-      if (e.pointerType === 'mouse') renderer.hover = null;
+      if (e.pointerType === 'mouse') renderer.hover = renderer.hoverBoard = null;
     });
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     canvas.addEventListener('wheel', (e) => {
@@ -89,6 +90,7 @@ export class BoardInput {
   private move(e: PointerEvent) {
     if (e.pointerType === 'mouse') {
       this.renderer.hover = this.renderer.tileAt(e.clientX, e.clientY);
+      this.renderer.hoverBoard = this.renderer.boardAt(e.clientX, e.clientY);
       if (this.mousePan) {
         this.renderer.panBy(e.clientX - this.mousePan.x, e.clientY - this.mousePan.y);
         this.mousePan = { x: e.clientX, y: e.clientY };
@@ -147,11 +149,22 @@ export class BoardInput {
     return true;
   }
 
+  /**
+   * Gem under the point, or the slate there: a slate under a gem is picked by clicking the already selected gem.
+   * `b` is the board point in fractional tiles (slates may sit between tiles).
+   */
+  private towerUnder(p: Point, b: Point): Tower | null {
+    const game = this.getGame();
+    const gem = game.towerAt(p.x, p.y);
+    const slate = game.slateAt(b.x, b.y);
+    return gem && (game.selected !== gem || !slate) ? gem : slate;
+  }
+
   /** Swap targeting, tower and rock selection. Returns true when the tap/click was consumed. */
-  private pick(p: Point): boolean {
+  private pick(p: Point, b: Point): boolean {
     const game = this.getGame();
     if (this.locked()) {
-      const t = game.towerAt(p.x, p.y);
+      const t = this.towerUnder(p, b);
       if (t) game.select(t);
       else if (game.isRock(p.x, p.y)) game.selectRock(p.x, p.y);
       else game.select(null);
@@ -159,15 +172,18 @@ export class BoardInput {
       return true;
     }
     if (game.teleportSource) {
-      game.teleportTo(p.x, p.y); // anything but a valid tile cancels
+      const s = slateSpot(b.x, b.y);
+      game.teleportTo(s.x, s.y); // anything but a valid spot cancels
       return true;
     }
     if (game.swapSource) {
       game.swapWith(p.x, p.y); // a non-target cancels
       return true;
     }
-    const tower = game.towerAt(p.x, p.y);
-    if (tower) {
+    const tower = this.towerUnder(p, b);
+    // a tile with only a slate on it stays buildable: the first click selects the slate, the next one builds on it
+    const buildOnSlate = !!tower && isSlate(tower.id) && game.selected === tower && game.phase === 'build' && game.canPlace(p.x, p.y);
+    if (tower && !buildOnSlate) {
       game.select(tower);
       this.renderer.cursor = null;
       return true;
@@ -184,7 +200,7 @@ export class BoardInput {
     const game = this.getGame();
     const p = this.renderer.tileAt(e.clientX, e.clientY);
     this.renderer.hover = p;
-    if (this.pickHint(e.clientX, e.clientY) || this.pick(p)) return;
+    if (this.pickHint(e.clientX, e.clientY) || this.pick(p, this.renderer.boardAt(e.clientX, e.clientY))) return;
     if (!game.placeGem(p.x, p.y)) game.select(null);
   }
 
@@ -193,7 +209,7 @@ export class BoardInput {
     const r = this.renderer;
     const p = r.tileAt(clientX, clientY);
     if (!game.inBounds(p.x, p.y)) return;
-    if (this.pickHint(clientX, clientY) || this.pick(p)) return;
+    if (this.pickHint(clientX, clientY) || this.pick(p, r.boardAt(clientX, clientY))) return;
     if (game.phase !== 'build') {
       game.select(null);
       return;

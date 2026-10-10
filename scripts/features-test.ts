@@ -156,7 +156,7 @@ function chooseRound(game: Game, y: number) {
   g.createSlate(core, opts[0]);
   assert(core.id === 'n000' && g.rocks.size === 4 && g.phase === 'wave', 'slate created, other four gems became rocks, wave started');
   assert(g.route.some((p) => p.x === onRoute.x && p.y === onRoute.y), 'creeps walk over the slate again');
-  assert(!g.canPlace(onRoute.x, onRoute.y), 'cannot build on a slate');
+  assert(!g.towerAt(onRoute.x, onRoute.y) && g.slateAt(onRoute.x + 0.5, onRoute.y + 0.5) === core, 'the slate lies off the tile grid');
   assert(!g.isSwapTarget(onRoute.x, onRoute.y), 'slates are not swap targets');
 
   // the Air Slate fights while creeps walk over it
@@ -172,9 +172,11 @@ function chooseRound(game: Game, y: number) {
   // teleport once
   assert(g.canTeleport(core) && g.beginTeleport(core), 'teleport mode started');
   assert(!g.isTeleportTarget(36, 36), 'cannot teleport out of range');
-  const dest = { x: core.x + 2, y: core.y };
+  assert(!g.isTeleportTarget(core.x + 1.25, core.y), 'teleport spots snap to half tiles');
+  const dest = { x: core.x + 1.5, y: core.y + 0.5 }; // between tiles
   while (!g.isTeleportTarget(dest.x, dest.y)) dest.y++;
-  assert(g.teleportTo(dest.x, dest.y) && core.x === dest.x && core.y === dest.y, 'slate teleported');
+  assert(g.teleportTo(dest.x, dest.y) && core.x === dest.x && core.y === dest.y, 'slate teleported between tiles');
+  assert(g.slateAt(dest.x + 0.9, dest.y + 0.1) === core && g.slateAt(dest.x - 0.1, dest.y) === null, 'its footprint follows it');
   assert(!g.canTeleport(core), 'teleport is single-use');
 
   // second round: a Hold Slate, then combine Air + Hold into Ancient
@@ -199,6 +201,37 @@ function chooseRound(game: Game, y: number) {
   const [px, py] = [core2.x, core2.y];
   assert(g.combineSlates(core, 'n003') && core.id === 'n003', 'Ancient Slate created');
   assert(!g.towerAt(px, py) && !g.isRock(px, py), 'the used Hold Slate leaves an empty tile');
+}
+
+// ---------- a gem built on top of a slate ----------
+{
+  const g = new Game({ seed: 21 });
+  const spot = g.route[12];
+  g.placeGem(spot.x, spot.y);
+  for (let x = 20; x < 24; x++) g.placeGem(x, 30);
+  const [core, partner] = g.freshTowers;
+  core.id = 'h00H'; // Amethyst
+  partner.id = 'h009'; // Flawed Emerald
+  g.createSlate(core, g.slateOptions(core)[0]);
+  while (g.phase === 'wave') g.update(1 / 30);
+  assert(g.canPlace(spot.x, spot.y) && g.placeGem(spot.x, spot.y), 'a gem can be built on a slate');
+  const gem = g.towerAt(spot.x, spot.y)!;
+  assert(gem !== core && g.towers.includes(core) && g.slateAt(spot.x + 0.5, spot.y + 0.5) === core, 'gem on top, slate still underneath');
+  assert(!g.route.some((p) => p.x === spot.x && p.y === spot.y), 'the gem blocks the tile again');
+  for (let x = 20; x < 24; x++) g.placeGem(x, 33);
+  g.keep(gem);
+  let fired = false;
+  for (let level = 0; level < 5 && !fired; level++) {
+    for (let i = 0; i < 60 * 90 && g.phase === 'wave'; i++) {
+      g.update(1 / 60);
+      if (g.events.some((e) => e.type === 'fire' && e.tower === core)) fired = true;
+      g.events.length = 0;
+    }
+    if (g.phase !== 'build') break;
+    for (let x = 0; x < 5; x++) g.placeGem(2 + x, 35 - level);
+    g.keep(g.freshTowers[0]);
+  }
+  assert(fired, 'the slate under the gem still attacks');
 }
 
 console.log('all feature checks passed');
