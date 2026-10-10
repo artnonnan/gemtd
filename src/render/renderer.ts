@@ -7,7 +7,8 @@ import {
 } from './art';
 import { SLATE_SPECIALS, SLATE_TELEPORT_RANGE, isSlate } from '../data/slates';
 import {
-  SWING_TIME, drawSpecialArt, drawSpecialShot, hasSpecialArt, specialShot, specialSwingStart, specialTopY,
+  drawSpecialArt, drawSpecialShot, hasSpecialArt, specialShot, specialShotScale, specialSwingStart, specialSwingTime,
+  specialTopY,
 } from './specialArt';
 import { towerColor } from '../data/gems';
 import { Vfx, drawOrb } from './vfx';
@@ -338,7 +339,7 @@ export class Renderer {
       a.flash = Math.max(0, a.flash - dt * 5);
       if (a.swing >= 0) {
         a.swing += dt;
-        if (a.swing >= SWING_TIME) a.swing = -1;
+        if (a.swing >= specialSwingTime(t.id)) a.swing = -1;
       }
       // rising motes from Flawless+ pedestals (only when they are big enough to see)
       const { palette, tier } = lookOf(t.id);
@@ -693,7 +694,8 @@ export class Renderer {
       const kind = specialShot(s.tower.id);
       if (kind) {
         const angle = Math.atan2(s.target.y - s.y, s.target.x - s.x);
-        drawSpecialShot(ctx, kind, s.x * tile, s.y * tile, angle, Math.max(0.25, tile * (kind === 'needle' ? 0.019 : 0.016)));
+        const size = tile * (kind === 'needle' ? 0.019 : 0.016) * specialShotScale(s.tower.id);
+        drawSpecialShot(ctx, kind, s.x * tile, s.y * tile, angle, Math.max(0.25, size));
         continue;
       }
       const { tier } = lookOf(s.tower.id);

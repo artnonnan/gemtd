@@ -4,13 +4,15 @@ Tracks which special towers and Great gems have their own hand-made art.
 
 Towers without their own art still have a look: [src/render/art.ts](src/render/art.ts) draws a pedestal with a floating faceted gem in the tower's colour. Its tier comes from how far up the upgrade line the tower sits.
 
-**Progress: 5 / 63 towers have their own art.**
+**Progress: 6 / 63 towers have their own art.**
 
 ## How to add art for a tower
 
 1. Prototype it in [demo/example2/index.html](demo/example2/index.html): add an object to `KINDS` (`draw`, `attack`, `range`, colours). Its attack must follow the tower's real ability (see Info → Special recipes in the game, or `SPECIAL_ABILITIES` in [src/data/gems.ts](src/data/gems.ts)).
+   **Wait for the owner to confirm the demo before porting.**
 2. Port it into [src/render/specialArt.ts](src/render/specialArt.ts):
-   - Write a `SpecialArt` object with `scale`, `topY`, `fx`, an optional `shot`, and `draw()`.
+   - Write a `SpecialArt` object with `scale`, `topY`, `fx`, an optional `shot` / `shotScale`, and `draw()`.
+   - If it has an attack animation, also set `swingTime` and `swingStart`. The game launches the shot at once, so start the animation at the moment the shot is released.
    - Register it in `SPECIAL_ART` under the tower's rawcode.
 3. Run `npm run render-smoke` and `npm run build`.
 4. Mark the tower ✅ below and update the progress count.
@@ -23,7 +25,7 @@ Legend: ✅ done · ⬜ todo · Tier = step in its upgrade line
 | ID | Tower | Tier | From | Status | Art notes |
 |---|---|---|---|---|---|
 | `h01A` | Silver | 1 | recipe | ✅ done | 3 silver crystal spires + floating crescent moon; crescent shot, frost splash |
-| `h02O` | Sterling Silver | 2 | Silver | ⬜ todo | |
+| `h02O` | Sterling Silver | 2 | Silver | ✅ done | Ceremonial silver sword hovering point-down in silver crystals, crescent-moon guard, 2 orbiting crescents, "925" hallmark; spins once per attack, medium crescent wave |
 | `h033` | Silver Knight | 3 | Sterling Silver | ✅ done | White-silver knight (fixed facing right), sword swing + crescent sword wave, frost splash |
 | `h030` | Great Opal | 4 | Silver Knight / Mighty Malachite | ⬜ todo | |
 | `h03W` | Great Aquamarine | 4 | Silver Knight / Mighty Malachite | ⬜ todo | |

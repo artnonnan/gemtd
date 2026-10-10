@@ -22,6 +22,12 @@ interface SpecialArt {
   /** where shots and sparkles come from, in art units (before `scale`) */
   topY: number;
   shot?: 'crescent' | 'needle';
+  /** projectile size relative to the default */
+  shotScale?: number;
+  /** attack animation length; the renderer drives `swing` from 0 up to this */
+  swingTime?: number;
+  /** where the attack animation starts when the game fires (the shot leaves immediately) */
+  swingStart?: number;
   /** colour for the ground glow and motes */
   fx: string;
   draw(): void;
@@ -319,7 +325,7 @@ function knightSlash() {
 }
 
 const silverKnight: SpecialArt = {
-  scale: 0.72, topY: -100, shot: 'crescent', fx: '#9fd8ff',
+  scale: 0.72, topY: -100, shot: 'crescent', shotScale: 1, swingTime: SWING_TIME, swingStart: SWING_TIME * 0.3, fx: '#9fd8ff',
   draw() {
     const breath = Math.sin(time * 1.6) * 1.2;
     drawPedestal('#dfe7f5', '#c8e6ff');
@@ -353,7 +359,7 @@ function prism(x: number, h: number, w: number, lean: number, light: string, dar
 }
 
 const silver: SpecialArt = {
-  scale: 0.85, topY: -92, shot: 'crescent', fx: '#dfe7f5',
+  scale: 0.85, topY: -92, shot: 'crescent', shotScale: 0.65, fx: '#dfe7f5',
   draw() {
     drawPedestal('#c9d3e6', '#dfe7f5');
     glowCircle(0, -50, 60, '#dfe7f5', 0.18 + flash * 0.25);
@@ -385,6 +391,115 @@ const silver: SpecialArt = {
         const a = time * 2 + i * Math.PI;
         star(ctx, Math.cos(a) * 24, -92 + bob + Math.sin(a) * 7, 1.8, '#ffffff');
       }
+      ctx.restore();
+    }
+  },
+};
+
+// ---------- Sterling Silver ----------
+
+const SPIN = 0.55;
+
+/** Sword spin over an attack: rise, one full turn, settle. */
+function sterlingPose() {
+  const hover = Math.sin(time * 1.7) * 3;
+  if (swing < 0) return { angle: Math.sin(time * 1.1) * 0.06, lift: hover };
+  const t = swing / SPIN;
+  const turn = t < 0.15 ? 0 : t < 0.75 ? ease((t - 0.15) / 0.6) : 1;
+  const lift = t < 0.15 ? -14 * ease(t / 0.15) : t < 0.75 ? -14 : -14 * (1 - ease((t - 0.75) / 0.25));
+  return { angle: turn * Math.PI * 2, lift: lift + hover };
+}
+
+/** Ceremonial sterling sword, hilt up, tip down; origin at its balance point. */
+function sterlingSword() {
+  glowCircle(0, -40, 9, '#9fd8ff', 0.6 + 0.4 * Math.sin(time * 3) + flash * 0.5);
+  ctx.fillStyle = metal(-5, -45, 5, -35);
+  ctx.beginPath(); ctx.arc(0, -40, 5, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#a9d6ff';
+  ctx.beginPath(); ctx.arc(0, -40, 2.6, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#5b6478';
+  ctx.fillRect(-2.6, -35, 5.2, 14);
+  if (lod > 0) {
+    ctx.strokeStyle = '#e3e9f5';
+    ctx.lineWidth = 0.9;
+    for (let y = -34; y < -21; y += 2.6) { ctx.beginPath(); ctx.moveTo(-2.6, y); ctx.lineTo(2.6, y + 1.6); ctx.stroke(); }
+  }
+  // crescent-moon crossguard with curled tips
+  ctx.fillStyle = metal(-18, -26, 18, -14);
+  ctx.beginPath();
+  ctx.arc(0, -30, 17, 0.25 * Math.PI, 0.75 * Math.PI);
+  ctx.arc(0, -34, 15, 0.78 * Math.PI, 0.22 * Math.PI, true);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = '#7d879d';
+  ctx.lineWidth = 0.8;
+  ctx.stroke();
+  if (lod > 0) {
+    ctx.strokeStyle = '#e8eef8';
+    ctx.lineWidth = 1.4;
+    for (const s of [-1, 1]) {
+      ctx.beginPath(); ctx.arc(s * 13, -18, 3, s > 0 ? Math.PI : 0, s > 0 ? Math.PI * 2.6 : -Math.PI * 1.6, s < 0); ctx.stroke();
+    }
+  }
+  const bg = ctx.createLinearGradient(-5, 0, 5, 0);
+  bg.addColorStop(0, '#9aa6bd'); bg.addColorStop(0.5, '#ffffff'); bg.addColorStop(1, '#8b96ad');
+  ctx.fillStyle = bg;
+  ctx.beginPath();
+  ctx.moveTo(-4.4, -17); ctx.lineTo(-3.8, 34); ctx.lineTo(0, 46); ctx.lineTo(3.8, 34); ctx.lineTo(4.4, -17);
+  ctx.closePath();
+  ctx.fill();
+  if (lod === 0) return;
+  ctx.strokeStyle = 'rgba(120,130,150,0.8)';
+  ctx.lineWidth = 0.9;
+  ctx.beginPath(); ctx.moveTo(0, -15); ctx.lineTo(0, 36); ctx.stroke();
+  ctx.fillStyle = 'rgba(140,200,255,0.75)';
+  for (let i = 0; i < 4; i++) ctx.fillRect(-1.2, -8 + i * 10, 2.4, 4);
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  const run = -17 + ((time * 0.9) % 1.5) * 64;
+  const lg = ctx.createLinearGradient(0, run - 10, 0, run + 10);
+  lg.addColorStop(0, 'rgba(255,255,255,0)'); lg.addColorStop(0.5, 'rgba(225,240,255,0.9)'); lg.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = lg;
+  ctx.fillRect(-5, -17, 10, 63);
+  if (flash > 0) { ctx.globalAlpha = flash; star(ctx, 0, 44, 6 * flash, '#ffffff'); }
+  ctx.restore();
+}
+
+const sterlingSilver: SpecialArt = {
+  scale: 0.85, topY: -84, shot: 'crescent', shotScale: 0.82, swingTime: SPIN, swingStart: SPIN * 0.15, fx: '#cfe0f5',
+  draw() {
+    drawPedestal('#dfe7f5', '#e6eeff');
+    if (lod === 2) {
+      // "925" sterling hallmark stamped on the pedestal
+      ctx.fillStyle = 'rgba(230,238,255,0.75)';
+      ctx.font = '700 8px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('925', 0, 11);
+      ctx.strokeStyle = 'rgba(230,238,255,0.6)';
+      ctx.lineWidth = 0.8;
+      ctx.strokeRect(-9, 3, 18, 10);
+    }
+    const pose = sterlingPose();
+    glowCircle(0, -70 + pose.lift, 64 + flash * 24, '#dfe9ff', 0.2 + flash * 0.3);
+    prism(-20, 22, 6, -0.45, '#e3e9f5', '#8f9ab1', 'rgba(255,255,255,0.85)');
+    prism(19, 26, 6, 0.4, '#e9eef8', '#97a2b8', 'rgba(255,255,255,0.85)');
+    ctx.save();
+    ctx.translate(0, -66 + pose.lift);
+    ctx.rotate(pose.angle);
+    sterlingSword();
+    ctx.restore();
+    prism(-8, 16, 6, -0.15, '#f4f7ff', '#a3aec4', 'rgba(255,255,255,0.95)');
+    prism(9, 13, 5, 0.2, '#f4f7ff', '#a3aec4', 'rgba(255,255,255,0.95)');
+    if (lod === 0) return;
+    for (let i = 0; i < 2; i++) {
+      const a = time * 1.4 + i * Math.PI;
+      ctx.save();
+      if (Math.sin(a) < 0) ctx.globalAlpha = 0.7; // the moon passing behind the sword is dimmer
+      ctx.translate(Math.cos(a) * 30, -78 + pose.lift + Math.sin(a) * 9);
+      ctx.rotate(a);
+      glowCircle(0, 0, 10, '#e6eeff', 0.5);
+      ctx.fillStyle = '#f4f7ff';
+      ctx.beginPath(); ctx.arc(0, 0, 5, 0, Math.PI * 2); ctx.arc(2.2, -1.2, 4.2, 0, Math.PI * 2, true); ctx.fill('evenodd');
       ctx.restore();
     }
   },
@@ -551,6 +666,7 @@ const jade: SpecialArt = {
 /** Tower rawcode -> hand-made art. Keep UPGRADE_ART_LIST.md in sync. */
 const SPECIAL_ART: Record<string, SpecialArt> = {
   h033: silverKnight,
+  h02O: sterlingSilver,
   h01A: silver,
   h03X: malachite,
   h016: starRuby,
@@ -561,8 +677,10 @@ export const hasSpecialArt = (id: string) => id in SPECIAL_ART;
 export const specialShot = (id: string) => SPECIAL_ART[id]?.shot;
 /** Gem/weapon height in tiles-art units after scaling, for muzzle sparks and celebrations. */
 export const specialTopY = (id: string) => SPECIAL_ART[id].topY * SPECIAL_ART[id].scale;
-/** Silver Knight starts its animation at the cut so the sword lands as the shot leaves. */
-export const specialSwingStart = (id: string) => (id === 'h033' ? SWING_TIME * 0.3 : -1);
+export const specialShotScale = (id: string) => SPECIAL_ART[id]?.shotScale ?? 1;
+/** Where the attack animation starts when the tower fires (-1 = no animation), e.g. Silver Knight jumps to the cut. */
+export const specialSwingStart = (id: string) => SPECIAL_ART[id]?.swingStart ?? -1;
+export const specialSwingTime = (id: string) => SPECIAL_ART[id]?.swingTime ?? SWING_TIME;
 
 export function drawSpecialArt(c: CanvasRenderingContext2D, id: string, t: number, anim: TowerAnim, level: Lod) {
   const art = SPECIAL_ART[id];

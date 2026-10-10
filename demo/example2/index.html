@@ -471,6 +471,136 @@ const silver = {
   },
 };
 
+// ---------- Sterling Silver (splash 300 + slow 25%) ----------
+const SPIN = 0.55;
+/** Sword spin over an attack: rise, one full turn, settle. Returns { angle, lift }. */
+function sterlingPose() {
+  const hover = Math.sin(time * 1.7) * 3;
+  if (tower.swing < 0) return { angle: Math.sin(time * 1.1) * 0.06, lift: hover };
+  const t = tower.swing / SPIN;
+  const turn = t < 0.15 ? 0 : t < 0.75 ? ease((t - 0.15) / 0.6) : 1;
+  const lift = t < 0.15 ? -14 * ease(t / 0.15) : t < 0.75 ? -14 : -14 * (1 - ease((t - 0.75) / 0.25));
+  return { angle: turn * Math.PI * 2, lift: lift + hover };
+}
+const sterling = {
+  label: 'Sterling Silver', info: 'Splash 300 · slows 25%', range: 205, cd: 0.95, trim: '#dfe7f5', rune: '#e6eeff', fx: '#cfe0f5',
+  attack(targets) {
+    tower.swing = 0;
+    tower.fired = false;
+    tower.target = targets[0];
+  },
+  update(dt) {
+    if (tower.swing < 0) return;
+    tower.swing += dt;
+    if (!tower.fired && tower.swing >= SPIN * 0.6) {
+      tower.fired = true;
+      tower.flash = 1;
+      const pose = sterlingPose();
+      const from = { x: tower.x, y: tower.y - 84 + pose.lift };
+      const tgt = tower.target && !tower.target.dead ? tower.target : inRange(this.range)[0];
+      if (tgt) shots.push({ kind: 'crescent', x: from.x, y: from.y, target: tgt, speed: 420, size: 0.82, onHit: splashSlow(60, [22, 29]) });
+      burst(from.x, from.y, 16, 170, ['#ffffff', '#cfe0f5', '#9fd8ff']);
+      rings.push({ x: from.x, y: from.y, r: 46, life: 0.35, max: 0.35, color: '#e6eeff', width: 3 });
+    }
+    if (tower.swing >= SPIN) tower.swing = -1;
+  },
+  draw() {
+    drawPedestal(this.trim, this.rune);
+    // "925" sterling hallmark stamped on the pedestal
+    ctx.fillStyle = 'rgba(230,238,255,0.75)';
+    ctx.font = '700 8px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('925', 0, 11);
+    ctx.strokeStyle = 'rgba(230,238,255,0.6)';
+    ctx.lineWidth = 0.8;
+    ctx.strokeRect(-9, 3, 18, 10);
+
+    const pose = sterlingPose();
+    glowCircle(0, -70 + pose.lift, 64 + tower.flash * 24, '#dfe9ff', 0.2 + tower.flash * 0.3);
+    // crystal bed the sword hovers over (back crystals, then the sword, then front crystals)
+    prism(-20, 22, 6, -0.45, '#e3e9f5', '#8f9ab1', 'rgba(255,255,255,0.85)');
+    prism(19, 26, 6, 0.4, '#e9eef8', '#97a2b8', 'rgba(255,255,255,0.85)');
+
+    ctx.save();
+    ctx.translate(0, -66 + pose.lift);
+    ctx.rotate(pose.angle);
+    sterlingSword();
+    ctx.restore();
+
+    prism(-8, 16, 6, -0.15, '#f4f7ff', '#a3aec4', 'rgba(255,255,255,0.95)');
+    prism(9, 13, 5, 0.2, '#f4f7ff', '#a3aec4', 'rgba(255,255,255,0.95)');
+
+    // two little crescent moons orbiting, a nod to the Silver it grew from
+    for (let i = 0; i < 2; i++) {
+      const a = time * 1.4 + i * Math.PI;
+      const x = Math.cos(a) * 30, y = -78 + pose.lift + Math.sin(a) * 9;
+      if (Math.sin(a) < 0) ctx.globalAlpha = 0.7; // the moon passing behind the sword is dimmer
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(a);
+      glowCircle(0, 0, 10, '#e6eeff', 0.5);
+      ctx.fillStyle = '#f4f7ff';
+      ctx.beginPath(); ctx.arc(0, 0, 5, 0, Math.PI * 2); ctx.arc(2.2, -1.2, 4.2, 0, Math.PI * 2, true); ctx.fill('evenodd');
+      ctx.restore();
+      ctx.globalAlpha = 1;
+    }
+  },
+};
+/** Ceremonial sterling sword, hilt up, tip down; origin at its balance point. */
+function sterlingSword() {
+  // pommel gem
+  glowCircle(0, -40, 9, '#9fd8ff', 0.6 + 0.4 * Math.sin(time * 3) + tower.flash * 0.5);
+  ctx.fillStyle = metal(-5, -45, 5, -35);
+  ctx.beginPath(); ctx.arc(0, -40, 5, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#a9d6ff';
+  ctx.beginPath(); ctx.arc(0, -40, 2.6, 0, Math.PI * 2); ctx.fill();
+  // grip wrapped with silver wire
+  ctx.fillStyle = '#5b6478';
+  ctx.fillRect(-2.6, -35, 5.2, 14);
+  ctx.strokeStyle = '#e3e9f5';
+  ctx.lineWidth = 0.9;
+  for (let y = -34; y < -21; y += 2.6) { ctx.beginPath(); ctx.moveTo(-2.6, y); ctx.lineTo(2.6, y + 1.6); ctx.stroke(); }
+  // crescent-moon crossguard with curled tips
+  ctx.fillStyle = metal(-18, -26, 18, -14);
+  ctx.beginPath();
+  ctx.arc(0, -30, 17, 0.25 * Math.PI, 0.75 * Math.PI);
+  ctx.arc(0, -34, 15, 0.78 * Math.PI, 0.22 * Math.PI, true);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = '#7d879d';
+  ctx.lineWidth = 0.8;
+  ctx.stroke();
+  ctx.strokeStyle = '#e8eef8';
+  ctx.lineWidth = 1.4;
+  for (const s of [-1, 1]) {
+    ctx.beginPath(); ctx.arc(s * 13, -18, 3, s > 0 ? Math.PI : 0, s > 0 ? Math.PI * 2.6 : -Math.PI * 1.6, s < 0); ctx.stroke();
+  }
+  // blade pointing down
+  const bg = ctx.createLinearGradient(-5, 0, 5, 0);
+  bg.addColorStop(0, '#9aa6bd'); bg.addColorStop(0.5, '#ffffff'); bg.addColorStop(1, '#8b96ad');
+  ctx.fillStyle = bg;
+  ctx.beginPath();
+  ctx.moveTo(-4.4, -17); ctx.lineTo(-3.8, 34); ctx.lineTo(0, 46); ctx.lineTo(3.8, 34); ctx.lineTo(4.4, -17);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(120,130,150,0.8)';
+  ctx.lineWidth = 0.9;
+  ctx.beginPath(); ctx.moveTo(0, -15); ctx.lineTo(0, 36); ctx.stroke();
+  // engraved runes along the fuller
+  ctx.fillStyle = 'rgba(140,200,255,0.75)';
+  for (let i = 0; i < 4; i++) ctx.fillRect(-1.2, -8 + i * 10, 2.4, 4);
+  // light running down the blade
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  const run = -17 + ((time * 0.9) % 1.5) * 64;
+  const lg = ctx.createLinearGradient(0, run - 10, 0, run + 10);
+  lg.addColorStop(0, 'rgba(255,255,255,0)'); lg.addColorStop(0.5, 'rgba(225,240,255,0.9)'); lg.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = lg;
+  ctx.fillRect(-5, -17, 10, 63);
+  if (tower.flash > 0) { ctx.globalAlpha = tower.flash; star(0, 44, 6 * tower.flash, '#ffffff'); }
+  ctx.restore();
+}
+
 // ---------- Malachite (hits 3 targets) ----------
 const MAL_ORBS = 3;
 function malOrbPos(i) {
@@ -700,8 +830,8 @@ const jade = {
   },
 };
 
-const KINDS = { knight, silver, malachite, starRuby, jade };
-let kind = knight;
+const KINDS = { silver, sterling, knight, malachite, starRuby, jade };
+let kind = sterling;
 const kindBar = document.getElementById('kinds');
 for (const [key, k] of Object.entries(KINDS)) {
   const b = document.createElement('button');
