@@ -2,7 +2,7 @@ import {
   CHECKPOINTS, CHECKPOINT_CLEARANCE, CREEPS_PER_WAVE, GEMS_PER_ROUND, GRID, LAST_LEVEL, MAX_LIVES,
   MIN_SPEED_FACTOR, SPAWN_INTERVAL, START_GOLD, START_LIVES, toTiles, type Point,
 } from './config';
-import { findRoute, routeLength } from './path';
+import { blockedGrid, findRoute, findRouteSegments, rerouteAround, routeLength } from './path';
 import { combatSeed, mulberry32, randomSeed } from './rng';
 import {
   SLATE_RECIPES, SLATE_SPECIALS, SLATE_TELEPORT_RANGE, isSlate, slatesConflict, type SlateRecipe,
@@ -158,6 +158,8 @@ export class Game {
   private spawnTimer = 0;
   private placeCache = new Map<number, boolean>();
   private placeCacheVersion = -1;
+  /** route legs of the board as it is now (rebuilt per version), so canPlace re-searches only legs a tile touches */
+  private legs: { version: number; grid: Uint8Array; segs: Point[][] | null } | null = null;
   private auraCacheVersion = -1;
   private speedBonus = new Map<Tower, number>();
   private damageBonus = new Map<Tower, number>();
@@ -220,7 +222,15 @@ export class Game {
     if (ok === undefined) {
       // only tiles on the current route can break it
       const onRoute = this.route.some((p) => p.x === x && p.y === y);
-      ok = !onRoute || findRoute((bx, by) => (bx === x && by === y) || this.blocked(bx, by)) !== null;
+      if (onRoute) {
+        if (this.legs?.version !== this.version) {
+          const grid = blockedGrid(this.blocked);
+          this.legs = { version: this.version, grid, segs: findRouteSegments(grid) };
+        }
+        ok = !!this.legs.segs && rerouteAround(this.legs.grid, this.legs.segs, x, y) !== null;
+      } else {
+        ok = true;
+      }
       this.placeCache.set(key, ok);
     }
     return ok;
