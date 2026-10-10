@@ -67,6 +67,15 @@ for (const zoom of [1, 2, 5]) {
   }
   console.log(`zoom ${zoom}: frames ok, draw calls so far ${calls}`);
 }
+for (const mode of ['ground', 'air'] as const) {
+  renderer.heatmap = mode;
+  const before = calls;
+  for (let f = 0; f < 10; f++) renderer.draw(game);
+  const m = renderer.heatMaps(game)[mode];
+  if (!m.some((v) => v > 0)) throw new Error(`FAIL: ${mode} heatmap is empty with ${game.towers.length} towers`);
+  console.log(`heatmap ${mode}: frames ok, ${calls - before} draw calls, ${m.filter((v) => v > 0).length} hot tiles`);
+}
+renderer.heatmap = 'off';
 game.upgradeTower(game.towers.find((t) => TOWERS[t.id].upgrades.length)!, TOWERS[game.towers.find((t) => TOWERS[t.id].upgrades.length)!.id].upgrades[0]);
 renderer.draw(game);
 if (nanArgs) throw new Error(`FAIL: ${nanArgs} draw calls received NaN/Infinity`);

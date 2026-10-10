@@ -15,6 +15,9 @@ export interface Controls {
   speed: number;
   paused: boolean;
   restart: (difficulty?: Difficulty) => void;
+  /** fire overlay on the board; exposure() is the current ground / air total for the stats bar */
+  heatmap: 'off' | 'ground' | 'air';
+  exposure: () => { ground: number; air: number };
   ai: {
     /** the bot playing the current game, or null */
     active: () => AutoPlay | null;
@@ -220,6 +223,7 @@ export class Panel {
       return;
     }
     switch (el.dataset.act) {
+      case 'heatmap': this.controls.heatmap = v as Controls['heatmap']; break;
       case 'ai-start': void this.loadAndStartAi(); break;
       case 'ai-file': this.aiFile.click(); break;
       case 'ai-stop': this.controls.ai.stop(); break;
@@ -300,7 +304,16 @@ export class Panel {
       <div class="stat next"><b>${g.phase === 'wave' ? 'Now' : 'Next'}</b><span>${w ? `${esc(w.name)}${w.air ? ' ✈' : ''} <small>${w.hp.toLocaleString()} HP · armor ${w.armor}</small>` : '—'}</span></div>
       ${op ? `<div class="stat vs"><b>Opponent</b><span>Lv ${op.level} · <span class="${op.lives <= 10 ? 'warn' : ''}">♥ ${op.lives}</span></span></div>` : ''}
       ${paused ? '<div class="stat paused"><span>⏸ Paused</span></div>' : !this.match.active && this.controls.speed !== 1 ? `<div class="stat"><span>${this.controls.speed}x</span></div>` : ''}
-      ${ai ? `<div class="stat ai"><b>AI</b><span>🤖 ${esc(ai.weights.id)} · #${ai.seed}</span></div>` : ''}`;
+      ${ai ? `<div class="stat ai"><b>AI</b><span>🤖 ${esc(ai.weights.id)} · #${ai.seed}</span></div>` : ''}
+      ${this.controls.heatmap !== 'off' ? this.exposureStat() : ''}`;
+  }
+
+  private exposureStat(): string {
+    const e = this.controls.exposure();
+    const on = this.controls.heatmap;
+    return `<div class="stat ai" title="Sum of tower dps over every path tile: roughly the damage one creep takes on the way"><b>Exposure</b><span>` +
+      `<span class="${on === 'ground' ? 'gold' : 'muted'}">ground ${Math.round(e.ground).toLocaleString()}</span> · ` +
+      `<span class="${on === 'air' ? 'gold' : 'muted'}">air ${Math.round(e.air).toLocaleString()}</span></span></div>`;
   }
 
   // ---------- bottom bar ----------
@@ -431,7 +444,10 @@ export class Panel {
     });
     parts.push(`<h3>Difficulty</h3><div class="btns">${opts.join('')}</div>`);
     if (!canChange) parts.push('<p class="muted">Difficulty can only change before the first gem is placed (host only in versus).</p>');
-    parts.push('<p class="muted">Keys: Space pause · 1/2/4 speed · K keep · R/Del remove selected rock · Esc cancel · I info · S settings</p>');
+    const heat = (v: Controls['heatmap'], label: string) => `<button data-act="heatmap" data-v="${v}" class="${this.controls.heatmap === v ? 'primary' : ''}">${label}</button>`;
+    parts.push(`<h3>Fire heatmap</h3><div class="btns">${heat('off', 'Off')}${heat('ground', '🔥 Ground')}${heat('air', '✈ Air')}</div>`);
+    parts.push('<p class="muted">Shows the dps reaching each tile: does the creep path run through the hot zones or around them?</p>');
+    parts.push('<p class="muted">Keys: Space pause · 1/2/4/8 speed · K keep · R/Del remove selected rock · H heatmap · Esc cancel · I info · S settings</p>');
     return parts.join('');
   }
 

@@ -5,6 +5,7 @@
 import type { Game } from '../game/game';
 import { TOWERS } from '../data/gems';
 import type { Action } from './bot';
+import { AIR_PATH, dpsMaps, exposureOf } from './exposure';
 import { playBotGame, type BotGameOptions, type GameObserver } from './runner';
 
 export interface GameRecord {
@@ -24,6 +25,9 @@ export interface GameRecord {
   livesLost: number[];
   /** gold when each wave started; index = level - 1 */
   goldAtWave: number[];
+  /** fire along the ground route / the flight path when each wave started (sum of dps over path tiles); index = level - 1 */
+  exposureGround: number[];
+  exposureAir: number[];
   /** per tower id (as it was at the end of each wave): damage dealt and number of tower-waves on the board */
   towers: Record<string, { dmg: number; waves: number }>;
   /** keep/combine/special decisions, "level:kind:resultId" */
@@ -40,6 +44,8 @@ export const scoreOf = (r: Pick<GameRecord, 'level' | 'lives' | 'result'>) => r.
 class Recorder implements GameObserver {
   livesLost: number[] = [];
   goldAtWave: number[] = [];
+  exposureGround: number[] = [];
+  exposureAir: number[] = [];
   towers: GameRecord['towers'] = {};
   picks: string[] = [];
   upgrades: string[] = [];
@@ -63,6 +69,9 @@ class Recorder implements GameObserver {
       const start = this.pending ?? { lives: game.lives, gold: game.gold };
       this.wave = { level: game.level, lives: start.lives, dmg: new Map(game.towers.map((t) => [t.uid, t.damage])) };
       this.goldAtWave[game.level - 1] = start.gold;
+      const maps = dpsMaps(game);
+      this.exposureGround[game.level - 1] = Math.round(exposureOf(game.route, maps.ground));
+      this.exposureAir[game.level - 1] = Math.round(exposureOf(AIR_PATH, maps.air));
       this.pending = null;
     } else if (this.wave && game.phase !== 'wave') {
       const w = this.wave;
@@ -94,6 +103,8 @@ export function recordBotGame(opts: Omit<BotGameOptions, 'observer'>): GameRecor
     moves: log.length,
     livesLost: rec.livesLost,
     goldAtWave: rec.goldAtWave,
+    exposureGround: rec.exposureGround,
+    exposureAir: rec.exposureAir,
     towers: rec.towers,
     picks: rec.picks,
     upgrades: rec.upgrades,

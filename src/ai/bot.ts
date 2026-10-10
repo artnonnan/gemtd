@@ -4,9 +4,10 @@
  */
 import { GRID, toTiles, type Point } from '../game/config';
 import type { Game } from '../game/game';
-import { blockedGrid, findRouteSegments, pathCost, rerouteAround } from '../game/path';
+import { blockedGrid, findRouteSegments, joinSegments, pathCost, rerouteAround } from '../game/path';
 import { mulberry32 } from '../game/rng';
 import { TOWERS, abilityOf, qualityUpgradeCost, MAX_QUALITY_LEVEL } from '../data/gems';
+import { AIR_PATH, AIR_WAVE_SHARE, GEM_ODDS, cover, dpsMaps, exposureOf, hitsAir, hitsGround, type DpsMaps } from './exposure';
 import type { Weights } from './weights';
 
 export type Action =
@@ -25,6 +26,25 @@ interface Maze {
   grid: Uint8Array;
   segs: Point[][];
   cost: number;
+}
+
+/** Fire reaching each tile and the current ground exposure, shared by every candidate in one placement. */
+interface Exposure {
+  maps: DpsMaps;
+  route: Point[];
+  base: number;
+}
+
+/** Every route leg searched again with (x, y) blocked, exactly as the game will after the gem goes down. */
+function fullReroute(grid: Uint8Array, x: number, y: number): Point[][] | null {
+  const i = y * GRID + x;
+  const prev = grid[i];
+  grid[i] = 1;
+  try {
+    return findRouteSegments(grid);
+  } finally {
+    grid[i] = prev;
+  }
 }
 
 /** Rough damage per second, adjusted by the weights' taste for slow, splash and anti-air. */
@@ -73,18 +93,24 @@ export class Bot {
    * only for the best ones until one fits. Calling canPlace on every tile cost ~95% of a bot game.
    */
   private placeAction(game: Game): Action | null {
+    const w = this.weights;
     const onRoute = new Set(game.route.map((p) => p.y * GRID + p.x));
     let maze: Maze | null = null;
-    if (this.weights.mazeGain > 0) {
+    if (w.mazeGain > 0 || w.groundExposure > 0) {
       const grid = blockedGrid((bx, by) => !!game.towerAt(bx, by) || game.isRock(bx, by));
       const segs = findRouteSegments(grid);
       if (segs) maze = { grid, segs, cost: pathCost(segs) };
+    }
+    let exp: Exposure | null = null;
+    if (w.groundExposure > 0 || w.airExposure > 0) {
+      const maps = dpsMaps(game);
+      exp = { maps, route: game.route, base: exposureOf(game.route, maps.ground) };
     }
     const cands: { x: number; y: number; v: number }[] = [];
     for (let y = 0; y < GRID; y++) {
       for (let x = 0; x < GRID; x++) {
         if (game.towerAt(x, y) || game.isRock(x, y) || game.isReserved(x, y)) continue;
-        const v = this.tileValue(x, y, onRoute, maze);
+        const v = this.tileValue(x, y, onRoute, maze, exp);
         if (v !== null) cands.push({ x, y, v });
       }
     }
@@ -94,29 +120,75 @@ export class Bot {
   }
 
   /** null = the tile would cut the route */
-  private tileValue(x: number, y: number, onRoute: Set<number>, maze: Maze | null): number | null {
+  private tileValue(x: number, y: number, onRoute: Set<number>, maze: Maze | null, exp: Exposure | null): number | null {
     const w = this.weights;
-    if (maze && onRoute.has(y * GRID + x)) {
-      // how much longer does the route get if this tile is blocked? (one search answers "can I" and "how much")
-      const segs = rerouteAround(maze.grid, maze.segs, x, y);
-      return segs ? w.mazeGain * (pathCost(segs) - maze.cost) + w.mazeBonus : null;
+    const blocksRoute = onRoute.has(y * GRID + x);
+    // the route legs if this tile is blocked (one search answers "can I" and "what does it do to the route")
+    let segs: Point[][] | null | undefined;
+    if (maze && blocksRoute && (w.mazeGain > 0 || exp)) {
+      // exposure needs the exact tiles creeps will walk: the game re-searches every leg after a placement, and
+      // equal-length legs can tie-break differently (~15% of tiles), so search them all the same way.
+      // Mazing alone only needs the length, which re-searching the touched legs gives exactly and faster.
+      segs = exp ? fullReroute(maze.grid, x, y) : rerouteAround(maze.grid, maze.segs, x, y);
+      if (!segs) return null;
     }
-    // prefer tiles next to the route so gems cover it
-    let near = 0;
-    for (let dy = -1; dy <= 1; dy++) {
-      for (let dx = -1; dx <= 1; dx++) {
-        const nx = x + dx, ny = y + dy;
-        if ((dx || dy) && nx >= 0 && nx < GRID && ny >= 0 && ny < GRID && onRoute.has(ny * GRID + nx)) near++;
+    let v: number;
+    if (w.mazeGain > 0 && segs) {
+      // how much longer does the route get?
+      v = w.mazeGain * (pathCost(segs) - maze!.cost) + w.mazeBonus;
+    } else {
+      // prefer tiles next to the route so gems cover it
+      let near = 0;
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          const nx = x + dx, ny = y + dy;
+          if ((dx || dy) && nx >= 0 && nx < GRID && ny >= 0 && ny < GRID && onRoute.has(ny * GRID + nx)) near++;
+        }
       }
+      v = w.routeAdjacency * near + this.rng() * w.tieNoise;
     }
-    return w.routeAdjacency * near + this.rng() * w.tieNoise;
+    if (exp) v += this.exposureGain(x, y, segs ?? null, exp);
+    return v;
+  }
+
+  /**
+   * Fire gained along the creeps' paths by putting a gem here, in "tiles covered by an average tower".
+   * Ground: the new gem's coverage of the (possibly rerouted) path, plus how the reroute changes the fire
+   * from towers already standing; a block that sends creeps around them comes out negative.
+   * Air: the flight path never changes, so only the new gem's coverage counts.
+   * The gem is rolled on placement, so its range and targets are the odds over all base gems.
+   */
+  private exposureGain(x: number, y: number, segs: Point[][] | null, exp: Exposure): number {
+    const w = this.weights;
+    let gain = 0;
+    if (w.groundExposure > 0) {
+      const path = segs ? joinSegments(segs) : exp.route;
+      const rerouted = segs ? (exposureOf(path, exp.maps.ground) - exp.base) / exp.maps.meanDps : 0;
+      gain += w.groundExposure * (rerouted + GEM_ODDS.ground * cover(path, x, y, GEM_ODDS.range));
+    }
+    if (w.airExposure > 0) gain += w.airExposure * GEM_ODDS.air * cover(AIR_PATH, x, y, GEM_ODDS.range);
+    return gain;
+  }
+
+  /** Path tiles a tower of this kind would reach from (x, y): ground path, plus the flight path weighted by how often waves fly. */
+  private keepCoverage(game: Game, id: string, x: number, y: number): number {
+    const a = abilityOf(id);
+    const range = toTiles(TOWERS[id].range);
+    let c = 0;
+    if (hitsGround(id)) c += (1 - AIR_WAVE_SHARE) * cover(game.route, x, y, range);
+    if (hitsAir(id)) c += AIR_WAVE_SHARE * cover(AIR_PATH, x, y, a.airRange ? toTiles(a.airRange) : range);
+    return c;
   }
 
   private chooseAction(game: Game): Action | null {
     const w = this.weights;
     let best: { a: Action; v: number } | null = null;
     const consider = (a: Action, result: string, bonus: number) => {
-      const v = towerPower(result, w) + bonus;
+      let p = towerPower(result, w);
+      if (w.keepExposure > 0 && a.type !== 'quality' && a.type !== 'buyLife') {
+        p *= 1 + (w.keepExposure * this.keepCoverage(game, result, (a as { x: number }).x, (a as { y: number }).y)) / 10;
+      }
+      const v = p + bonus;
       if (!best || v > best.v) best = { a, v };
     };
     for (const t of game.freshTowers) {

@@ -4,6 +4,7 @@ import { Game, type Difficulty } from './game/game';
 import { randomSeed } from './game/rng';
 import { AutoPlay } from './ai/autoplay';
 import { fetchWeights } from './ai/loadWeights';
+import { AIR_PATH, exposureOf } from './ai/exposure';
 import type { Weights } from './ai/weights';
 import { Match } from './net/match';
 import { Renderer } from './render/renderer';
@@ -11,6 +12,8 @@ import { BoardInput } from './ui/input';
 import { Panel, type Controls } from './ui/panel';
 
 const MAX_STEPS_PER_FRAME = 240;
+const params0 = () => new URLSearchParams(location.search);
+const HEAT_ORDER: Controls['heatmap'][] = ['off', 'ground', 'air'];
 
 let game = new Game();
 /** the bot playing the current game, if any; tied to that game instance */
@@ -30,6 +33,11 @@ const controls: Controls = {
   restart: (difficulty) => {
     auto = null;
     setGame(new Game({ difficulty }));
+  },
+  heatmap: (params0().get('heat') as Controls['heatmap'] | null) ?? 'off',
+  exposure: () => {
+    const m = renderer.heatMaps(game);
+    return { ground: exposureOf(game.route, m.ground), air: exposureOf(AIR_PATH, m.air) };
   },
   ai: {
     active: aiActive,
@@ -81,6 +89,8 @@ window.addEventListener('keydown', (e) => {
     controls.speed = +e.key;
   } else if (e.key.toLowerCase() === 'i') {
     panel.info.toggle();
+  } else if (e.key.toLowerCase() === 'h') {
+    controls.heatmap = HEAT_ORDER[(HEAT_ORDER.indexOf(controls.heatmap) + 1) % HEAT_ORDER.length];
   } else if (e.key.toLowerCase() === 's') {
     panel.toggleSettings();
   } else if (e.key.toLowerCase() === 'k' && game.selected && !ai) {
@@ -122,6 +132,7 @@ function frame(now: number) {
     }
   }
   input.update();
+  renderer.heatmap = controls.heatmap;
   renderer.draw(game);
   panel.update();
   requestAnimationFrame(frame);

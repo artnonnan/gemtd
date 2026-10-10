@@ -12,6 +12,7 @@ import {
 } from './specialArt';
 import { towerColor } from '../data/gems';
 import { Vfx, drawOrb } from './vfx';
+import { dpsMaps, type DpsMaps } from '../ai/exposure';
 
 const COLORS = {
   bg: '#14171f',
@@ -52,6 +53,8 @@ export class Renderer {
   cursor: Point | null = null;
   /** camera: zoom factor and top-left offset in unzoomed board pixels */
   zoom = 1;
+  /** fire overlay: off, or dps reaching each tile for ground / air creeps */
+  heatmap: 'off' | 'ground' | 'air' = 'off';
   offX = 0;
   offY = 0;
 
@@ -171,6 +174,7 @@ export class Renderer {
     ctx.setTransform(dpr * zoom, 0, 0, dpr * zoom, -this.offX * dpr * zoom, -this.offY * dpr * zoom);
 
     ctx.drawImage(this.background(game), 0, 0, px, px);
+    if (this.heatmap !== 'off') this.drawHeatmap(game);
     this.drawRoute(game);
     this.drawCheckpoints();
     for (const key of game.rocks) this.drawRock(key % GRID, Math.floor(key / GRID));
@@ -399,6 +403,44 @@ export class Renderer {
   }
 
   // ---------- board ----------
+
+  /** dps reaching each tile, cached per board version */
+  private heat: { game: Game; version: number; maps: DpsMaps } | null = null;
+
+  heatMaps(game: Game): DpsMaps {
+    if (!this.heat || this.heat.game !== game || this.heat.version !== game.version) {
+      this.heat = { game, version: game.version, maps: dpsMaps(game) };
+    }
+    return this.heat.maps;
+  }
+
+  /** Fire reaching each tile (ground: orange, air: cyan), so you can see whether the path runs through it. */
+  private drawHeatmap(game: Game) {
+    const { ctx, tile } = this;
+    const air = this.heatmap === 'air';
+    const map = air ? this.heatMaps(game).air : this.heatMaps(game).ground;
+    let max = 0;
+    for (const v of map) max = Math.max(max, v);
+    if (max > 0) {
+      for (let i = 0; i < map.length; i++) {
+        if (!map[i]) continue;
+        // square root keeps weak coverage visible next to a strong tower
+        const a = 0.08 + 0.5 * Math.sqrt(map[i] / max);
+        ctx.fillStyle = air ? `rgba(80,210,255,${a})` : `rgba(255,120,40,${a})`;
+        ctx.fillRect((i % GRID) * tile, Math.floor(i / GRID) * tile, tile, tile);
+      }
+    }
+    if (air) {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(170,235,255,0.7)';
+      ctx.lineWidth = Math.max(1, tile * 0.12);
+      ctx.setLineDash([tile * 0.4, tile * 0.3]);
+      ctx.beginPath();
+      CHECKPOINTS.forEach((p, i) => (i ? ctx.lineTo : ctx.moveTo).call(ctx, (p.x + 0.5) * tile, (p.y + 0.5) * tile));
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
 
   private drawRoute(game: Game) {
     if (game.route.length < 2) return;

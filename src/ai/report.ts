@@ -23,7 +23,11 @@ export function walls(s: EvalSummary, minShare = 0.1): { level: number; share: n
 /** Balance observations, strongest first. */
 export function balanceNotes(s: EvalSummary): string[] {
   const notes: string[] = [];
-  for (const w of walls(s, 0.15)) notes.push(`**กำแพง:** ${pct(w.share)} ของเกมจบที่${waveLabel(w.level)}`);
+  for (const w of walls(s, 0.15)) {
+    const e = s.exposureDiedVsPassed?.[w.level];
+    notes.push(`**กำแพง:** ${pct(w.share)} ของเกมจบที่${waveLabel(w.level)}` +
+      (e ? ` · exposure${waveKind(w.level) === 'air' ? 'อากาศ' : 'พื้น'}ตอนเริ่มเวฟ: เกมที่ตาย ${e.died} เทียบเกมที่ผ่าน ${e.passed}` : ''));
+  }
   const top = Object.entries(s.deathsByKind).sort((a, b) => b[1] - a[1])[0] as [WaveKind, number];
   if (top && top[1] >= 0.5) notes.push(`**สาเหตุหลักที่แพ้:** ${pct(top[1])} ของเกมที่แพ้จบในเวฟ${KIND_TH[top[0]]}`);
   for (const t of s.towers) {
@@ -78,9 +82,9 @@ export function batchReport(s: EvalSummary, w: Weights, meta: { seeds: string; r
   lines.push(`lives ที่เสียเฉลี่ยต่อเกม: อากาศ ${s.livesLostByKind.air} · พื้น ${s.livesLostByKind.ground} · บอส ${s.livesLostByKind.boss}`, '');
 
   lines.push('## Lives ที่เสียรายด่าน (เฉลี่ยต่อเกม, เฉพาะด่านที่เสีย ≥ 0.5)', '');
-  lines.push('| ด่าน | เวฟ | lives ที่เสีย | ทองตอนเริ่มเวฟ |', '|---|---|---|---|');
+  lines.push('| ด่าน | เวฟ | lives ที่เสีย | ทองตอนเริ่มเวฟ | exposure พื้น / อากาศ |', '|---|---|---|---|---|');
   s.livesLostByLevel.forEach((l, i) => {
-    if (l >= 0.5) lines.push(`| ${i + 1} | ${WAVES[i].name} (${KIND_TH[waveKind(i + 1)]}) | ${l} | ${s.goldAtWave[i]} |`);
+    if (l >= 0.5) lines.push(`| ${i + 1} | ${WAVES[i].name} (${KIND_TH[waveKind(i + 1)]}) | ${l} | ${s.goldAtWave[i]} | ${s.exposureGround?.[i] ?? '-'} / ${s.exposureAir?.[i] ?? '-'} |`);
   });
   lines.push('');
 

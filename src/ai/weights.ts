@@ -23,6 +23,10 @@ export interface Weights {
   routeAdjacency: number;
   /** random tie-break added to every plain tile score */
   tieNoise: number;
+  /** score per unit of ground exposure gained (fire creeps walk through), incl. what a block does to the route */
+  groundExposure: number;
+  /** score per flight-path tile the new gem would cover */
+  airExposure: number;
 
   // ---- economy ----
   /** upgrade gem quality when gold >= its cost + this */
@@ -34,7 +38,9 @@ export interface Weights {
   /** buy lives (10 gold each) while lives are below this; 0 = never */
   buyLifeBelow: number;
 
-  // ---- keep / combine choice: score = power(result) + bonus ----
+  // ---- keep / combine choice: score = power(result) × (1 + keepExposure × coverage / 10) + bonus ----
+  /** how much a gem's position matters when choosing which to keep */
+  keepExposure: number;
   specialBonus: number;
   combine4Bonus: number;
   combine2Bonus: number;
@@ -99,6 +105,15 @@ export const WEIGHT_SPECS: Record<NumericWeightKey, WeightSpec> = {
   mazeBonus: { min: 0, max: 200, desc: 'โบนัสของช่องที่ทำ maze ได้ เทียบกับช่องข้างทาง (ใช้เมื่อ mazeGain > 0); ช่องข้างทางได้คะแนนราว routeAdjacency × จำนวนช่องทางเดินที่ติดกัน (0–8)' },
   routeAdjacency: { min: 0, max: 5, desc: 'คะแนนต่อช่องทางเดินที่อยู่ติดกับช่องที่จะวาง (วางชิดทางเพื่อให้ยิงถึง)' },
   tieNoise: { min: 0, max: 2, desc: 'ค่าสุ่มที่บวกให้ช่องธรรมดา เพื่อตัดสินช่องที่คะแนนใกล้กัน' },
+  groundExposure: {
+    min: 0, max: 5,
+    desc: 'คะแนนต่อ exposure ภาคพื้นที่เพิ่มขึ้น (ไฟที่ครีปเดินผ่านทั้งทาง หน่วยเป็น "ช่องที่ tower เฉลี่ยหนึ่งตัวยิงถึง"): รวมทั้งช่องทางเดินที่เจมใหม่จะยิงถึง และผลของการบังทาง ถ้าบังแล้วครีปอ้อมพ้นระยะยิงของ tower เดิม ค่าจะติดลบ; 0 = ไม่ใช้',
+  },
+  airExposure: { min: 0, max: 5, desc: 'คะแนนต่อจำนวนช่องบนเส้นทางบิน (บินตรงระหว่าง checkpoint) ที่เจมใหม่จะยิงถึง; ช่วยวางเจมไว้รับเวฟอากาศ; 0 = ไม่ใช้' },
+  keepExposure: {
+    min: 0, max: 3,
+    desc: 'ตอนเลือก keep/combine/special คูณ power ด้วย (1 + ค่านี้ × จำนวนช่องทางที่ตำแหน่งนั้นยิงถึง / 10) โดยนับทางพื้นถ้ายิงพื้นได้ และทางบิน × สัดส่วนเวฟบินถ้ายิงอากาศได้; เจมแรงที่อยู่มุมที่ทางไม่ผ่านจะได้ค่าน้อย; 0 = ไม่ใช้',
+  },
   qualityReserve: { min: 0, max: 300, int: true, desc: 'อัป gem quality เมื่อทอง ≥ ค่าอัป (20 + 30 × level) + ค่านี้; ต่ำ = อัปเร็ว ได้เจมดีเร็วแต่ทองเหลือน้อย' },
   qualityMaxLevel: { min: 0, max: 8, int: true, desc: 'gem quality สูงสุดที่จะอัป (0–8)' },
   upgradeReserve: { min: 0, max: 300, int: true, desc: 'อัป tower (ช่วงเวฟ) เมื่อทอง ≥ ค่าอัป + ค่านี้; แย่งทองกับการอัป quality' },
@@ -122,10 +137,13 @@ export const DEFAULT_WEIGHTS: Weights = {
   mazeBonus: 100,
   routeAdjacency: 1,
   tieNoise: 0.5,
+  groundExposure: 0,
+  airExposure: 0,
   qualityReserve: 30,
   qualityMaxLevel: 8,
   upgradeReserve: 20,
   buyLifeBelow: 0,
+  keepExposure: 0,
   specialBonus: 3000,
   combine4Bonus: 2000,
   combine2Bonus: 1000,

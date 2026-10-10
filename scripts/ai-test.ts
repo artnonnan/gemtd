@@ -2,7 +2,9 @@
  * Headless checks for the AI tooling: recorder, analyzer and (later) tuner logic.
  * Run: npm run ai-test
  */
-import { STEP, START_LIVES } from '../src/game/config';
+import { CHECKPOINTS, STEP, START_LIVES, toTiles } from '../src/game/config';
+import { TOWERS } from '../src/data/gems';
+import { AIR_PATH, cover, dpsMaps, exposureOf, hitsAir, hitsGround, towerDps } from '../src/ai/exposure';
 import { Game } from '../src/game/game';
 import { mulberry32 } from '../src/game/rng';
 import { AutoPlay } from '../src/ai/autoplay';
@@ -110,6 +112,26 @@ assert(w.mazeGain === 5 && w.source === 'manual' && w.qualityReserve === DEFAULT
   assert(a.proposals[2].proposal!.expect.length === 1 && a.proposals[2].proposal!.expect[0].tower === 'h02O', 'tower metrics need a real tower id');
   assert(a.problems.length >= 5 && a.missingWeights[0] === 'x', `problems reported (${a.problems.length})`);
   assert(parseAdvice('garbage', DEFAULT_WEIGHTS, st, 'llm-x').proposals.length === 0, 'garbage answers give no proposals, no crash');
+}
+
+// ---------- exposure ----------
+{
+  const air = AIR_PATH;
+  assert(air[0].x === CHECKPOINTS[0].x && air[0].y === CHECKPOINTS[0].y && air[air.length - 1].x === CHECKPOINTS[CHECKPOINTS.length - 1].x, 'flight path runs from spawn to mine');
+  const g = new Game({ seed: 9 });
+  for (let x = 10; x < 15; x++) g.placeGem(x, 17);
+  const kept = g.freshTowers[0];
+  g.keep(kept);
+  const m = dpsMaps(g);
+  const r = toTiles(TOWERS[kept.id].range);
+  const hot = Array.from(m.ground).filter((v) => v > 0).length + Array.from(m.air).filter((v) => v > 0).length;
+  const expect = (hitsGround(kept.id) ? 1 : 0) + (hitsAir(kept.id) ? 1 : 0);
+  assert(Math.abs(hot / expect - Math.PI * r * r) < 4 * r + 4, `one tower lights about a disc of radius ${r.toFixed(1)} (${hot / expect} tiles)`);
+  assert(m.ground[17 * 37 + 10] === (hitsGround(kept.id) ? towerDps(kept.id) : 0) || kept.x !== 10, 'its own tile gets its dps');
+  const e = exposureOf(g.route, m.ground);
+  assert(Math.abs(e - towerDps(kept.id) * cover(g.route, kept.x, kept.y, r)) < 1e-3 || !hitsGround(kept.id), 'ground exposure = dps × route tiles in range for a single tower');
+  const rec = recordBotGame({ seed: 4, difficulty: 'normal', weights: { ...DEFAULT_WEIGHTS, groundExposure: 1, keepExposure: 1, id: 'exp' } });
+  assert(rec.exposureGround.length === rec.level && rec.exposureAir.length === rec.level && rec.exposureGround.slice(1).every((v) => v > 0), 'records ground/air exposure for every wave');
 }
 
 // ---------- browser auto-play plays the same game as a headless run ----------

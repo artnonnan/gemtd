@@ -46,6 +46,11 @@ export interface EvalSummary {
   livesLostByLevel: number[];
   /** avg gold when the wave started; index = level - 1 (only games that got there) */
   goldAtWave: number[];
+  /** avg ground / air exposure when the wave started; index = level - 1 (only games that got there) */
+  exposureGround: number[];
+  exposureAir: number[];
+  /** on levels where games ended: avg exposure (of that wave kind) in games that died there vs games that got through */
+  exposureDiedVsPassed: Record<number, { died: number; passed: number }>;
   towers: TowerStat[];
   /** special towers made, as share of games that made it at least once */
   specialsMade: Record<string, number>;
@@ -123,6 +128,19 @@ export function summarize(recs: GameRecord[]): EvalSummary {
   const specialsMade = Object.fromEntries(Object.entries(madeIn).map(([id, c]) => [id, r2(c / n)]));
 
   const scores = recs.map((r) => r.score);
+  const avgAt = (pick: (r: GameRecord) => number[]) => {
+    const sum: number[] = new Array(WAVES.length).fill(0), cnt: number[] = new Array(WAVES.length).fill(0);
+    for (const r of recs) (pick(r) ?? []).forEach((v, i) => { sum[i] += v; cnt[i]++; });
+    return sum.map((v, i) => (cnt[i] ? Math.round(v / cnt[i]) : 0));
+  };
+  const exposureDiedVsPassed: EvalSummary['exposureDiedVsPassed'] = {};
+  for (const l of Object.keys(deathsByLevel).map(Number)) {
+    const pick = (r: GameRecord) => ((waveKind(l) === 'air' ? r.exposureAir : r.exposureGround) ?? [])[l - 1] ?? 0;
+    const died = recs.filter((r) => r.result === 'gameover' && r.level === l);
+    const passed = recs.filter((r) => r.level > l || r.result === 'victory');
+    if (died.length && passed.length) exposureDiedVsPassed[l] = { died: Math.round(mean(died.map(pick))), passed: Math.round(mean(passed.map(pick))) };
+  }
+
   return {
     games: n,
     score: r2(mean(scores)),
@@ -135,6 +153,9 @@ export function summarize(recs: GameRecord[]): EvalSummary {
     livesLostByKind: { air: r2(livesLostByKind.air), ground: r2(livesLostByKind.ground), boss: r2(livesLostByKind.boss) },
     livesLostByLevel: livesLostByLevel.map(r2),
     goldAtWave: goldSum.map((g, i) => (goldCnt[i] ? Math.round(g / goldCnt[i]) : 0)),
+    exposureGround: avgAt((r) => r.exposureGround),
+    exposureAir: avgAt((r) => r.exposureAir),
+    exposureDiedVsPassed,
     towers,
     specialsMade,
     unusedRecipes: RECIPES.map((r) => r.result).filter((id) => !(id in specialsMade)),
