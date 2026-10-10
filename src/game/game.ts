@@ -118,6 +118,18 @@ export interface CombineOption {
   result: string;
 }
 
+/** kept: an older tower on the board · fresh: placed this round (a rock unless used) · missing: not on the board */
+export type IngredientState = 'kept' | 'fresh' | 'missing';
+
+export interface RecipeStatus {
+  recipe: Recipe;
+  parts: { id: string; state: IngredientState }[];
+  /** ingredients on the board */
+  owned: number;
+  /** can be made right now (Special button on one of this round's gems) */
+  ready: boolean;
+}
+
 export const SWAP_COST = 200;
 
 const SHOT_SPEED = 16; // tiles per second
@@ -332,6 +344,38 @@ export class Game {
       used.add(pick);
     }
     return [...used];
+  }
+
+  /**
+   * Which ingredients of a recipe are on the board, for display. `focus` (the selected tower) fills its own slot;
+   * the rest prefer kept towers, which stay put, over this round's gems.
+   */
+  recipeStatus(r: Recipe, focus?: Tower | null): RecipeStatus {
+    const used = new Set<Tower>();
+    const state = (t: Tower): IngredientState => (t.fresh ? 'fresh' : 'kept');
+    const slots: (Tower | null)[] = r.ingredients.map(() => null);
+    const self = focus ? r.ingredients.indexOf(focus.id) : -1;
+    if (focus && self >= 0) {
+      slots[self] = focus;
+      used.add(focus);
+    }
+    r.ingredients.forEach((ing, i) => {
+      if (slots[i]) return;
+      const pick =
+        this.towers.find((o) => !o.fresh && o.id === ing && !used.has(o)) ??
+        this.towers.find((o) => o.fresh && o.id === ing && !used.has(o));
+      if (pick) {
+        slots[i] = pick;
+        used.add(pick);
+      }
+    });
+    const parts = r.ingredients.map((id, i) => ({ id, state: slots[i] ? state(slots[i]!) : ('missing' as const) }));
+    return {
+      recipe: r,
+      parts,
+      owned: parts.filter((p) => p.state !== 'missing').length,
+      ready: this.freshTowers.some((t) => this.specialOptions(t).includes(r)),
+    };
   }
 
   private emit(e: GameEvent) {

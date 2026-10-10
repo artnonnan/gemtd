@@ -1,9 +1,9 @@
 /**
- * Headless checks for Remove rock, Downgrade (keep lower) and Swap.
+ * Headless checks for Remove rock, Downgrade (keep lower), Swap and recipe status.
  * Run: npm run features-test
  */
 import { Game, SWAP_COST } from '../src/game/game';
-import { BASE_GEMS, GEM_INFO } from '../src/data/gems';
+import { BASE_GEMS, GEM_INFO, RECIPES } from '../src/data/gems';
 
 const assert = (ok: boolean, msg: string) => {
   if (!ok) throw new Error('FAIL: ' + msg);
@@ -39,6 +39,39 @@ function chooseRound(game: Game, y: number) {
   g.qualityLevel = 0; // everything Chipped
   chooseRound(g, 10);
   assert(g.freshTowers.every((t) => g.downgradeOption(t) === null), 'Chipped gems cannot be downgraded');
+}
+
+// ---------- recipe status (kept vs this round) ----------
+{
+  const silver = RECIPES.find((r) => r.result === 'h01A')!; // h001 + h000 + e000
+  const g = new Game({ seed: 5 });
+  chooseRound(g, 10);
+  const old = g.freshTowers[0];
+  g.keep(old);
+  old.id = 'h001';
+  while (g.phase === 'wave') g.update(1 / 10);
+  chooseRound(g, 20);
+  const [a, b, ...rest] = g.freshTowers;
+  a.id = 'h000';
+  b.id = 'e000';
+  for (const t of rest) t.id = 'h00Y'; // no Silver ingredient
+  const s = g.recipeStatus(silver, a);
+  assert(s.parts.map((p) => p.state).join() === 'kept,fresh,fresh' && s.owned === 3 && s.ready, 'Silver: old gem kept, two from this round, ready');
+  assert(g.recipeStatus(silver, rest[0]).ready, 'ready does not depend on the selected gem');
+  rest[0].id = 'e000';
+  g.makeSpecial(a, silver);
+  assert(a.id === 'h01A' && g.isRock(old.x, old.y) && g.isRock(b.x, b.y), 'making it uses up the kept gem too');
+
+  const g2 = new Game({ seed: 5 });
+  chooseRound(g2, 10);
+  const [x, y, z] = g2.freshTowers;
+  x.id = 'h001';
+  y.id = 'h000';
+  z.id = 'e000';
+  for (const t of [x, y, z]) t.fresh = false; // all three kept earlier
+  g2.towers.filter((t) => t.fresh).forEach((t) => (t.id = 'h00Y'));
+  const s2 = g2.recipeStatus(silver);
+  assert(s2.owned === 3 && !s2.ready, 'all ingredients kept but none from this round: not ready');
 }
 
 // ---------- remove rock ----------

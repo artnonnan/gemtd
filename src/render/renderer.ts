@@ -1,6 +1,6 @@
 import { CHECKPOINTS, GRID, toTiles, type Point } from '../game/config';
 import type { Creep, Game, GameEvent, Shot, Tower } from '../game/game';
-import { GEM_INFO, QUALITY_NAMES, TOWERS, abilityOf, displayName } from '../data/gems';
+import { GEM_INFO, QUALITY_NAMES, RECIPES, TOWERS, abilityOf, displayName } from '../data/gems';
 import {
   ART_PEDESTAL_WIDTH, TIERS, drawSlateArt, drawTowerArt, ease, gemOffset, hash, hexA, lookOf, motesPerSecond, star,
   type Lod, type TowerAnim,
@@ -208,6 +208,7 @@ export class Renderer {
     this.vfx.draw(ctx, tile);
     this.drawRanges(game);
     this.drawRockAndSwap(game);
+    this.drawChoiceHints(game, lod);
   }
 
   /** Checkerboard is static: render it once per tile size (sharp up to 2x zoom). */
@@ -834,6 +835,116 @@ export class Renderer {
   }
 
   // ---------- overlays ----------
+
+  /** choice hints drawn last frame, in board px, so a click on one selects its gem */
+  private hintRects: { x0: number; y0: number; x1: number; y1: number; tower: Tower }[] = [];
+  /** real time each hint first showed, for the pop-in */
+  private hintBorn = new Map<string, number>();
+
+  /** The gem whose choice hint is under a screen point, if any. */
+  hintAt(clientX: number, clientY: number): Tower | null {
+    const r = this.canvas.getBoundingClientRect();
+    const bx = (clientX - r.left) / this.zoom + this.offX, by = (clientY - r.top) / this.zoom + this.offY;
+    return this.hintRects.find((h) => bx >= h.x0 && bx <= h.x1 && by >= h.y0 && by <= h.y1)?.tower ?? null;
+  }
+
+  /**
+   * What this round's gems can become: one label per special (over the selected ingredient, else the last placed one),
+   * and a smaller one per combinable group that has no special.
+   */
+  private choiceHints(game: Game): { tower: Tower; text: string; color: string; special: boolean }[] {
+    const pick = (ts: Tower[]) => (game.selected && ts.includes(game.selected) ? game.selected : ts[ts.length - 1]);
+    const specials = new Map<Tower, string[]>();
+    for (const r of RECIPES) {
+      const makers = game.freshTowers.filter((t) => game.specialOptions(t).includes(r));
+      if (!makers.length) continue;
+      const at = pick(makers);
+      specials.set(at, [...(specials.get(at) ?? []), r.result]);
+    }
+    const out: { tower: Tower; text: string; color: string; special: boolean }[] = [];
+    for (const [tower, ids] of specials) {
+      const more = ids.length > 1 ? ` +${ids.length - 1}` : '';
+      out.push({ tower, text: `★ ${displayName(ids[0]).toUpperCase()}${more}`, color: lookOf(ids[0]).palette.light, special: true });
+    }
+    const groups = new Map<string, Tower[]>();
+    for (const t of game.freshTowers) if (game.combineOptions(t).length) groups.set(t.id, [...(groups.get(t.id) ?? []), t]);
+    for (const ts of groups.values()) {
+      if (ts.some((t) => specials.has(t))) continue;
+      const tower = pick(ts);
+      const opts = game.combineOptions(tower);
+      const best = opts[opts.length - 1];
+      out.push({ tower, text: `${best.count}× → ${displayName(best.result)}`, color: lookOf(best.result).palette.light, special: false });
+    }
+    return out;
+  }
+
+  private drawChoiceHints(game: Game, lod: Lod) {
+    this.hintRects = [];
+    if (game.phase !== 'choose') {
+      this.hintBorn.clear();
+      return;
+    }
+    const { ctx, tile, zoom } = this;
+    const view = this.viewRect();
+    const seen = new Set<string>();
+    // sizes are picked on screen, then divided by zoom: the board transform scales them back up
+    const screen = Math.min(18, Math.max(12, tile * zoom * 0.42));
+    for (const h of this.choiceHints(game)) {
+      const key = `${h.tower.uid}:${h.text}`;
+      seen.add(key);
+      const top = this.gemTop(h.tower, lod);
+      let born = this.hintBorn.get(key);
+      if (born === undefined) {
+        born = this.clock;
+        this.hintBorn.set(key, born);
+        if (h.special) {
+          this.vfx.burst(top.x, top.y - 0.4, 18, 3, [h.color, '#ffd84a', '#ffffff']);
+          this.vfx.ring(top.x, top.y, 1.1, '#ffd84a', 0.5, 3);
+        }
+      }
+      const age = this.clock - born;
+      const pop = age < 0.25 ? 0.4 + ease(age / 0.25) * 0.8 : 1.2 - Math.min(0.2, (age - 0.25) * 1.2);
+      const font = ((h.special ? screen : screen * 0.8) / zoom) * pop;
+      ctx.save();
+      ctx.font = `${h.special ? 900 : 700} ${font}px system-ui, sans-serif`;
+      const w = ctx.measureText(h.text).width + font * 1.1, hgt = font * 1.6;
+      const bob = Math.sin(this.clock * 3 + h.tower.uid) * tile * 0.05;
+      let cx = top.x * tile;
+      let cy = (top.y - 0.45) * tile - hgt / 2 - font * 0.4 + bob;
+      // top row: hang the label under the tower instead of off the board
+      if (cy - hgt / 2 < view.y0 * tile + 2) cy = (h.tower.y + 1.2) * tile + hgt / 2 + bob;
+      cx = Math.min(view.x1 * tile - w / 2 - 2, Math.max(view.x0 * tile + w / 2 + 2, cx));
+      const x0 = cx - w / 2, y0 = cy - hgt / 2, r = hgt / 2;
+      ctx.beginPath();
+      ctx.moveTo(x0 + r, y0);
+      ctx.arcTo(x0 + w, y0, x0 + w, y0 + hgt, r);
+      ctx.arcTo(x0 + w, y0 + hgt, x0, y0 + hgt, r);
+      ctx.arcTo(x0, y0 + hgt, x0, y0, r);
+      ctx.arcTo(x0, y0, x0 + w, y0, r);
+      ctx.closePath();
+      ctx.globalAlpha = Math.min(1, age * 6);
+      ctx.fillStyle = h.special ? 'rgba(40,28,6,0.9)' : 'rgba(14,16,22,0.82)';
+      if (h.special) {
+        ctx.shadowColor = hexA(h.color, 0.9);
+        ctx.shadowBlur = (6 + 4 * Math.sin(this.clock * 4)) * (1 / zoom) * 2;
+      }
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.lineWidth = Math.max(1, font * (h.special ? 0.14 : 0.08));
+      ctx.strokeStyle = h.special ? '#ffd84a' : hexA(h.color, 0.7);
+      ctx.stroke();
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const g = ctx.createLinearGradient(0, y0, 0, y0 + hgt);
+      g.addColorStop(0, '#ffffff');
+      g.addColorStop(1, h.special ? '#ffd84a' : h.color);
+      ctx.fillStyle = g;
+      ctx.fillText(h.text, cx, cy + font * 0.05);
+      ctx.restore();
+      this.hintRects.push({ x0, y0, x1: x0 + w, y1: y0 + hgt, tower: h.tower });
+    }
+    for (const k of this.hintBorn.keys()) if (!seen.has(k)) this.hintBorn.delete(k);
+  }
 
   private drawRanges(game: Game) {
     const t = game.selected ?? (this.hover ? game.towerAt(this.hover.x, this.hover.y) : null);

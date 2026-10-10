@@ -1,4 +1,4 @@
-import { DIFFICULTIES, SWAP_COST, type Difficulty, type Game } from '../game/game';
+import { DIFFICULTIES, SWAP_COST, type Difficulty, type Game, type RecipeStatus, type Tower } from '../game/game';
 import { describeAction, type AutoPlay } from '../ai/autoplay';
 import { parseWeights } from '../ai/loadWeights';
 import type { Weights } from '../ai/weights';
@@ -391,6 +391,7 @@ export class Panel {
         <div class="sel-head"><h3>${gemLabel(t.id)}</h3><span class="muted">${info ? `${QUALITY_NAMES[info.quality]} gem` : isSlate(t.id) ? 'Slate · creeps walk over it' : 'Special tower'} · ${t.kills} kills</span></div>
         <p class="muted">${a.noAttack ? '' : `Damage ${def.dmg + def.dice}–${def.dmg + def.dice * def.sides} · Cooldown ${def.cd}s · `}Range ${def.range}${describeAbility(a).length ? ' · ' + esc(describeAbility(a).join(' · ')) : ''}</p>
         ${btns.length ? `<div class="btns">${btns.join('')}</div>` : ''}
+        ${this.usesHtml(g, t)}
       </div>`);
     }
 
@@ -408,6 +409,23 @@ export class Panel {
     </div>`;
     const log = `<div class="card log">${g.log.slice(0, 4).map((m) => `<p>${esc(m)}</p>`).join('')}</div>`;
     return `<div class="card choose">${choose.join('')}</div>${mine}${log}`;
+  }
+
+  /** Special recipes this gem goes into: which ingredients are kept, placed this round, or still missing. */
+  private usesHtml(g: Game, t: Tower): string {
+    const rows = RECIPES.filter((r) => r.ingredients.includes(t.id))
+      .map((r) => g.recipeStatus(r, t))
+      .sort((a, b) => +b.ready - +a.ready || b.owned / b.parts.length - a.owned / a.parts.length);
+    if (!rows.length) return '';
+    const row = (s: RecipeStatus) => `<div class="use ${s.ready ? 'ready' : ''}">
+        <span class="res">${s.ready ? '★ ' : ''}${gemLabel(s.recipe.result)}</span>
+        <span class="parts">${s.parts.map((p) => `<span class="ing ${p.state}">${gemLabel(p.id)}</span>`).join('<span class="plus">+</span>')}</span>
+        <span class="count">${s.owned}/${s.parts.length}</span>
+      </div>`;
+    return `<div class="uses">
+        <div class="uses-head">Specials with this gem <span class="ing kept">kept</span><span class="ing fresh">this round</span><span class="ing missing">missing</span></div>
+        ${rows.map(row).join('')}
+      </div>`;
   }
 
   private phaseText(g: Game): string {

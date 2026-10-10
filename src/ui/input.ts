@@ -136,6 +136,17 @@ export class BoardInput {
     return a && b ? Math.hypot(a.x - b.x, a.y - b.y) : 0;
   }
 
+  /** A click on a "can make" label over a gem selects that gem. */
+  private pickHint(clientX: number, clientY: number): boolean {
+    const game = this.getGame();
+    if (game.teleportSource || game.swapSource) return false;
+    const t = this.renderer.hintAt(clientX, clientY);
+    if (!t) return false;
+    game.select(t);
+    this.renderer.cursor = null;
+    return true;
+  }
+
   /** Swap targeting, tower and rock selection. Returns true when the tap/click was consumed. */
   private pick(p: Point): boolean {
     const game = this.getGame();
@@ -173,7 +184,7 @@ export class BoardInput {
     const game = this.getGame();
     const p = this.renderer.tileAt(e.clientX, e.clientY);
     this.renderer.hover = p;
-    if (this.pick(p)) return;
+    if (this.pickHint(e.clientX, e.clientY) || this.pick(p)) return;
     if (!game.placeGem(p.x, p.y)) game.select(null);
   }
 
@@ -182,7 +193,7 @@ export class BoardInput {
     const r = this.renderer;
     const p = r.tileAt(clientX, clientY);
     if (!game.inBounds(p.x, p.y)) return;
-    if (this.pick(p)) return;
+    if (this.pickHint(clientX, clientY) || this.pick(p)) return;
     if (game.phase !== 'build') {
       game.select(null);
       return;

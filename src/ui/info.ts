@@ -102,23 +102,13 @@ export class InfoModal {
 
   private specialsHtml(): string {
     const game = this.getGame();
-    const have = new Map<string, number>();
-    for (const t of game.towers) have.set(t.id, (have.get(t.id) ?? 0) + 1);
     const rows = RECIPES.map((r) => {
-      const used = new Map<string, number>();
-      let owned = 0;
-      const parts = r.ingredients.map((id) => {
-        const n = (used.get(id) ?? 0) + 1;
-        used.set(id, n);
-        const ok = (have.get(id) ?? 0) >= n;
-        if (ok) owned++;
-        return `<span class="ing ${ok ? 'have' : ''}">${label(id)}</span>`;
-      });
-      const ready = owned === r.ingredients.length;
-      return `<tr class="${ready ? 'ready' : ''}">
-        <td class="res">${label(r.result)}</td>
+      const s = game.recipeStatus(r, game.selected);
+      const parts = s.parts.map((p) => `<span class="ing ${p.state}">${label(p.id)}</span>`);
+      return `<tr class="${s.ready ? 'ready' : ''}">
+        <td class="res">${s.ready ? '★ ' : ''}${label(r.result)}</td>
         <td>${parts.join('<span class="plus">+</span>')}</td>
-        <td class="count">${owned}/${r.ingredients.length}</td>
+        <td class="count">${s.owned}/${r.ingredients.length}</td>
         <td class="note">${esc(describeAbility(abilityOf(r.result)).join(', '))}</td>
       </tr>`;
     }).join('');
@@ -126,7 +116,7 @@ export class InfoModal {
       <ul class="rules">
         <li>Have every ingredient on the board, with at least one placed <b>this round</b>, then select one and press <b>Special</b>.</li>
         <li>The other ingredients turn into rocks, and their kills carry over to the new tower.</li>
-        <li><span class="ing have">highlighted</span> = you already own it.</li>
+        <li><span class="ing kept">green</span> = kept on the board · <span class="ing fresh">gold</span> = placed this round (a rock unless you use it) · ★ = can be made now.</li>
       </ul>
       <div class="table-wrap"><table class="recipes-table">
         <thead><tr><th>Special</th><th>Ingredients</th><th>Have</th><th>Ability</th></tr></thead>

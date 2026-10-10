@@ -88,5 +88,24 @@ renderer.blueprint = null;
 renderer.zoom = 1;
 game.upgradeTower(game.towers.find((t) => TOWERS[t.id].upgrades.length)!, TOWERS[game.towers.find((t) => TOWERS[t.id].upgrades.length)!.id].upgrades[0]);
 renderer.draw(game);
+
+// choose phase: "can make" labels over a special recipe and a combinable pair
+{
+  const g = new Game({ seed: 9 });
+  for (let x = 10; x < 15; x++) g.placeGem(x, 0); // top row: labels hang below
+  const [a, b, c, d, e] = g.freshTowers;
+  const flawed = BASE_GEMS[GEM_TYPES[0]][1];
+  [a.id, b.id, c.id, d.id, e.id] = ['h001', 'h000', 'e000', flawed, flawed]; // Silver + a Flawed pair
+  for (const zoom of [1, 3, 5]) {
+    renderer.zoom = zoom;
+    for (let f = 0; f < 30; f++) renderer.draw(g);
+  }
+  renderer.zoom = 1;
+  renderer.offX = renderer.offY = 0;
+  renderer.draw(g);
+  const hits = g.freshTowers.filter((t) => [-1, -0.5, 0, 0.5, 1, 1.5, 2].some((dy) => renderer.hintAt((t.x + 0.5) * 18, (t.y + 1.2 + dy) * 18) === t));
+  if (hits.length !== 2) throw new Error(`FAIL: expected a Silver and a combine label, found ${hits.length}`);
+  console.log('choice hints: frames ok, labels clickable');
+}
 if (nanArgs) throw new Error(`FAIL: ${nanArgs} draw calls received NaN/Infinity`);
 console.log('render smoke passed: no exceptions, no NaN geometry');
