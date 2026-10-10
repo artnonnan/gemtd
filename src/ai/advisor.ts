@@ -7,9 +7,13 @@
  */
 import { TOWERS, WAVES, displayName } from '../data/gems';
 import { isMetric, waveKind, type EvalSummary } from './analyze';
+import { blueprintOf } from './blueprint';
 import { SCORE_FORMULA } from './recorder';
 import type { LlmReason, TuneState } from './tuner';
-import { METRICS, TUNABLE_KEYS, WEIGHT_SPECS, clampWeight, weightsKey, type Expectation, type NumericWeightKey, type Weights } from './weights';
+import {
+  CHOICE_DESCS, CHOICE_KEYS, METRICS, TUNABLE_KEYS, WEIGHT_SPECS, choicesOf, clampWeight, weightsKey,
+  type ChoiceKey, type Expectation, type NumericWeightKey, type Weights,
+} from './weights';
 
 /** One line of tuning history, as the advisor sees it. */
 export interface HistoryEntry {
@@ -47,7 +51,8 @@ export function buildRequest(o: {
     seeds: o.state.seeds,
     best: { id: o.best.id, score: s.score, avgLevel: s.avgLevel, winRate: s.winRate, weights: pickNumbers(o.best) },
     bounds: Object.fromEntries(TUNABLE_KEYS.map((k) => [k, [WEIGHT_SPECS[k].min, WEIGHT_SPECS[k].max, WEIGHT_SPECS[k].int ? 'int' : 'float']])),
-    weightDescriptions: Object.fromEntries(TUNABLE_KEYS.map((k) => [k, WEIGHT_SPECS[k].desc])),
+    choices: Object.fromEntries(CHOICE_KEYS.map((k) => [k, choicesOf(k)])),
+    weightDescriptions: { ...Object.fromEntries(TUNABLE_KEYS.map((k) => [k, WEIGHT_SPECS[k].desc])), ...CHOICE_DESCS },
     botBehaviour: [
       'build: อัป gem quality ถ้าทองพอ (qualityReserve) แล้ววางเจมทีละเม็ดในช่องที่คะแนนสูงสุด (mazeGain/mazeBonus/routeAdjacency)',
       'choose: เลือก special / combine 4 / combine 2 / keep ตามคะแนน = power(ผลลัพธ์) + โบนัส; power = dps ประมาณ ปรับด้วย slowValue/splashValue/airValue',
@@ -66,6 +71,9 @@ export function buildRequest(o: {
     exposureNote: 'exposure = ผลรวม dps ของ tower ที่ยิงถึงแต่ละช่องบนทางเดิน (พื้น) หรือเส้นทางบิน (อากาศ) ตอนเริ่มเวฟ ≈ damage ที่ครีปหนึ่งตัวจะโดนตลอดทาง',
     exposureAtWaveStart: Object.fromEntries(s.exposureGround.map((g, i) => [i + 1, { ground: g, air: s.exposureAir[i] }]).filter(([, e]) => (e as { ground: number }).ground > 0)),
     exposureDiedVsPassed: s.exposureDiedVsPassed,
+    blueprint: s.blueprint
+      ? { id: o.best.blueprintId, cells: blueprintOf(o.best.blueprintId)?.sorted.length, ...s.blueprint }
+      : 'ไม่ได้ใช้แปลน (blueprintId none หรือ blueprintWeight 0)',
     avgUpgradesPerGame: s.avgUpgrades,
     avgQualityLevel: s.avgQuality,
     towers: s.towers.slice(0, 15).map((t) => ({ id: t.id, name: t.name, pickRate: t.pickRate, damageShare: t.damageShare, dmgPerWave: t.dmgPerWave, levelWith: t.levelWith, levelWithout: t.levelWithout })),
@@ -77,7 +85,7 @@ export function buildRequest(o: {
   };
 }
 
-const pickNumbers = (w: Weights) => Object.fromEntries(TUNABLE_KEYS.map((k) => [k, w[k]]));
+const pickNumbers = (w: Weights) => ({ ...Object.fromEntries(TUNABLE_KEYS.map((k) => [k, w[k]])), ...Object.fromEntries(CHOICE_KEYS.map((k) => [k, w[k]])) });
 
 export const ANSWER_FORMAT = {
   diagnosis: 'string: สาเหตุหลักที่บอทไปไม่ไกลกว่านี้ อิงตัวเลขที่ให้',
@@ -140,6 +148,15 @@ export function parseAdvice(raw: unknown, best: Weights, s: TuneState, callId: s
     const cand: Weights = { ...best };
     let changed = 0;
     for (const [k, v] of Object.entries(changes)) {
+      if ((CHOICE_KEYS as readonly string[]).includes(k)) {
+        const opts = choicesOf(k as ChoiceKey);
+        if (!opts.includes(String(v))) problems.push(`${tag}: ${k} = ${String(v)} ไม่มีในตัวเลือก ${opts.join(', ')} (ข้าม)`);
+        else if (String(v) !== best[k as ChoiceKey]) {
+          cand[k as ChoiceKey] = String(v);
+          changed++;
+        }
+        continue;
+      }
       if (!(TUNABLE_KEYS as string[]).includes(k)) {
         problems.push(`${tag}: ไม่มีค่าน้ำหนักชื่อ ${k} (ข้าม)`);
         continue;

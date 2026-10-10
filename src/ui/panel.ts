@@ -17,6 +17,8 @@ export interface Controls {
   restart: (difficulty?: Difficulty) => void;
   /** fire overlay on the board; exposure() is the current ground / air total for the stats bar */
   heatmap: 'off' | 'ground' | 'air';
+  /** draw the AI's maze plan as a ghost on the board */
+  showBlueprint: boolean;
   exposure: () => { ground: number; air: number };
   ai: {
     /** the bot playing the current game, or null */
@@ -202,7 +204,9 @@ export class Panel {
     if (this.match.active) return '<p class="muted">Not available during a versus match.</p>';
     if (!ai) return msg;
     const speedBtn = (n: number) => `<button data-act="speed" data-v="${n}" class="${!this.controls.paused && this.controls.speed === n ? 'primary' : ''}">${n}x</button>`;
+    const plan = ai.bot.blueprint;
     return `${msg}<p>🤖 Playing <b>${esc(ai.weights.id)}</b>${ai.weights.source ? ` <span class="muted">(${esc(ai.weights.source)})</span>` : ''} · seed <b>${ai.seed}</b> · ${ai.moves} moves</p>
+      ${plan ? `<p>Maze plan <b>${esc(plan.id)}</b> <span class="muted">${esc(plan.style)}</span> <button data-act="blueprint" class="${this.controls.showBlueprint ? 'primary' : ''}">${this.controls.showBlueprint ? 'Hide plan (B)' : 'Show plan (B)'}</button></p>` : ''}
       <div class="btns">
         <button data-act="ai-stop">■ Stop AI</button>
         <button data-act="ai-replay" title="Same weights, same seed: the same game again">↺ Replay</button>
@@ -224,6 +228,7 @@ export class Panel {
     }
     switch (el.dataset.act) {
       case 'heatmap': this.controls.heatmap = v as Controls['heatmap']; break;
+      case 'blueprint': this.controls.showBlueprint = !this.controls.showBlueprint; break;
       case 'ai-start': void this.loadAndStartAi(); break;
       case 'ai-file': this.aiFile.click(); break;
       case 'ai-stop': this.controls.ai.stop(); break;
@@ -447,7 +452,7 @@ export class Panel {
     const heat = (v: Controls['heatmap'], label: string) => `<button data-act="heatmap" data-v="${v}" class="${this.controls.heatmap === v ? 'primary' : ''}">${label}</button>`;
     parts.push(`<h3>Fire heatmap</h3><div class="btns">${heat('off', 'Off')}${heat('ground', '🔥 Ground')}${heat('air', '✈ Air')}</div>`);
     parts.push('<p class="muted">Shows the dps reaching each tile: does the creep path run through the hot zones or around them?</p>');
-    parts.push('<p class="muted">Keys: Space pause · 1/2/4/8 speed · K keep · R/Del remove selected rock · H heatmap · Esc cancel · I info · S settings</p>');
+    parts.push('<p class="muted">Keys: Space pause · 1/2/4/8 speed · K keep · R/Del remove selected rock · H heatmap · B AI maze plan · Esc cancel · I info · S settings</p>');
     return parts.join('');
   }
 

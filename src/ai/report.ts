@@ -7,6 +7,7 @@ import { waveKind, type EvalSummary, type Paired, type WaveKind } from './analyz
 import { SCORE_FORMULA, type GameRecord } from './recorder';
 import { deadEnds, promising, type CandidateResult, type LlmReason, type TuneState } from './tuner';
 import { describeChanges, type Weights } from './weights';
+import { blueprintOf } from './blueprint';
 
 const KIND_TH: Record<WaveKind, string> = { air: 'อากาศ', ground: 'พื้น', boss: 'บอส' };
 const pct = (x: number) => `${Math.round(x * 100)}%`;
@@ -98,6 +99,19 @@ export function batchReport(s: EvalSummary, w: Weights, meta: { seeds: string; r
   lines.push('## Special ที่ทำได้', '');
   const sp = Object.entries(s.specialsMade).sort((a, b) => b[1] - a[1]);
   lines.push(...(sp.length ? sp.map(([id, r]) => `- ${displayName(id)}: ${pct(r)} ของเกม`) : ['- ไม่มี']), '');
+
+  const bp = s.blueprint ? blueprintOf(w.blueprintId) : null;
+  if (s.blueprint && bp) {
+    const b = s.blueprint;
+    const slots = bp.sorted.filter((c) => c.role === 'slot');
+    const never = slots.filter((c) => !b.slotsKept[c.order]);
+    lines.push(`## แปลน \`${bp.id}\` (${bp.style})`, '');
+    lines.push(`- เจมที่ลงตามแปลน: ${pct(b.adherence)} ของเจมที่วางทั้งหมด (blueprintWeight ${w.blueprintWeight}, window ${w.blueprintWindow})`);
+    lines.push(`- ตอนตาย แปลนสร้างไปแล้วเฉลี่ย ${b.builtAtDeath} จาก ${bp.sorted.length} ช่อง (order สูงสุดเฉลี่ย ${b.progressAtDeath})`);
+    lines.push(`- slot ที่ได้ tower ที่ keep: ${slots.map((c) => `#${c.order} (${c.x},${c.y}) ${pct(b.slotsKept[c.order] ?? 0)}`).join(' · ')}`);
+    if (never.length) lines.push(`- slot ที่ไม่เคยได้ tower: ${never.map((c) => `#${c.order} (${c.x},${c.y})`).join(', ')}`);
+    lines.push('');
+  }
 
   if (meta.records?.length) {
     lines.push('## เกมที่น่าดู (เปิดด้วย `npm run dev` แล้วกดลิงก์)', '');

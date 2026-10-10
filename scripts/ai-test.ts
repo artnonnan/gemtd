@@ -5,6 +5,7 @@
 import { CHECKPOINTS, STEP, START_LIVES, toTiles } from '../src/game/config';
 import { TOWERS } from '../src/data/gems';
 import { AIR_PATH, cover, dpsMaps, exposureOf, hitsAir, hitsGround, towerDps } from '../src/ai/exposure';
+import { BLUEPRINTS, BLUEPRINT_IDS } from '../src/ai/blueprint';
 import { Game } from '../src/game/game';
 import { mulberry32 } from '../src/game/rng';
 import { AutoPlay } from '../src/ai/autoplay';
@@ -134,12 +135,35 @@ assert(w.mazeGain === 5 && w.source === 'manual' && w.qualityReserve === DEFAULT
   assert(rec.exposureGround.length === rec.level && rec.exposureAir.length === rec.level && rec.exposureGround.slice(1).every((v) => v > 0), 'records ground/air exposure for every wave');
 }
 
+// ---------- blueprints ----------
+{
+  assert(!!BLUEPRINTS.spiral && BLUEPRINT_IDS.includes('spiral') && BLUEPRINT_IDS[0] === 'none', 'spiral is registered next to none');
+  const base = { ...DEFAULT_WEIGHTS, groundExposure: 2, keepExposure: 1, tieNoise: 0, id: 'bp-base' };
+  const same = (a: GameRecord, b: GameRecord) => JSON.stringify({ ...a, weightsId: '' }) === JSON.stringify({ ...b, weightsId: '' });
+  const ref = recordBotGame({ seed: 6, difficulty: 'normal', weights: base });
+  assert(same(ref, recordBotGame({ seed: 6, difficulty: 'normal', weights: { ...base, blueprintId: 'spiral', blueprintWeight: 0, slotKeepBonus: 2 } })), 'a blueprint with weight 0 changes nothing');
+  assert(same(ref, recordBotGame({ seed: 6, difficulty: 'normal', weights: { ...base, blueprintId: 'none', blueprintWeight: 5 } })), 'blueprintId none changes nothing');
+  const planned = recordBotGame({ seed: 6, difficulty: 'normal', weights: { ...base, blueprintId: 'spiral', blueprintWeight: 5 } });
+  const early = planned.blueprintAdherence!.slice(0, 5);
+  assert(early.reduce((a, b) => a + b, 0) / early.length >= 0.8, `with weight 5 the first levels follow the plan (${early.join(', ')})`);
+  assert(planned.blueprintBuilt!.every((b, i, xs) => i === 0 || b >= xs[i - 1]), `plan cells only accumulate (${planned.blueprintBuilt!.slice(-1)[0]} built by level ${planned.level})`);
+  const w = withDefaults({ ...base, blueprintId: 'nope' } as never);
+  assert(w.blueprintId === 'none', 'an unknown blueprint id falls back to none');
+  const st = newState('test', 'normal', 6, { ...base, blueprintId: 'none' });
+  st.blueprints = ['spiral', 'none'];
+  const props = proposeHill({ ...base, blueprintId: 'none' }, st, 40);
+  assert(props.some((p) => p.blueprintId === 'spiral' && p.blueprintWeight > 0), 'hill-climbing sometimes switches to another blueprint (with some pull)');
+  const adv = parseAdvice({ proposals: [{ changes: { blueprintId: 'spiral', blueprintWeight: 4 }, hypothesis: 'h' }, { changes: { blueprintId: 'maze-x' }, hypothesis: 'bad' }] }, base, st, 'llm-bp');
+  assert(adv.proposals.length === 1 && adv.proposals[0].blueprintId === 'spiral' && adv.problems.some((p) => p.includes('maze-x')), 'the advisor may pick a registered blueprint, not an unknown one');
+}
+
 // ---------- browser auto-play plays the same game as a headless run ----------
 {
   const end = (g: Game) =>
     `${g.phase} L${g.level} lives=${g.lives} gold=${g.gold} kills=${g.stats.kills} t=${g.time.toFixed(4)} ` +
     g.towers.map((t) => `${t.id}@${t.x},${t.y}`).join(' ');
-  for (const [w, seed] of [[DEFAULT_WEIGHTS, 1], [DEFAULT_WEIGHTS, 2], [SMART_WEIGHTS, 3]] as const) {
+  const spiralW = { ...DEFAULT_WEIGHTS, id: 'spiral5', groundExposure: 2, keepExposure: 1, blueprintId: 'spiral', blueprintWeight: 5, slotKeepBonus: 1 };
+  for (const [w, seed] of [[DEFAULT_WEIGHTS, 1], [DEFAULT_WEIGHTS, 2], [SMART_WEIGHTS, 3], [spiralW, 4]] as const) {
     const headless = playBotGame({ seed, difficulty: 'normal', weights: w }).game;
     // uneven frames and changing speed, like a real browser tab
     const g = new Game({ seed, difficulty: 'normal' });

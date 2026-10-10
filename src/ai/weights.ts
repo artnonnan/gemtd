@@ -2,6 +2,8 @@
  * Every number the bot decides with. Tuning (by hand, by the tuner or by an LLM advisor) only ever changes these,
  * so a weight set + a seed fully describes a bot game.
  */
+import { BLUEPRINT_IDS } from './blueprint';
+
 export interface Weights {
   /** short name, e.g. "w12" */
   id: string;
@@ -27,6 +29,12 @@ export interface Weights {
   groundExposure: number;
   /** score per flight-path tile the new gem would cover */
   airExposure: number;
+  /** maze plan to follow (src/data/blueprints), or 'none' */
+  blueprintId: string;
+  /** bonus for the next cells of the plan: 10 × this for the first cell of the window, less for later ones */
+  blueprintWeight: number;
+  /** how many of the next unbuilt, placeable plan cells get the bonus */
+  blueprintWindow: number;
 
   // ---- economy ----
   /** upgrade gem quality when gold >= its cost + this */
@@ -41,6 +49,8 @@ export interface Weights {
   // ---- keep / combine choice: score = power(result) × (1 + keepExposure × coverage / 10) + bonus ----
   /** how much a gem's position matters when choosing which to keep */
   keepExposure: number;
+  /** keep/combine/special: power × (1 + this) for a gem standing on a blueprint slot */
+  slotKeepBonus: number;
   specialBonus: number;
   combine4Bonus: number;
   combine2Bonus: number;
@@ -90,6 +100,14 @@ export interface Proposal {
 
 export type NumericWeightKey = { [K in keyof Weights]-?: Weights[K] extends number ? K : never }[keyof Weights];
 
+/** Weights that pick one of a few named options instead of a number. */
+export const CHOICE_KEYS = ['blueprintId'] as const;
+export type ChoiceKey = (typeof CHOICE_KEYS)[number];
+export const choicesOf = (_k: ChoiceKey): string[] => BLUEPRINT_IDS;
+export const CHOICE_DESCS: Record<ChoiceKey, string> = {
+  blueprintId: 'แปลนเขาวงกตที่บอทพยายามสร้างตามลำดับ (none = ไม่ใช้แปลน); ดู blueprintWeight / blueprintWindow / slotKeepBonus',
+};
+
 export interface WeightSpec {
   min: number;
   max: number;
@@ -109,7 +127,10 @@ export const WEIGHT_SPECS: Record<NumericWeightKey, WeightSpec> = {
     min: 0, max: 5,
     desc: 'คะแนนต่อ exposure ภาคพื้นที่เพิ่มขึ้น (ไฟที่ครีปเดินผ่านทั้งทาง หน่วยเป็น "ช่องที่ tower เฉลี่ยหนึ่งตัวยิงถึง"): รวมทั้งช่องทางเดินที่เจมใหม่จะยิงถึง และผลของการบังทาง ถ้าบังแล้วครีปอ้อมพ้นระยะยิงของ tower เดิม ค่าจะติดลบ; 0 = ไม่ใช้',
   },
+  blueprintWeight: { min: 0, max: 20, desc: 'ให้คะแนนช่องในแปลน: ช่องแรกของ window ได้ 10 × ค่านี้ ช่องถัดไปลดลงเป็นขั้น (ค่า 1 ≈ 10 คะแนน; ช่องดีสุดปกติได้ราว 40–50 คะแนน); ยังเลือกช่องนอกแปลนได้ถ้าคะแนนสูงกว่า; 0 = ไม่ใช้แปลน' },
+  blueprintWindow: { min: 1, max: 40, int: true, desc: 'จำนวนช่องแปลนถัดไป (ที่ยังไม่สร้างและวางได้ตอนนี้) ที่ได้โบนัส; น้อย = ทำตามลำดับเคร่ง, มาก = ยืดหยุ่น' },
   airExposure: { min: 0, max: 5, desc: 'คะแนนต่อจำนวนช่องบนเส้นทางบิน (บินตรงระหว่าง checkpoint) ที่เจมใหม่จะยิงถึง; ช่วยวางเจมไว้รับเวฟอากาศ; 0 = ไม่ใช้' },
+  slotKeepBonus: { min: 0, max: 3, desc: 'ตอนเลือก keep/combine/special: power × (1 + ค่านี้) ถ้าเจมอยู่บนช่อง slot ของแปลน (จุดที่ยิงถึงทางเดินมาก)' },
   keepExposure: {
     min: 0, max: 3,
     desc: 'ตอนเลือก keep/combine/special คูณ power ด้วย (1 + ค่านี้ × จำนวนช่องทางที่ตำแหน่งนั้นยิงถึง / 10) โดยนับทางพื้นถ้ายิงพื้นได้ และทางบิน × สัดส่วนเวฟบินถ้ายิงอากาศได้; เจมแรงที่อยู่มุมที่ทางไม่ผ่านจะได้ค่าน้อย; 0 = ไม่ใช้',
@@ -139,11 +160,15 @@ export const DEFAULT_WEIGHTS: Weights = {
   tieNoise: 0.5,
   groundExposure: 0,
   airExposure: 0,
+  blueprintId: 'none',
+  blueprintWeight: 0,
+  blueprintWindow: 10,
   qualityReserve: 30,
   qualityMaxLevel: 8,
   upgradeReserve: 20,
   buyLifeBelow: 0,
   keepExposure: 0,
+  slotKeepBonus: 0,
   specialBonus: 3000,
   combine4Bonus: 2000,
   combine2Bonus: 1000,
@@ -168,16 +193,17 @@ export function withDefaults(w: Partial<Weights>): Weights {
   const out: Weights = { ...DEFAULT_WEIGHTS, ...w, id: w.id ?? 'custom' };
   if (!w.source) out.source = 'manual';
   for (const k of TUNABLE_KEYS) out[k] = clampWeight(k, out[k]);
+  if (!BLUEPRINT_IDS.includes(out.blueprintId)) out.blueprintId = 'none';
   return out;
 }
 
 /** Identity of the numbers only, to skip candidates that were already tried. */
 export function weightsKey(w: Weights): string {
-  return TUNABLE_KEYS.map((k) => w[k]).join(',');
+  return [...TUNABLE_KEYS.map((k) => w[k]), ...CHOICE_KEYS.map((k) => w[k])].join(',');
 }
 
 /** "mazeGain 0→0.5, qualityReserve 30→10" */
 export function describeChanges(from: Weights, to: Weights): string {
-  const parts = TUNABLE_KEYS.filter((k) => from[k] !== to[k]).map((k) => `${k} ${from[k]}→${to[k]}`);
+  const parts = [...TUNABLE_KEYS, ...CHOICE_KEYS].filter((k) => from[k] !== to[k]).map((k) => `${k} ${from[k]}→${to[k]}`);
   return parts.join(', ') || '(ไม่เปลี่ยน)';
 }

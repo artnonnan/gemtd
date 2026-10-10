@@ -9,6 +9,7 @@ import { mulberry32 } from '../game/rng';
 import { TOWERS, abilityOf, qualityUpgradeCost, MAX_QUALITY_LEVEL } from '../data/gems';
 import { AIR_PATH, AIR_WAVE_SHARE, GEM_ODDS, cover, dpsMaps, exposureOf, hitsAir, hitsGround, type DpsMaps } from './exposure';
 import type { Weights } from './weights';
+import { blueprintOf, type LoadedBlueprint } from './blueprint';
 
 export type Action =
   | { type: 'quality' }
@@ -63,9 +64,12 @@ export function towerPower(id: string, w: Weights): number {
 export class Bot {
   /** tie-break randomness, seeded so a bot game replays exactly */
   private rng: () => number;
+  /** the maze plan this bot follows, if any */
+  readonly blueprint: LoadedBlueprint | null;
 
   constructor(readonly weights: Weights, seed: number) {
     this.rng = mulberry32(seed);
+    this.blueprint = weights.blueprintWeight > 0 ? blueprintOf(weights.blueprintId) : null;
   }
 
   /** The next move for the current phase, or null when the bot has nothing to do right now. */
@@ -106,17 +110,36 @@ export class Bot {
       const maps = dpsMaps(game);
       exp = { maps, route: game.route, base: exposureOf(game.route, maps.ground) };
     }
+    const plan = this.planBonus(game);
     const cands: { x: number; y: number; v: number }[] = [];
     for (let y = 0; y < GRID; y++) {
       for (let x = 0; x < GRID; x++) {
         if (game.towerAt(x, y) || game.isRock(x, y) || game.isReserved(x, y)) continue;
         const v = this.tileValue(x, y, onRoute, maze, exp);
-        if (v !== null) cands.push({ x, y, v });
+        if (v !== null) cands.push({ x, y, v: v + (plan?.get(y * GRID + x) ?? 0) });
       }
     }
     cands.sort((a, b) => b.v - a.v);
     const best = cands.find((c) => game.canPlace(c.x, c.y));
     return best ? { type: 'place', x: best.x, y: best.y } : null;
+  }
+
+  /**
+   * Bonus for the next plan cells: the first blueprintWindow cells (in build order) that are still empty and
+   * can be built right now. The first gets 10 × blueprintWeight, later ones step down. A plan cell that is taken
+   * or would cut the route (other gems and rocks can make that happen) is skipped, so the window moves on.
+   */
+  private planBonus(game: Game): Map<number, number> | null {
+    const bp = this.blueprint;
+    if (!bp) return null;
+    const w = this.weights;
+    const out = new Map<number, number>();
+    for (const c of bp.sorted) {
+      if (out.size >= w.blueprintWindow) break;
+      if (game.towerAt(c.x, c.y) || game.isRock(c.x, c.y) || !game.canPlace(c.x, c.y)) continue;
+      out.set(c.y * GRID + c.x, 10 * w.blueprintWeight * (1 - out.size / w.blueprintWindow));
+    }
+    return out;
   }
 
   /** null = the tile would cut the route */
@@ -185,6 +208,9 @@ export class Bot {
     let best: { a: Action; v: number } | null = null;
     const consider = (a: Action, result: string, bonus: number) => {
       let p = towerPower(result, w);
+      if (this.blueprint && w.slotKeepBonus > 0 && this.blueprint.at.get((a as { y: number }).y * GRID + (a as { x: number }).x)?.role === 'slot') {
+        p *= 1 + w.slotKeepBonus;
+      }
       if (w.keepExposure > 0 && a.type !== 'quality' && a.type !== 'buyLife') {
         p *= 1 + (w.keepExposure * this.keepCoverage(game, result, (a as { x: number }).x, (a as { y: number }).y)) / 10;
       }

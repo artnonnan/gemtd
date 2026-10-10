@@ -9,6 +9,7 @@
  *                   [--try=weights.json]               next round plays your own weight set(s)
  *                   [--export-llm]                     write an advisor request now, then stop
  *                   [--holdout-every=10] [--llm-stuck=12] [--llm-every=25]
+ *                   [--blueprints=spiral,none]         blueprints hill-climbing may switch between (default: all)
  *
  * Everything lands in sim-runs/tune/: state.json, history.jsonl, reports/round-NNN.md, llm/.
  */
@@ -65,6 +66,8 @@ export async function tune() {
     state = newState(rules, difficulty, n, start);
     console.log(`new tuning run from ${start.id}`);
   }
+  const bps = arg('blueprints');
+  if (bps) state.blueprints = bps.split(',');
   let best = loadWeights(state.bestId);
 
   let rulesChanged: { from: string; to: string } | undefined;

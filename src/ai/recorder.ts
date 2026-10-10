@@ -6,6 +6,8 @@ import type { Game } from '../game/game';
 import { TOWERS } from '../data/gems';
 import type { Action } from './bot';
 import { AIR_PATH, dpsMaps, exposureOf } from './exposure';
+import { blueprintOf, type LoadedBlueprint } from './blueprint';
+import { GRID } from '../game/config';
 import { playBotGame, type BotGameOptions, type GameObserver } from './runner';
 
 export interface GameRecord {
@@ -28,6 +30,13 @@ export interface GameRecord {
   /** fire along the ground route / the flight path when each wave started (sum of dps over path tiles); index = level - 1 */
   exposureGround: number[];
   exposureAir: number[];
+  /** with a blueprint: share of the gems placed on each level that went on plan cells; index = level - 1 */
+  blueprintAdherence?: number[];
+  /** with a blueprint: highest plan order built when each wave started (and how many plan cells stand) */
+  blueprintProgress?: number[];
+  blueprintBuilt?: number[];
+  /** with a blueprint: orders of the slots that got the kept tower */
+  blueprintSlotsKept?: number[];
   /** per tower id (as it was at the end of each wave): damage dealt and number of tower-waves on the board */
   towers: Record<string, { dmg: number; waves: number }>;
   /** keep/combine/special decisions, "level:kind:resultId" */
@@ -46,6 +55,12 @@ class Recorder implements GameObserver {
   goldAtWave: number[] = [];
   exposureGround: number[] = [];
   exposureAir: number[] = [];
+  bpPlaced: number[] = [];
+  bpOnPlan: number[] = [];
+  bpProgress: number[] = [];
+  bpBuilt: number[] = [];
+  bpSlotsKept: number[] = [];
+  constructor(private bp: LoadedBlueprint | null) {}
   towers: GameRecord['towers'] = {};
   picks: string[] = [];
   upgrades: string[] = [];
@@ -57,8 +72,14 @@ class Recorder implements GameObserver {
       // the choice starts the wave, so this is the last look at the board before it
       this.pending = { lives: game.lives, gold: game.gold };
       const t = game.towerAt(a.x, a.y)!;
+      const cell = this.bp?.at.get(a.y * GRID + a.x);
+      if (cell?.role === 'slot') this.bpSlotsKept.push(cell.order);
       const result = a.type === 'keep' ? t.id : a.type === 'special' ? a.result : game.combineOptions(t).find((o) => o.count === a.count)!.result;
       this.picks.push(`${game.level}:${a.type === 'combine' ? `combine${a.count}` : a.type}:${result}`);
+    } else if (a.type === 'place' && this.bp) {
+      const i = game.level - 1;
+      this.bpPlaced[i] = (this.bpPlaced[i] ?? 0) + 1;
+      this.bpOnPlan[i] = (this.bpOnPlan[i] ?? 0) + (this.bp.at.has(a.y * GRID + a.x) ? 1 : 0);
     } else if (a.type === 'upgrade') {
       this.upgrades.push(`${game.level}:${game.towerAt(a.x, a.y)!.id}>${a.target}`);
     }
@@ -72,6 +93,17 @@ class Recorder implements GameObserver {
       const maps = dpsMaps(game);
       this.exposureGround[game.level - 1] = Math.round(exposureOf(game.route, maps.ground));
       this.exposureAir[game.level - 1] = Math.round(exposureOf(AIR_PATH, maps.air));
+      if (this.bp) {
+        let top = 0, built = 0;
+        for (const c of this.bp.sorted) {
+          if (game.towerAt(c.x, c.y) || game.isRock(c.x, c.y)) {
+            top = c.order;
+            built++;
+          }
+        }
+        this.bpProgress[game.level - 1] = top;
+        this.bpBuilt[game.level - 1] = built;
+      }
       this.pending = null;
     } else if (this.wave && game.phase !== 'wave') {
       const w = this.wave;
@@ -87,7 +119,7 @@ class Recorder implements GameObserver {
 }
 
 export function recordBotGame(opts: Omit<BotGameOptions, 'observer'>): GameRecord {
-  const rec = new Recorder();
+  const rec = new Recorder(opts.weights.blueprintWeight > 0 ? blueprintOf(opts.weights.blueprintId) : null);
   const { game, log } = playBotGame({ ...opts, observer: rec });
   for (const s of Object.values(rec.towers)) s.dmg = Math.round(s.dmg);
   const r = {
@@ -105,6 +137,14 @@ export function recordBotGame(opts: Omit<BotGameOptions, 'observer'>): GameRecor
     goldAtWave: rec.goldAtWave,
     exposureGround: rec.exposureGround,
     exposureAir: rec.exposureAir,
+    ...(rec.bpProgress.length
+      ? {
+          blueprintAdherence: rec.bpPlaced.map((p, i) => (p ? Math.round((rec.bpOnPlan[i] / p) * 100) / 100 : 0)),
+          blueprintProgress: rec.bpProgress,
+          blueprintBuilt: rec.bpBuilt,
+          blueprintSlotsKept: rec.bpSlotsKept,
+        }
+      : {}),
     towers: rec.towers,
     picks: rec.picks,
     upgrades: rec.upgrades,

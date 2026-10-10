@@ -51,6 +51,16 @@ export interface EvalSummary {
   exposureAir: number[];
   /** on levels where games ended: avg exposure (of that wave kind) in games that died there vs games that got through */
   exposureDiedVsPassed: Record<number, { died: number; passed: number }>;
+  /** only for weight sets that follow a blueprint */
+  blueprint?: {
+    /** share of all placed gems that went on plan cells */
+    adherence: number;
+    /** avg highest plan order / plan cells standing when the last wave started (lost games) */
+    progressAtDeath: number;
+    builtAtDeath: number;
+    /** slot order → share of games where that slot got the kept tower */
+    slotsKept: Record<number, number>;
+  };
   towers: TowerStat[];
   /** special towers made, as share of games that made it at least once */
   specialsMade: Record<string, number>;
@@ -141,6 +151,21 @@ export function summarize(recs: GameRecord[]): EvalSummary {
     if (died.length && passed.length) exposureDiedVsPassed[l] = { died: Math.round(mean(died.map(pick))), passed: Math.round(mean(passed.map(pick))) };
   }
 
+  const withBp = recs.filter((r) => r.blueprintProgress);
+  let blueprint: EvalSummary['blueprint'];
+  if (withBp.length) {
+    const last = (xs: number[] | undefined) => (xs?.length ? xs[xs.length - 1] : 0);
+    const lostBp = withBp.filter((r) => r.result === 'gameover');
+    const slotsKept: Record<number, number> = {};
+    for (const r of withBp) for (const o of new Set(r.blueprintSlotsKept ?? [])) slotsKept[o] = (slotsKept[o] ?? 0) + 1;
+    blueprint = {
+      adherence: r2(mean(withBp.flatMap((r) => r.blueprintAdherence ?? []))),
+      progressAtDeath: r2(mean(lostBp.map((r) => last(r.blueprintProgress)))),
+      builtAtDeath: r2(mean(lostBp.map((r) => last(r.blueprintBuilt)))),
+      slotsKept: Object.fromEntries(Object.entries(slotsKept).map(([o, c]) => [o, r2(c / withBp.length)])),
+    };
+  }
+
   return {
     games: n,
     score: r2(mean(scores)),
@@ -156,6 +181,7 @@ export function summarize(recs: GameRecord[]): EvalSummary {
     exposureGround: avgAt((r) => r.exposureGround),
     exposureAir: avgAt((r) => r.exposureAir),
     exposureDiedVsPassed,
+    blueprint,
     towers,
     specialsMade,
     unusedRecipes: RECIPES.map((r) => r.result).filter((id) => !(id in specialsMade)),

@@ -13,6 +13,7 @@ import {
 import { towerColor } from '../data/gems';
 import { Vfx, drawOrb } from './vfx';
 import { dpsMaps, type DpsMaps } from '../ai/exposure';
+import type { LoadedBlueprint } from '../ai/blueprint';
 
 const COLORS = {
   bg: '#14171f',
@@ -55,6 +56,8 @@ export class Renderer {
   zoom = 1;
   /** fire overlay: off, or dps reaching each tile for ground / air creeps */
   heatmap: 'off' | 'ground' | 'air' = 'off';
+  /** maze plan drawn as a ghost under everything, or null */
+  blueprint: LoadedBlueprint | null = null;
   offX = 0;
   offY = 0;
 
@@ -175,6 +178,7 @@ export class Renderer {
 
     ctx.drawImage(this.background(game), 0, 0, px, px);
     if (this.heatmap !== 'off') this.drawHeatmap(game);
+    if (this.blueprint) this.drawBlueprint(game, this.blueprint);
     this.drawRoute(game);
     this.drawCheckpoints();
     for (const key of game.rocks) this.drawRock(key % GRID, Math.floor(key / GRID));
@@ -403,6 +407,35 @@ export class Renderer {
   }
 
   // ---------- board ----------
+
+  /** Ghost of the maze plan the AI follows: unbuilt cells as faint outlines, slots as rings, order numbers up close. */
+  private drawBlueprint(game: Game, bp: LoadedBlueprint) {
+    const { ctx, tile } = this;
+    const showOrder = tile * this.zoom >= 26;
+    ctx.save();
+    ctx.lineWidth = Math.max(1, tile * 0.06);
+    ctx.font = `${Math.max(6, tile * 0.32)}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (const c of bp.sorted) {
+      if (game.towerAt(c.x, c.y) || game.isRock(c.x, c.y)) continue;
+      const x = c.x * tile, y = c.y * tile;
+      if (c.role === 'slot') {
+        ctx.strokeStyle = 'rgba(255,215,90,0.65)';
+        ctx.beginPath();
+        ctx.arc(x + tile / 2, y + tile / 2, tile * 0.36, 0, Math.PI * 2);
+        ctx.stroke();
+      } else {
+        ctx.strokeStyle = 'rgba(200,210,255,0.35)';
+        ctx.strokeRect(x + tile * 0.15, y + tile * 0.15, tile * 0.7, tile * 0.7);
+      }
+      if (showOrder) {
+        ctx.fillStyle = 'rgba(220,225,255,0.6)';
+        ctx.fillText(String(c.order), x + tile / 2, y + tile / 2);
+      }
+    }
+    ctx.restore();
+  }
 
   /** dps reaching each tile, cached per board version */
   private heat: { game: Game; version: number; maps: DpsMaps } | null = null;

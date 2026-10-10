@@ -4,6 +4,7 @@
  * Run: npm run render-smoke
  */
 import { Game } from '../src/game/game';
+import { BLUEPRINTS } from '../src/ai/blueprint';
 import { Renderer } from '../src/render/renderer';
 import { BASE_GEMS, GEM_TYPES, RECIPES, TOWERS } from '../src/data/gems';
 
@@ -76,6 +77,15 @@ for (const mode of ['ground', 'air'] as const) {
   console.log(`heatmap ${mode}: frames ok, ${calls - before} draw calls, ${m.filter((v) => v > 0).length} hot tiles`);
 }
 renderer.heatmap = 'off';
+renderer.blueprint = BLUEPRINTS.spiral;
+for (const zoom of [1, 5]) {
+  renderer.zoom = zoom;
+  const before = calls;
+  for (let f = 0; f < 5; f++) renderer.draw(game);
+  console.log(`blueprint ghost at zoom ${zoom}: frames ok, ${calls - before} draw calls`);
+}
+renderer.blueprint = null;
+renderer.zoom = 1;
 game.upgradeTower(game.towers.find((t) => TOWERS[t.id].upgrades.length)!, TOWERS[game.towers.find((t) => TOWERS[t.id].upgrades.length)!.id].upgrades[0]);
 renderer.draw(game);
 if (nanArgs) throw new Error(`FAIL: ${nanArgs} draw calls received NaN/Infinity`);

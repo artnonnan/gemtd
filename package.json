@@ -15,7 +15,8 @@
     "render-smoke": "esbuild scripts/render-smoke.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/render.mjs --log-level=warning && node node_modules/.cache/render.mjs",
     "versus-test": "esbuild scripts/versus-test.ts --bundle --platform=node --format=esm --external:peerjs --outfile=node_modules/.cache/versus.mjs --log-level=warning && node node_modules/.cache/versus.mjs",
     "batch": "esbuild scripts/ai/main.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/ai.mjs --log-level=warning && node node_modules/.cache/ai.mjs batch",
-    "tune": "esbuild scripts/ai/main.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/ai.mjs --log-level=warning && node node_modules/.cache/ai.mjs tune"
+    "tune": "esbuild scripts/ai/main.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/ai.mjs --log-level=warning && node node_modules/.cache/ai.mjs tune",
+    "blueprint": "esbuild scripts/blueprint.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/blueprint.mjs --log-level=warning && node node_modules/.cache/blueprint.mjs"
   },
   "devDependencies": {
     "typescript": "5.4.5",

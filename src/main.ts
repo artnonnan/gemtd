@@ -35,6 +35,7 @@ const controls: Controls = {
     setGame(new Game({ difficulty }));
   },
   heatmap: (params0().get('heat') as Controls['heatmap'] | null) ?? 'off',
+  showBlueprint: true,
   exposure: () => {
     const m = renderer.heatMaps(game);
     return { ground: exposureOf(game.route, m.ground), air: exposureOf(AIR_PATH, m.air) };
@@ -89,6 +90,8 @@ window.addEventListener('keydown', (e) => {
     controls.speed = +e.key;
   } else if (e.key.toLowerCase() === 'i') {
     panel.info.toggle();
+  } else if (e.key.toLowerCase() === 'b') {
+    controls.showBlueprint = !controls.showBlueprint;
   } else if (e.key.toLowerCase() === 'h') {
     controls.heatmap = HEAT_ORDER[(HEAT_ORDER.indexOf(controls.heatmap) + 1) % HEAT_ORDER.length];
   } else if (e.key.toLowerCase() === 's') {
@@ -133,6 +136,7 @@ function frame(now: number) {
   }
   input.update();
   renderer.heatmap = controls.heatmap;
+  renderer.blueprint = controls.showBlueprint ? (aiActive()?.bot.blueprint ?? null) : null;
   renderer.draw(game);
   panel.update();
   requestAnimationFrame(frame);

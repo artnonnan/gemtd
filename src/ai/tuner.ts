@@ -5,7 +5,10 @@
 import { mulberry32 } from '../game/rng';
 import { SIGNIFICANT_Z, checkExpectation, paired, metricLabel, type Paired, type Verdict } from './analyze';
 import type { GameRecord } from './recorder';
-import { TUNABLE_KEYS, WEIGHT_SPECS, clampWeight, describeChanges, weightsKey, type NumericWeightKey, type Weights } from './weights';
+import { TUNABLE_KEYS, WEIGHT_SPECS, choicesOf, clampWeight, describeChanges, weightsKey, type NumericWeightKey, type Weights } from './weights';
+
+/** chance that a hill-climbing candidate also switches to another blueprint */
+const SWITCH_BLUEPRINT = 0.15;
 
 /** wins: significantly better; pos: better but within luck */
 export interface DirStats { tries: number; wins: number; pos?: number }
@@ -32,6 +35,8 @@ export interface TuneState {
   pending: Weights[];
   llm: { calls: number; proposals: number; accepted: number; correct: number; wrong: number; noEffect: number; lastRound: number };
   holdout: { round: number; bestId: string; score: number }[];
+  /** options the tuner may switch blueprintId between (default: every registered blueprint and none) */
+  blueprints?: string[];
 }
 
 export function newState(rulesHash: string, difficulty: string, seeds: number, best: Weights): TuneState {
@@ -69,6 +74,12 @@ export function proposeHill(best: Weights, s: TuneState, k: number): Weights[] {
       let step = (spec.max - spec.min) * s.stepScale * (0.03 + 0.12 * rng());
       if (spec.int) step = Math.max(1, Math.round(step));
       cand[key] = clampWeight(key, best[key] + (up ? step : -step));
+    }
+    const options = (s.blueprints ?? choicesOf('blueprintId')).filter((b) => b !== best.blueprintId);
+    if (options.length && rng() < SWITCH_BLUEPRINT) {
+      cand.blueprintId = options[Math.floor(rng() * options.length)];
+      // a blueprint with no pull does nothing: give a newly chosen one the weight it was compared at
+      if (cand.blueprintId !== 'none' && cand.blueprintWeight === 0) cand.blueprintWeight = 5;
     }
     const key = weightsKey(cand);
     if (seen.has(key)) continue;
