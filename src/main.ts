@@ -1,4 +1,5 @@
 import './style.css';
+import { inject } from '@vercel/analytics';
 import { STEP } from './game/config';
 import { Game, type Difficulty } from './game/game';
 import { randomSeed } from './game/rng';
@@ -10,6 +11,8 @@ import { Match } from './net/match';
 import { Renderer } from './render/renderer';
 import { BoardInput } from './ui/input';
 import { Panel, type Controls } from './ui/panel';
+
+inject();
 
 const MAX_STEPS_PER_FRAME = 240;
 const params0 = () => new URLSearchParams(location.search);
