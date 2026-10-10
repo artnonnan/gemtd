@@ -1,4 +1,7 @@
 import { DIFFICULTIES, SWAP_COST, type Difficulty, type Game } from '../game/game';
+import { describeAction, type AutoPlay } from '../ai/autoplay';
+import { parseWeights } from '../ai/loadWeights';
+import type { Weights } from '../ai/weights';
 import type { Match } from '../net/match';
 import { MiniRenderer } from '../render/mini';
 import { InfoModal } from './info';
@@ -12,7 +15,21 @@ export interface Controls {
   speed: number;
   paused: boolean;
   restart: (difficulty?: Difficulty) => void;
+  ai: {
+    /** the bot playing the current game, or null */
+    active: () => AutoPlay | null;
+    /** new game with this seed (random when omitted) played by the bot */
+    start: (w: Weights, seed?: number, difficulty?: Difficulty) => void;
+    stop: () => void;
+    load: (spec: string) => Promise<Weights>;
+  };
 }
+
+/** Panel actions that change the game: refused while the AI plays it. */
+const GAME_ACTIONS = new Set([
+  'quality', 'life', 'keep', 'combine', 'special', 'upgrade', 'downgrade', 'slate', 'slate-special',
+  'teleport', 'cancel-teleport', 'swap', 'cancel-swap', 'remove-rock',
+]);
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 const swatch = (id: string) => `<span class="sw" style="background:${towerColor(id)}"></span>`;
@@ -41,6 +58,11 @@ export class Panel {
   private mini: MiniRenderer;
   private miniWrap: HTMLElement;
   private settingsBtn: HTMLElement;
+  private aiWeights: HTMLInputElement;
+  private aiSeed: HTMLInputElement;
+  private aiFile: HTMLInputElement;
+  private aiStatus: HTMLElement;
+  private aiMessage = '';
   private html = new Map<HTMLElement, string>();
 
   constructor(top: HTMLElement, bottom: HTMLElement, private getGame: () => Game, private controls: Controls, private match: Match) {
@@ -66,6 +88,18 @@ export class Panel {
         </div>
         <div class="modal-body settings-body">
           <section id="game-settings"></section>
+          <section class="ai">
+            <h3>AI auto-play</h3>
+            <p class="muted">Watch the bot play. The same weights and seed replay exactly the game from <code>npm run batch</code>.</p>
+            <div class="btns">
+              <input id="ai-weights" value="w0" placeholder="w0 / smart / w12" autocomplete="off" spellcheck="false" title="Weight set: w0, smart, or an id from sim-runs/weights (npm run dev only)" />
+              <input id="ai-seed" placeholder="seed: random" inputmode="numeric" autocomplete="off" title="Seed (empty = random)" />
+              <button data-act="ai-start" class="primary">▶ AI play</button>
+              <button data-act="ai-file" title="Load a weight set from a JSON file">JSON file…</button>
+              <input id="ai-file" type="file" accept=".json,application/json" hidden />
+            </div>
+            <div id="ai-status"></div>
+          </section>
           <section class="versus">
             <h3>Versus online</h3>
             <div id="vs-idle">
@@ -90,6 +124,27 @@ export class Panel {
     this.miniWrap = this.settings.querySelector('#vs-mini')!;
     this.mini = new MiniRenderer(this.miniWrap.querySelector('canvas')!);
     this.info = new InfoModal(getGame);
+    this.aiWeights = this.settings.querySelector('#ai-weights')!;
+    this.aiSeed = this.settings.querySelector('#ai-seed')!;
+    this.aiFile = this.settings.querySelector('#ai-file')!;
+    this.aiStatus = this.settings.querySelector('#ai-status')!;
+    this.aiFile.addEventListener('change', () => {
+      const f = this.aiFile.files?.[0];
+      if (!f) return;
+      void f.text().then((text) => {
+        try {
+          this.startAi(parseWeights(text, f.name.replace(/\.json$/i, '')));
+        } catch (e) {
+          this.aiError(`${f.name}: ${(e as Error).message}`);
+        }
+        this.aiFile.value = '';
+      });
+    });
+    for (const el of [this.aiWeights, this.aiSeed]) {
+      el.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') void this.loadAndStartAi();
+      });
+    }
 
     this.codeInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && this.codeInput.value.trim()) this.match.session.join(this.codeInput.value);
@@ -111,13 +166,67 @@ export class Panel {
     this.settings.hidden = !open;
   }
 
+  /** Shown in the AI section (and opens Settings so it is seen). */
+  aiError(msg: string) {
+    this.aiMessage = msg;
+    this.toggleSettings(true);
+  }
+
+  private async loadAndStartAi() {
+    try {
+      this.startAi(await this.controls.ai.load(this.aiWeights.value));
+    } catch (e) {
+      this.aiError((e as Error).message);
+    }
+  }
+
+  private startAi(w: Weights, seed?: number) {
+    const typed = this.aiSeed.value.trim();
+    if (seed === undefined && typed && !/^\d+$/.test(typed)) return this.aiError('seed must be a whole number');
+    this.aiMessage = '';
+    this.controls.ai.start(w, seed ?? (typed ? +typed : undefined));
+    this.toggleSettings(false);
+  }
+
+  private replayLink(ai: AutoPlay): string {
+    const g = this.getGame();
+    return `${location.origin}${location.pathname}?ai=${encodeURIComponent(ai.weights.id)}&seed=${ai.seed}${g.difficulty !== 'normal' ? `&difficulty=${g.difficulty}` : ''}`;
+  }
+
+  private aiStatusHtml(): string {
+    const ai = this.controls.ai.active();
+    const msg = this.aiMessage ? `<p class="warn">${esc(this.aiMessage)}</p>` : '';
+    if (this.match.active) return '<p class="muted">Not available during a versus match.</p>';
+    if (!ai) return msg;
+    const speedBtn = (n: number) => `<button data-act="speed" data-v="${n}" class="${!this.controls.paused && this.controls.speed === n ? 'primary' : ''}">${n}x</button>`;
+    return `${msg}<p>🤖 Playing <b>${esc(ai.weights.id)}</b>${ai.weights.source ? ` <span class="muted">(${esc(ai.weights.source)})</span>` : ''} · seed <b>${ai.seed}</b> · ${ai.moves} moves</p>
+      <div class="btns">
+        <button data-act="ai-stop">■ Stop AI</button>
+        <button data-act="ai-replay" title="Same weights, same seed: the same game again">↺ Replay</button>
+        <button data-act="ai-seed" title="Copy a link that replays this game">🔗 Copy link</button>
+        ${[1, 4, 8, 16].map(speedBtn).join('')}
+      </div>`;
+  }
+
   private onAction(e: PointerEvent) {
     const el = (e.target as HTMLElement).closest<HTMLElement>('[data-act]');
     if (!el || (el as HTMLButtonElement).disabled) return;
     const game = this.getGame();
     const t = game.selected;
     const v = el.dataset.v ?? '';
+    const ai = this.controls.ai.active();
+    if (ai && GAME_ACTIONS.has(el.dataset.act!)) {
+      e.preventDefault();
+      return;
+    }
     switch (el.dataset.act) {
+      case 'ai-start': void this.loadAndStartAi(); break;
+      case 'ai-file': this.aiFile.click(); break;
+      case 'ai-stop': this.controls.ai.stop(); break;
+      case 'ai-replay': if (ai) this.startAi(ai.weights, ai.seed); break;
+      case 'ai-seed':
+        if (ai) void navigator.clipboard?.writeText(this.replayLink(ai));
+        break;
       case 'info': this.info.toggle(); break;
       case 'settings': this.toggleSettings(); break;
       case 'close-settings': this.toggleSettings(false); break;
@@ -165,10 +274,13 @@ export class Panel {
     const g = this.getGame();
     setHtml(this.stats, this.statsHtml(g), this.html);
     setHtml(this.bottom, this.bottomHtml(g), this.html);
+    // game buttons look disabled while the AI plays (onAction refuses them anyway)
+    this.bottom.classList.toggle('ai-lock', !!this.controls.ai.active());
     const s = this.match.session.status;
     this.settingsBtn.classList.toggle('badge', this.match.active || s === 'hosting' || s === 'connecting');
     if (!this.settings.hidden) {
       setHtml(this.gameSettings, this.gameSettingsHtml(g), this.html);
+      setHtml(this.aiStatus, this.aiStatusHtml(), this.html);
       this.updateVersus();
     }
   }
@@ -179,6 +291,7 @@ export class Panel {
     const w = g.nextWave;
     const op = this.match.active ? this.match.remote?.snap : undefined;
     const paused = !this.match.active && this.controls.paused;
+    const ai = this.controls.ai.active();
     return `
       <div class="stat"><b>Level</b><span>${g.level}</span></div>
       <div class="stat"><b>Lives</b><span class="${g.lives <= 10 ? 'warn' : ''}">${g.lives}</span></div>
@@ -186,7 +299,8 @@ export class Panel {
       <div class="stat"><b>Kills</b><span>${g.stats.kills}</span></div>
       <div class="stat next"><b>${g.phase === 'wave' ? 'Now' : 'Next'}</b><span>${w ? `${esc(w.name)}${w.air ? ' ✈' : ''} <small>${w.hp.toLocaleString()} HP · armor ${w.armor}</small>` : '—'}</span></div>
       ${op ? `<div class="stat vs"><b>Opponent</b><span>Lv ${op.level} · <span class="${op.lives <= 10 ? 'warn' : ''}">♥ ${op.lives}</span></span></div>` : ''}
-      ${paused ? '<div class="stat paused"><span>⏸ Paused</span></div>' : !this.match.active && this.controls.speed !== 1 ? `<div class="stat"><span>${this.controls.speed}x</span></div>` : ''}`;
+      ${paused ? '<div class="stat paused"><span>⏸ Paused</span></div>' : !this.match.active && this.controls.speed !== 1 ? `<div class="stat"><span>${this.controls.speed}x</span></div>` : ''}
+      ${ai ? `<div class="stat ai"><b>AI</b><span>🤖 ${esc(ai.weights.id)} · #${ai.seed}</span></div>` : ''}`;
   }
 
   // ---------- bottom bar ----------
@@ -279,6 +393,11 @@ export class Panel {
   }
 
   private phaseText(g: Game): string {
+    const ai = this.controls.ai.active();
+    if (ai && g.phase !== 'gameover' && g.phase !== 'victory') {
+      const last = describeAction(ai.lastAction);
+      return `🤖 AI <b>${esc(ai.weights.id)}</b> is playing${last ? ` — ${esc(last)}` : ''}. Click towers to inspect them; Settings to stop.`;
+    }
     switch (g.phase) {
       case 'build': return `Place gems: <b>${g.gemsLeft}</b> left — tap an empty tile, don't block the path.`;
       case 'choose': return 'Pick one gem to <b>Keep</b>, <b>Combine</b> or turn into a <b>Special</b>. The rest become rocks.';

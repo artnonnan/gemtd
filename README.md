@@ -60,6 +60,8 @@ npm run tune -- --rounds=5 --import=answer.json  # เล่นข้อเส�
 npm run tune -- --rounds=5 --try=my.json       # ลองค่าน้ำหนักที่ตั้งเอง
 ```
 
+**ดู AI เล่นในเบราว์เซอร์**: `npm run dev` → Settings → AI auto-play (ใส่ id ของค่าน้ำหนักและ seed หรือโหลดไฟล์ JSON) หรือเปิดลิงก์ `http://localhost:5173/?ai=w3&seed=37` ที่อยู่ในรายงาน batch ค่าน้ำหนักชุดเดียวกัน + seed เดียวกัน จะได้เกมเดียวกับใน batch ทุก action ระหว่าง AI เล่น คลิกได้แค่เลือกดู tower ปุ่มความเร็วมี 1/4/8/16x
+
 `--weights=` รับ `w0`, `smart`, id ที่บันทึกไว้ใน `sim-runs/weights/` หรือ path ของไฟล์ JSON (ใส่แค่ค่าที่ต้องการเปลี่ยนก็พอ) ค่าน้ำหนักทั้งหมดพร้อมขอบเขตและคำอธิบายอยู่ใน [src/ai/weights.ts](src/ai/weights.ts)
 
 ## Deploy บน Vercel

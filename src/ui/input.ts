@@ -27,7 +27,8 @@ export class BoardInput {
   private placeBtn: HTMLButtonElement;
   private hint: HTMLElement;
 
-  constructor(private canvas: HTMLCanvasElement, private renderer: Renderer, private getGame: () => Game) {
+  /** locked() is true while the AI plays: clicks may still select things to look at, but never change the game */
+  constructor(private canvas: HTMLCanvasElement, private renderer: Renderer, private getGame: () => Game, private locked: () => boolean = () => false) {
     canvas.addEventListener('pointerdown', (e) => this.down(e));
     canvas.addEventListener('pointermove', (e) => this.move(e));
     canvas.addEventListener('pointerup', (e) => this.up(e));
@@ -63,7 +64,7 @@ export class BoardInput {
   update() {
     const game = this.getGame();
     const c = this.renderer.cursor;
-    const building = game.phase === 'build';
+    const building = game.phase === 'build' && !this.locked();
     this.placeBtn.disabled = !building || !c || !game.canPlace(c.x, c.y);
     this.hint.textContent = !building ? '' : c ? (game.canPlace(c.x, c.y) ? 'Tap again or press Place' : 'Blocked — move the cursor') : 'Tap a tile to aim';
     if (!building && c) this.renderer.cursor = null;
@@ -138,6 +139,14 @@ export class BoardInput {
   /** Swap targeting, tower and rock selection. Returns true when the tap/click was consumed. */
   private pick(p: Point): boolean {
     const game = this.getGame();
+    if (this.locked()) {
+      const t = game.towerAt(p.x, p.y);
+      if (t) game.select(t);
+      else if (game.isRock(p.x, p.y)) game.selectRock(p.x, p.y);
+      else game.select(null);
+      this.renderer.cursor = null;
+      return true;
+    }
     if (game.teleportSource) {
       game.teleportTo(p.x, p.y); // anything but a valid tile cancels
       return true;
@@ -189,6 +198,7 @@ export class BoardInput {
   }
 
   private place() {
+    if (this.locked()) return;
     const game = this.getGame();
     const c = this.renderer.cursor;
     if (c && game.placeGem(c.x, c.y)) {

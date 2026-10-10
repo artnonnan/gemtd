@@ -329,6 +329,30 @@ button.ghost {
   letter-spacing: 2px;
 }
 
+.ai input {
+  width: 130px;
+  background: #0f1219;
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font: inherit;
+}
+
+.ai p {
+  margin: 4px 0;
+}
+
+.ai-lock .btns button:not([data-act='restart']) {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.stat.ai > span {
+  font-size: 13px;
+  font-weight: 500;
+}
+
 .versus .code {
   font-size: 18px;
   letter-spacing: 3px;

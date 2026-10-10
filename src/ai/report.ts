@@ -4,7 +4,7 @@
  */
 import { WAVES, displayName } from '../data/gems';
 import { waveKind, type EvalSummary, type Paired, type WaveKind } from './analyze';
-import { SCORE_FORMULA } from './recorder';
+import { SCORE_FORMULA, type GameRecord } from './recorder';
 import { deadEnds, promising, type CandidateResult, type LlmReason, type TuneState } from './tuner';
 import { describeChanges, type Weights } from './weights';
 
@@ -45,7 +45,19 @@ export function balanceNotes(s: EvalSummary): string[] {
   return notes;
 }
 
-export function batchReport(s: EvalSummary, w: Weights, meta: { seeds: string; rulesHash: string; date: string; seconds: number }): string {
+/** Links that replay a game in the browser (npm run dev) with the same weights and seed. */
+export function replayLinks(recs: GameRecord[], w: Weights, difficulty: string, base = 'http://localhost:5173/'): string[] {
+  const link = (r: GameRecord) => `${base}?ai=${encodeURIComponent(w.id)}&seed=${r.seed}${difficulty !== 'normal' ? `&difficulty=${difficulty}` : ''}`;
+  const byLevel = [...recs].sort((a, b) => a.score - b.score || a.seed - b.seed);
+  const pick = (r: GameRecord, why: string) => `- ${why}: seed ${r.seed}, ${r.result === 'victory' ? 'ชนะ' : `ตายที่${waveLabel(r.level)}`} → ${link(r)}`;
+  const out = byLevel.slice(0, 3).map((r) => pick(r, 'แย่สุด'));
+  out.push(...byLevel.slice(-3).reverse().map((r) => pick(r, 'ดีสุด')));
+  const median = byLevel[Math.floor(byLevel.length / 2)];
+  if (median) out.push(pick(median, 'กลางๆ'));
+  return out;
+}
+
+export function batchReport(s: EvalSummary, w: Weights, meta: { seeds: string; rulesHash: string; date: string; seconds: number; records?: GameRecord[]; difficulty?: string }): string {
   const lines: string[] = [];
   lines.push(`# รายงาน balance: ${w.id}`, '');
   lines.push(`- ${meta.date} · ${s.games} เกม · seed ${meta.seeds} · rules \`${meta.rulesHash}\` · ใช้เวลา ${meta.seconds.toFixed(0)} วินาที`);
@@ -82,6 +94,11 @@ export function batchReport(s: EvalSummary, w: Weights, meta: { seeds: string; r
   lines.push('## Special ที่ทำได้', '');
   const sp = Object.entries(s.specialsMade).sort((a, b) => b[1] - a[1]);
   lines.push(...(sp.length ? sp.map(([id, r]) => `- ${displayName(id)}: ${pct(r)} ของเกม`) : ['- ไม่มี']), '');
+
+  if (meta.records?.length) {
+    lines.push('## เกมที่น่าดู (เปิดด้วย `npm run dev` แล้วกดลิงก์)', '');
+    lines.push(...replayLinks(meta.records, w, meta.difficulty ?? 'normal'), '');
+  }
   return lines.join('\n');
 }
 

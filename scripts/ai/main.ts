@@ -9,7 +9,7 @@ import type { Difficulty } from '../../src/game/game';
 import { recordBotGame } from '../../src/ai/recorder';
 import { summarize } from '../../src/ai/analyze';
 import { batchReport } from '../../src/ai/report';
-import { Pool, RUNS, arg, evaluate, flag, loadWeights, rulesHash, seedsOf, stamp, threads, writeText, type SeedSet, type Task } from './lib';
+import { Pool, RUNS, arg, evaluate, flag, loadWeights, rulesHash, saveWeights, seedsOf, stamp, threads, writeText, type SeedSet, type Task } from './lib';
 import { tune } from './tune';
 
 declare const process: { argv: string[]; exitCode: number };
@@ -26,7 +26,12 @@ async function batch() {
     const e = await evaluate(pool, w, set, n, difficulty, rules);
     const s = summarize(e.records);
     const seeds = seedsOf(set, n);
-    const md = batchReport(s, w, { seeds: `${seeds[0]}–${seeds[n - 1]}`, rulesHash: rules, date: new Date().toLocaleString('th-TH'), seconds: e.seconds });
+    // saved so the browser can load it for the replay links (?ai=<id>)
+    if (w.id !== 'w0' && w.id !== 'smart') saveWeights(w);
+    const md = batchReport(s, w, {
+      seeds: `${seeds[0]}–${seeds[n - 1]}`, rulesHash: rules, date: new Date().toLocaleString('th-TH'), seconds: e.seconds,
+      records: e.records, difficulty,
+    });
     const path = join(RUNS, 'batch', `${stamp()}-${w.id}.md`);
     writeText(path, md);
     console.log(`score ${s.score} · avg level ${s.avgLevel} · win ${Math.round(s.winRate * 100)}% · ${e.seconds.toFixed(0)}s`);

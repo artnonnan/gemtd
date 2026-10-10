@@ -2,7 +2,11 @@
  * Headless checks for the AI tooling: recorder, analyzer and (later) tuner logic.
  * Run: npm run ai-test
  */
-import { START_LIVES } from '../src/game/config';
+import { STEP, START_LIVES } from '../src/game/config';
+import { Game } from '../src/game/game';
+import { mulberry32 } from '../src/game/rng';
+import { AutoPlay } from '../src/ai/autoplay';
+import { playBotGame } from '../src/ai/runner';
 import { recordBotGame, type GameRecord } from '../src/ai/recorder';
 import { checkExpectation, metricOf, paired, summarize, waveKind } from '../src/ai/analyze';
 import { DEFAULT_WEIGHTS, SMART_WEIGHTS, TUNABLE_KEYS, WEIGHT_SPECS, clampWeight, weightsKey, withDefaults } from '../src/ai/weights';
@@ -106,6 +110,35 @@ assert(w.mazeGain === 5 && w.source === 'manual' && w.qualityReserve === DEFAULT
   assert(a.proposals[2].proposal!.expect.length === 1 && a.proposals[2].proposal!.expect[0].tower === 'h02O', 'tower metrics need a real tower id');
   assert(a.problems.length >= 5 && a.missingWeights[0] === 'x', `problems reported (${a.problems.length})`);
   assert(parseAdvice('garbage', DEFAULT_WEIGHTS, st, 'llm-x').proposals.length === 0, 'garbage answers give no proposals, no crash');
+}
+
+// ---------- browser auto-play plays the same game as a headless run ----------
+{
+  const end = (g: Game) =>
+    `${g.phase} L${g.level} lives=${g.lives} gold=${g.gold} kills=${g.stats.kills} t=${g.time.toFixed(4)} ` +
+    g.towers.map((t) => `${t.id}@${t.x},${t.y}`).join(' ');
+  for (const [w, seed] of [[DEFAULT_WEIGHTS, 1], [DEFAULT_WEIGHTS, 2], [SMART_WEIGHTS, 3]] as const) {
+    const headless = playBotGame({ seed, difficulty: 'normal', weights: w }).game;
+    // uneven frames and changing speed, like a real browser tab
+    const g = new Game({ seed, difficulty: 'normal' });
+    const ap = new AutoPlay(w, seed);
+    const frameRng = mulberry32(seed * 31);
+    let acc = 0;
+    for (let f = 0; g.phase !== 'gameover' && g.phase !== 'victory'; f++) {
+      if (f > 5_000_000) throw new Error('FAIL: auto-play never finished');
+      const dt = 0.004 + frameRng() * 0.05;
+      const speed = [1, 4, 16][Math.floor(frameRng() * 3)];
+      ap.frame(g, dt, speed);
+      acc += dt * speed;
+      for (let steps = 0; acc >= STEP && steps < 240; steps++) {
+        ap.beforeUpdate(g);
+        g.update(STEP);
+        g.events.length = 0;
+        acc -= STEP;
+      }
+    }
+    assert(end(g) === end(headless), `${w.id} seed ${seed}: browser-paced auto-play ends exactly like the headless game (level ${g.level})`);
+  }
 }
 
 console.log('all ai checks passed');
