@@ -9,7 +9,7 @@ import { TOWERS, WAVES, displayName } from '../data/gems';
 import { isMetric, waveKind, type EvalSummary } from './analyze';
 import { blueprintOf } from './blueprint';
 import { SCORE_FORMULA } from './recorder';
-import type { LlmReason, TuneState } from './tuner';
+import { newId, type LlmReason, type TuneState } from './tuner';
 import {
   CHOICE_DESCS, CHOICE_KEYS, METRICS, TUNABLE_KEYS, WEIGHT_SPECS, choicesOf, clampWeight, weightsKey,
   type ChoiceKey, type Expectation, type NumericWeightKey, type Weights,
@@ -183,7 +183,7 @@ export function parseAdvice(raw: unknown, best: Weights, s: TuneState, callId: s
       }
       return [x];
     });
-    const id = `w${s.nextId++}`;
+    const id = newId(s);
     proposals.push({
       ...cand,
       id,

@@ -153,6 +153,11 @@ assert(w.mazeGain === 5 && w.source === 'manual' && w.qualityReserve === DEFAULT
   st.blueprints = ['spiral', 'none'];
   const props = proposeHill({ ...base, blueprintId: 'none' }, st, 40);
   assert(props.some((p) => p.blueprintId === 'spiral' && p.blueprintWeight > 0), 'hill-climbing sometimes switches to another blueprint (with some pull)');
+  const fromLlm = { ...base, id: 'x', source: 'llm' as const, proposal: { id: 'p', hypothesis: 'h', expect: [] } };
+  const pre = newState('t', 'normal', 6, fromLlm);
+  pre.idPrefix = 'spiral-';
+  const kids = proposeHill(fromLlm, pre, 3);
+  assert(kids.every((k) => k.id.startsWith('spiral-w') && !k.proposal), 'run-prefixed ids, and hill candidates do not inherit the parent\'s LLM proposal');
   const adv = parseAdvice({ proposals: [{ changes: { blueprintId: 'spiral', blueprintWeight: 4 }, hypothesis: 'h' }, { changes: { blueprintId: 'maze-x' }, hypothesis: 'bad' }] }, base, st, 'llm-bp');
   assert(adv.proposals.length === 1 && adv.proposals[0].blueprintId === 'spiral' && adv.problems.some((p) => p.includes('maze-x')), 'the advisor may pick a registered blueprint, not an unknown one');
 }

@@ -35,6 +35,8 @@ export interface TuneState {
   pending: Weights[];
   llm: { calls: number; proposals: number; accepted: number; correct: number; wrong: number; noEffect: number; lastRound: number };
   holdout: { round: number; bestId: string; score: number }[];
+  /** prefix for new weight ids ("spiral-" for --run=spiral), so separate runs never overwrite each other's sets */
+  idPrefix?: string;
   /** options the tuner may switch blueprintId between (default: every registered blueprint and none) */
   blueprints?: string[];
 }
@@ -106,8 +108,13 @@ function pickKeys(s: TuneState, n: number, rng: () => number): NumericWeightKey[
   return out;
 }
 
+/** A fresh id for a new weight set in this run. */
+export const newId = (s: TuneState) => `${s.idPrefix ?? ''}w${s.nextId++}`;
+
+/** A candidate derived from parent: new id, and none of the parent's LLM proposal (that belonged to the parent). */
 export function withIdentity(cand: Weights, parent: Weights, s: TuneState, source: Weights['source'], note: string): Weights {
-  return { ...cand, id: `w${s.nextId++}`, parent: parent.id, source, note };
+  const { proposal: _drop, ...rest } = cand;
+  return { ...rest, id: newId(s), parent: parent.id, source, note };
 }
 
 export interface CandidateResult {

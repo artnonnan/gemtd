@@ -9,21 +9,24 @@
  *                   [--try=weights.json]               next round plays your own weight set(s)
  *                   [--export-llm]                     write an advisor request now, then stop
  *                   [--holdout-every=10] [--llm-stuck=12] [--llm-every=25]
+ *                   [--run=<name>]                     separate run in sim-runs/tune-<name>/ (default sim-runs/tune/)
  *                   [--blueprints=spiral,none]         blueprints hill-climbing may switch between (default: all)
  *
- * Everything lands in sim-runs/tune/: state.json, history.jsonl, reports/round-NNN.md, llm/.
+ * Everything lands in sim-runs/tune/ (or tune-<run>/): state.json, history.jsonl, reports/round-NNN.md, llm/.
  */
-import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync } from 'node:fs';
+import { appendFileSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Difficulty } from '../../src/game/game';
 import { paired, summarize } from '../../src/ai/analyze';
 import { buildRequest, parseAdvice, requestPrompt, type HistoryEntry, type ParsedAdvice } from '../../src/ai/advisor';
 import { roundReport } from '../../src/ai/report';
-import { judge, learn, llmReason, mergeWinners, newState, proposeHill, type LlmReason, type TuneState } from '../../src/ai/tuner';
+import { judge, learn, llmReason, mergeWinners, newId, newState, proposeHill, type LlmReason, type TuneState } from '../../src/ai/tuner';
 import { describeChanges, weightsKey, withDefaults, type Weights } from '../../src/ai/weights';
 import { Pool, RUNS, arg, evaluate, flag, loadWeights, readJson, rulesHash, saveWeights, stamp, threads, writeJson, writeText, type Evaluation } from './lib';
 
-const TUNE = join(RUNS, 'tune');
+// --run=<name> keeps separate tuning runs side by side: sim-runs/tune-<name>/ (default sim-runs/tune/)
+const RUN = arg('run');
+const TUNE = join(RUNS, RUN ? `tune-${RUN}` : 'tune');
 const STATE = join(TUNE, 'state.json');
 const HISTORY = join(TUNE, 'history.jsonl');
 const MISSING = join(TUNE, 'missing-weights.md');
@@ -49,8 +52,15 @@ export async function tune() {
   const every = +(arg('llm-every') ?? 25);
 
   if (flag('reset') && existsSync(TUNE)) {
-    renameSync(TUNE, join(RUNS, `tune-${stamp()}`));
-    console.log('archived the previous tuning run');
+    const dest = `${TUNE}-archived-${stamp()}`;
+    try {
+      renameSync(TUNE, dest);
+    } catch {
+      // Windows refuses to rename a folder an editor is watching: copy it, then empty it instead
+      cpSync(TUNE, dest, { recursive: true });
+      for (const f of readdirSync(TUNE)) rmSync(join(TUNE, f), { recursive: true, force: true });
+    }
+    console.log(`archived the previous tuning run to ${dest}`);
   }
   mkdirSync(TUNE, { recursive: true });
   const rules = rulesHash();
@@ -64,6 +74,7 @@ export async function tune() {
     const start = loadWeights(arg('start'));
     saveWeights(start);
     state = newState(rules, difficulty, n, start);
+    if (RUN) state.idPrefix = `${RUN}-`;
     console.log(`new tuning run from ${start.id}`);
   }
   const bps = arg('blueprints');
@@ -107,7 +118,8 @@ export async function tune() {
       const raw = readJson<Partial<Weights> | Partial<Weights>[]>(tryFile);
       state.pending = (Array.isArray(raw) ? raw : [raw]).map((r) => {
         const w = withDefaults(r);
-        return { ...w, id: `w${state.nextId++}`, parent: best.id, source: 'manual' as const, note: r.note ?? `manual: ${describeChanges(best, w)}` };
+        const { proposal: _drop, ...rest } = w;
+        return { ...rest, id: newId(state), parent: best.id, source: 'manual' as const, note: r.note ?? `manual: ${describeChanges(best, w)}` };
       });
       console.log(`next round plays your ${state.pending.length} weight set(s)`);
     }
