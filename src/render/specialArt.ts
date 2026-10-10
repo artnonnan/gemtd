@@ -16,12 +16,14 @@ const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const ease = (t: number) => 1 - Math.pow(1 - t, 3);
 const easeIn = (t: number) => t * t * t;
 
+export type SpecialShot = 'crescent' | 'needle' | 'poison';
+
 interface SpecialArt {
   /** overall scale so tall art still roughly fits its tile */
   scale: number;
   /** where shots and sparkles come from, in art units (before `scale`) */
   topY: number;
-  shot?: 'crescent' | 'needle';
+  shot?: SpecialShot;
   /** projectile size relative to the default */
   shotScale?: number;
   /** attack animation length; the renderer drives `swing` from 0 up to this */
@@ -663,6 +665,175 @@ const jade: SpecialArt = {
   },
 };
 
+// ---------- China Jade ----------
+
+const SPIT = 0.45;
+const DISC_Y = -62;
+
+/** Dragon body: a rising helix around the jade disc, tail (t=0) to head (t=1). */
+function dragonPoint(t: number) {
+  const theta = 0.3 * Math.PI - (1 - t) * 2.2 * Math.PI;
+  const r = 31 + Math.sin(time * 1.5 + t * 5) * 1.5;
+  return {
+    t,
+    x: Math.cos(theta) * r,
+    y: -34 - t * 46 + Math.sin(theta) * 11 + Math.sin(time * 2 + t * 9) * 2,
+    depth: Math.sin(theta),
+    w: 3 + 5.5 * Math.sin(Math.min(1, t * 1.3) * Math.PI * 0.5) * (t > 0.9 ? 1 - (t - 0.9) * 2 : 1),
+  };
+}
+
+/** Mouth opening 0..1 during the spit. */
+function dragonMouth() {
+  if (swing < 0) return 0.08 + Math.max(0, Math.sin(time * 0.9)) * 0.08;
+  const t = swing / SPIT;
+  return t < 0.35 ? ease(t / 0.35) : 1 - ease((t - 0.35) / 0.65);
+}
+
+function dragonSegment(s: ReturnType<typeof dragonPoint>) {
+  const shade = 0.75 + 0.25 * s.depth;
+  if (lod === 0) {
+    ctx.fillStyle = `rgb(${Math.round(70 * shade)},${Math.round(190 * shade)},${Math.round(110 * shade)})`;
+  } else {
+    const g = ctx.createRadialGradient(s.x - s.w * 0.3, s.y - s.w * 0.4, 0.5, s.x, s.y, s.w);
+    g.addColorStop(0, `rgb(${Math.round(200 * shade)},255,${Math.round(215 * shade)})`);
+    g.addColorStop(0.55, `rgb(${Math.round(70 * shade)},${Math.round(190 * shade)},${Math.round(110 * shade)})`);
+    g.addColorStop(1, `rgb(20,${Math.round(90 * shade)},50)`);
+    ctx.fillStyle = g;
+  }
+  ctx.beginPath(); ctx.arc(s.x, s.y, s.w, 0, Math.PI * 2); ctx.fill();
+  if (Math.round(s.t * 34) % 3 === 0 && s.t > 0.08) {
+    ctx.fillStyle = '#e8c35a';
+    ctx.beginPath(); ctx.moveTo(s.x - 2, s.y - s.w + 1); ctx.lineTo(s.x, s.y - s.w - 4); ctx.lineTo(s.x + 2, s.y - s.w + 1); ctx.fill();
+  }
+  if (s.t < 0.03) {
+    ctx.fillStyle = 'rgba(232,195,90,0.85)';
+    ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(s.x - 10, s.y - 7); ctx.lineTo(s.x - 6, s.y + 1); ctx.lineTo(s.x - 10, s.y + 7); ctx.closePath(); ctx.fill();
+  }
+}
+
+function chinaDisc() {
+  ctx.save();
+  ctx.translate(0, DISC_Y);
+  const g = ctx.createRadialGradient(-8, -8, 4, 0, 0, 25);
+  g.addColorStop(0, '#d4f7df'); g.addColorStop(0.5, '#4fbf7a'); g.addColorStop(1, '#1a6139');
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(0, 0, 24, 0, Math.PI * 2); ctx.arc(0, 0, 8, 0, Math.PI * 2, true); ctx.fill('evenodd');
+  ctx.strokeStyle = '#e8c35a';
+  ctx.lineWidth = 1.4;
+  ctx.beginPath(); ctx.arc(0, 0, 23, 0, Math.PI * 2); ctx.stroke();
+  if (lod > 0) {
+    ctx.strokeStyle = 'rgba(220,255,230,0.6)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(0, 0, 12, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = 'rgba(20,80,45,0.55)';
+    for (let i = 0; i < 16; i++) {
+      const a = (i / 16) * Math.PI * 2;
+      ctx.beginPath(); ctx.arc(Math.cos(a) * 17.5, Math.sin(a) * 17.5, 1.1, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  ctx.restore();
+  glowCircle(0, DISC_Y, 13, '#b5ffd0', 0.6 * (0.6 + 0.4 * Math.sin(time * 3) + flash));
+  ctx.fillStyle = '#e6fff0';
+  ctx.beginPath(); ctx.arc(0, DISC_Y, 5, 0, Math.PI * 2); ctx.fill();
+  const sway = Math.sin(time * 1.8 - 0.6) * 0.12;
+  ctx.save();
+  ctx.translate(0, DISC_Y + 24);
+  ctx.rotate(sway);
+  ctx.strokeStyle = '#d9b44a'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, 10); ctx.stroke();
+  ctx.fillStyle = '#c4162a';
+  ctx.beginPath(); ctx.moveTo(-3.5, 11); ctx.lineTo(3.5, 11); ctx.lineTo(5 + sway * 20, 26); ctx.lineTo(-5 + sway * 20, 26); ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+function dragonHead() {
+  const p = dragonPoint(1);
+  const open = dragonMouth();
+  ctx.save();
+  ctx.translate(p.x + 6, p.y - 4);
+  ctx.rotate(-0.12 + Math.sin(time * 1.4) * 0.05);
+  ctx.fillStyle = '#2f9a5c';
+  for (let i = 0; i < 4; i++) {
+    const a = Math.PI * (0.75 + i * 0.12);
+    ctx.beginPath(); ctx.moveTo(-4, -2); ctx.lineTo(-4 + Math.cos(a) * 15, -2 + Math.sin(a) * 15); ctx.lineTo(-4 + Math.cos(a + 0.2) * 9, -2 + Math.sin(a + 0.2) * 9); ctx.fill();
+  }
+  ctx.strokeStyle = '#e8c35a';
+  ctx.lineWidth = 2.6;
+  ctx.lineCap = 'round';
+  for (const off of [0, 4]) {
+    ctx.beginPath(); ctx.moveTo(-2 + off, -7); ctx.quadraticCurveTo(-10 + off, -18, -18 + off, -16); ctx.stroke();
+  }
+  ctx.save();
+  ctx.translate(2, 2);
+  ctx.rotate(open * 0.55);
+  ctx.fillStyle = '#2c8f55';
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(19, 1); ctx.quadraticCurveTo(20, 5, 15, 6); ctx.lineTo(0, 6); ctx.closePath(); ctx.fill();
+  if (lod > 0) {
+    ctx.fillStyle = '#ffffff';
+    for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.moveTo(6 + i * 4, 1); ctx.lineTo(8 + i * 4, -2); ctx.lineTo(10 + i * 4, 1); ctx.fill(); }
+  }
+  ctx.restore();
+  if (open > 0.2) glowCircle(14, 2, 12, '#7dffa8', open * 0.8);
+  const g = ctx.createLinearGradient(0, -10, 0, 4);
+  g.addColorStop(0, '#c8f5d6'); g.addColorStop(0.5, '#4fbf7a'); g.addColorStop(1, '#1d6b40');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.moveTo(-8, 2);
+  ctx.quadraticCurveTo(-8, -10, 2, -10);
+  ctx.quadraticCurveTo(12, -9, 20, -4);
+  ctx.quadraticCurveTo(24, -1, 21, 2);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(15,60,35,0.7)';
+  ctx.lineWidth = 0.8;
+  ctx.stroke();
+  ctx.fillStyle = '#1a5a35';
+  ctx.beginPath(); ctx.arc(19, -3, 1.2, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#e8c35a';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.moveTo(1, -8); ctx.quadraticCurveTo(6, -11, 10, -7); ctx.stroke();
+  glowCircle(6, -5, 7, '#ff3b4e', 0.6 * (0.7 + 0.3 * Math.sin(time * 4) + flash * 0.5));
+  ctx.fillStyle = '#ffdf6a';
+  ctx.beginPath(); ctx.ellipse(6, -5, 2.6, 1.8, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#c4162a';
+  ctx.beginPath(); ctx.ellipse(6.4, -5, 0.8, 1.6, 0, 0, Math.PI * 2); ctx.fill();
+  if (lod > 0) {
+    ctx.strokeStyle = 'rgba(232,195,90,0.9)';
+    ctx.lineWidth = 1;
+    for (const s of [0, 1]) {
+      const w = Math.sin(time * 2.4 + s * 1.3) * 6;
+      ctx.beginPath(); ctx.moveTo(18, -1 + s * 2); ctx.bezierCurveTo(26, 4 + s * 3, 28, 12 + w, 22 + w * 0.5, 20 + s * 4); ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+
+const chinaJade: SpecialArt = {
+  scale: 0.85, topY: -84, shot: 'poison', shotScale: 1, swingTime: SPIT, swingStart: SPIT * 0.3, fx: '#4fc97a',
+  draw() {
+    drawPedestal('#d9b44a', '#9cffc0');
+    // red lacquer band with gold cloud scrolls
+    ctx.fillStyle = '#9e1b24';
+    ctx.fillRect(-42, 1, 84, 7);
+    if (lod > 0) {
+      ctx.strokeStyle = '#e8c35a';
+      ctx.lineWidth = 1;
+      for (let i = -3; i <= 3; i++) {
+        ctx.beginPath(); ctx.arc(i * 12, 4.5, 2.6, Math.PI * 0.2, Math.PI * 1.7); ctx.stroke();
+      }
+    }
+    glowCircle(0, DISC_Y, 70, '#4fdc8a', 0.22 + flash * 0.3);
+    const n = lod === 0 ? 18 : 34;
+    const segs = [];
+    for (let i = 0; i <= n; i++) segs.push(dragonPoint(i / n));
+    for (const s of segs) if (s.depth < 0) dragonSegment(s);
+    chinaDisc();
+    for (const s of segs) if (s.depth >= 0 && s.t < 0.98) dragonSegment(s);
+    dragonHead();
+  },
+};
+
 /** Tower rawcode -> hand-made art. Keep UPGRADE_ART_LIST.md in sync. */
 const SPECIAL_ART: Record<string, SpecialArt> = {
   h033: silverKnight,
@@ -671,6 +842,7 @@ const SPECIAL_ART: Record<string, SpecialArt> = {
   h03X: malachite,
   h016: starRuby,
   h018: jade,
+  h02L: chinaJade,
 };
 
 export const hasSpecialArt = (id: string) => id in SPECIAL_ART;
@@ -696,12 +868,25 @@ export function drawSpecialArt(c: CanvasRenderingContext2D, id: string, t: numbe
 }
 
 /** Crescent sword-wave and jade-needle projectiles, drawn in screen pixels. */
-export function drawSpecialShot(c: CanvasRenderingContext2D, kind: 'crescent' | 'needle', x: number, y: number, angle: number, size: number) {
+export function drawSpecialShot(c: CanvasRenderingContext2D, kind: SpecialShot, x: number, y: number, angle: number, size: number, t = 0) {
   c.save();
   c.translate(x, y);
   c.rotate(angle);
   c.globalCompositeOperation = 'lighter';
-  if (kind === 'needle') {
+  if (kind === 'poison') {
+    // China Jade: glowing poison orb with a dark spinning core
+    c.scale(size, size);
+    const g = c.createRadialGradient(0, 0, 0, 0, 0, 14);
+    g.addColorStop(0, 'rgba(200,255,215,0.9)'); g.addColorStop(0.45, 'rgba(80,220,120,0.75)'); g.addColorStop(1, 'rgba(80,220,120,0)');
+    c.fillStyle = g;
+    c.beginPath(); c.arc(0, 0, 14, 0, Math.PI * 2); c.fill();
+    c.globalCompositeOperation = 'source-over';
+    c.fillStyle = '#1d6b40';
+    c.beginPath(); c.arc(0, 0, 4.5, 0, Math.PI * 2); c.fill();
+    c.strokeStyle = '#9cffc0';
+    c.lineWidth = 1.2;
+    c.beginPath(); c.arc(0, 0, 3, t * 8, t * 8 + 4); c.stroke();
+  } else if (kind === 'needle') {
     const g = c.createLinearGradient(-26 * size, 0, 6 * size, 0);
     g.addColorStop(0, 'rgba(110,230,140,0)');
     g.addColorStop(1, 'rgba(200,255,220,1)');

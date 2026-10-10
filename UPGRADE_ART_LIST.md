@@ -4,7 +4,7 @@ Tracks which special towers and Great gems have their own hand-made art.
 
 Towers without their own art still have a look: [src/render/art.ts](src/render/art.ts) draws a pedestal with a floating faceted gem in the tower's colour. Its tier comes from how far up the upgrade line the tower sits.
 
-**Progress: 6 / 63 towers have their own art.**
+**Progress: 7 / 63 towers have their own art.**
 
 ## How to add art for a tower
 
@@ -48,7 +48,7 @@ Legend: ✅ done · ⬜ todo · Tier = step in its upgrade line
 | ID | Tower | Tier | From | Status | Art notes |
 |---|---|---|---|---|---|
 | `h018` | Jade | 1 | recipe | ✅ done | Carved jade bi disc, glowing pearl, gold cord + red tassel; jade needle shot |
-| `h02L` | China Jade | 2 | Jade | ⬜ todo | |
+| `h02L` | China Jade | 2 | Jade | ✅ done | Jade dragon coiling around a gold-rimmed jade disc (pearl + tassel), red-lacquer pedestal with gold clouds; opens its jaw and spits a poison orb, poison cloud on hit. Demo only: poison wisps from the nostrils |
 | `h035` | Lucky China Jade | 3 | China Jade | ⬜ todo | |
 | `h04V` | Helltaker | 4 | Lucky China Jade / Great Ruby | ⬜ todo | |
 | `h04A` | Stone of Life | 4 | Lucky China Jade | ⬜ todo | |

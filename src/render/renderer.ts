@@ -284,6 +284,14 @@ export class Renderer {
           const big = 1 + tier * 0.15;
           this.vfx.burst(e.x, e.y - 0.2, 4 + tier * 2, (e.splash ? 4 : 2.5) * big, [palette.shot, palette.shot, '#ffffff']);
           if (!e.splash) this.vfx.ring(e.x, e.y - 0.2, 0.35 * big, palette.shot, 0.3, 1 + tier * 0.4);
+          if (specialShot(e.tower.id) === 'poison') {
+            // China Jade: a lingering poison cloud
+            for (let i = 0; i < 10; i++) {
+              const a = Math.random() * Math.PI * 2, v = 0.1 + Math.random() * 0.35;
+              this.vfx.spark(e.x + Math.cos(a) * 0.05, e.y - 0.2 + Math.sin(a) * 0.04, Math.cos(a) * v, Math.sin(a) * v * 0.6 - 0.06,
+                0.8 + Math.random() * 0.6, 0.12 + Math.random() * 0.08, 'rgba(100,220,130,0.32)', { glow: false, drag: false });
+            }
+          }
           break;
         }
         case 'kill': {
@@ -695,7 +703,7 @@ export class Renderer {
       if (kind) {
         const angle = Math.atan2(s.target.y - s.y, s.target.x - s.x);
         const size = tile * (kind === 'needle' ? 0.019 : 0.016) * specialShotScale(s.tower.id);
-        drawSpecialShot(ctx, kind, s.x * tile, s.y * tile, angle, Math.max(0.25, size));
+        drawSpecialShot(ctx, kind, s.x * tile, s.y * tile, angle, Math.max(0.25, size), this.clock);
         continue;
       }
       const { tier } = lookOf(s.tower.id);
