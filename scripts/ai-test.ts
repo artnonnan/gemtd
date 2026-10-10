@@ -5,7 +5,9 @@
 import { START_LIVES } from '../src/game/config';
 import { recordBotGame, type GameRecord } from '../src/ai/recorder';
 import { checkExpectation, metricOf, paired, summarize, waveKind } from '../src/ai/analyze';
-import { DEFAULT_WEIGHTS, SMART_WEIGHTS, clampWeight, withDefaults } from '../src/ai/weights';
+import { DEFAULT_WEIGHTS, SMART_WEIGHTS, TUNABLE_KEYS, WEIGHT_SPECS, clampWeight, weightsKey, withDefaults } from '../src/ai/weights';
+import { judge, learn, llmReason, newState, proposeHill } from '../src/ai/tuner';
+import { parseAdvice } from '../src/ai/advisor';
 
 const assert = (ok: boolean, msg: string) => {
   if (!ok) throw new Error('FAIL: ' + msg);
@@ -33,6 +35,10 @@ assert(JSON.stringify(again) === JSON.stringify(base[2]), 'recording the same se
 const s = summarize(base);
 assert(s.games === 6 && Math.abs(s.livesLostByLevel.reduce((a, b) => a + b, 0) - 50) < 0.1, 'summary: avg lives lost adds up to 50 per lost game');
 assert(Math.abs(s.towers.reduce((a, t) => a + t.damageShare, 0) - 1) < 0.05, 'summary: damage shares add up to ~1');
+{
+  const made = (id: string) => base.filter((r) => r.picks.some((p) => p.endsWith(`:special:${id}`))).length / base.length;
+  assert(Object.entries(s.specialsMade).every(([id, rate]) => Math.abs(rate - made(id)) < 0.01), 'summary: special rates match a direct count');
+}
 const self = paired(base, base);
 assert(self.diff === 0 && self.z === 0 && self.n === 6, 'paired comparison of a run with itself is exactly 0');
 const smart = [1, 2, 3, 4, 5, 6].map((seed) => recordBotGame({ seed, difficulty: 'normal', weights: SMART_WEIGHTS }));
@@ -54,5 +60,52 @@ assert(checkExpectation(a, a, { metric: 'livesLost', direction: 'up' }).verdict 
 assert(clampWeight('qualityMaxLevel', 9.7) === 8 && clampWeight('mazeGain', -1) === 0, 'clamp keeps values in bounds and whole where needed');
 const w = withDefaults({ id: 'x', mazeGain: 99 } as never);
 assert(w.mazeGain === 5 && w.source === 'manual' && w.qualityReserve === DEFAULT_WEIGHTS.qualityReserve, 'withDefaults fills, clamps and marks hand-made sets manual');
+
+// ---------- tuner ----------
+{
+  const st = newState('test', 'normal', 6, DEFAULT_WEIGHTS);
+  const props = proposeHill(DEFAULT_WEIGHTS, st, 8);
+  assert(props.length === 8 && new Set(props.map(weightsKey)).size === 8, 'hill-climbing proposes distinct candidates');
+  assert(props.every((p) => TUNABLE_KEYS.every((k) => p[k] >= WEIGHT_SPECS[k].min && p[k] <= WEIGHT_SPECS[k].max)), 'every candidate stays within bounds');
+  assert(props.every((p) => p.source === 'hill' && p.parent === 'w0' && !st.tried.includes(weightsKey(p))), 'candidates are marked hill, parented, and untried');
+
+  const strong = base.map((r) => ({ ...r, score: r.score + 1 + (r.seed % 3) * 0.1 }));
+  const weak = base.map((r) => ({ ...r, score: r.score + (r.seed % 2 ? 0.01 : -0.01) }));
+  const results = judge(base, [{ w: props[0], recs: weak }, { w: props[1], recs: strong }]);
+  assert(results[1].accepted && !results[0].accepted, 'judge accepts only the significant winner');
+  learn(st, DEFAULT_WEIGHTS, results);
+  assert(st.stuck === 0 && st.stepScale > 1, 'a win resets stuck and grows the step');
+  const none = judge(base, [{ w: props[2], recs: weak }]);
+  learn(st, DEFAULT_WEIGHTS, none);
+  assert(st.stuck === 1, 'a round without a win counts as stuck');
+  assert(llmReason({ ...st, stuck: 12, round: 30, llm: { ...st.llm, lastRound: 0 } }, { stuckAfter: 12, every: 25, rulesChanged: false }) === 'stuck', 'asks the LLM when stuck');
+  assert(llmReason({ ...st, round: 25 }, { stuckAfter: 12, every: 25, rulesChanged: false }) === 'periodic', 'asks the LLM every N rounds');
+  assert(llmReason(st, { stuckAfter: 12, every: 25, rulesChanged: true }) === 'rules-changed', 'asks the LLM after the game changed');
+}
+
+// ---------- advisor answers ----------
+{
+  const st = newState('test', 'normal', 6, DEFAULT_WEIGHTS);
+  const answer = {
+    diagnosis: 'd',
+    proposals: [
+      { changes: { mazeGain: 1, airValue: '2' }, hypothesis: 'h1', expect: [{ metric: 'livesLost.air', levels: [16, 24], direction: 'down' }] },
+      { changes: { nope: 1, qualityMaxLevel: -3 }, hypothesis: 'h2', expect: [{ metric: 'fun', direction: 'up' }] },
+      { changes: { mazeBonus: 100 }, hypothesis: 'no change' },
+      { changes: { combine2Bonus: 0 }, hypothesis: 'h4', expect: [{ metric: 'damageShare', direction: 'up' }, { metric: 'picked', tower: 'h02O', direction: 'up' }] },
+      { changes: { mazeGain: 1, airValue: 2 }, hypothesis: 'duplicate of 1' },
+      { changes: { tieNoise: 1 } },
+    ],
+    missingWeights: ['x'],
+  };
+  const a = parseAdvice(answer, DEFAULT_WEIGHTS, st, 'llm-t');
+  const ids = a.proposals.map((p) => p.proposal!.hypothesis);
+  assert(ids.join('|') === 'h1|h2|h4', `keeps valid proposals only, first ${5} considered (${ids.join(', ')})`);
+  assert(a.proposals[0].airValue === 2 && a.proposals[0].source === 'llm' && a.proposals[0].proposal!.expect[0].levels![1] === 24, 'numbers parsed, source llm, expectations kept');
+  assert(a.proposals[1].qualityMaxLevel === 0 && a.proposals[1].proposal!.expect.length === 0, 'out-of-range clamped, unknown metric dropped');
+  assert(a.proposals[2].proposal!.expect.length === 1 && a.proposals[2].proposal!.expect[0].tower === 'h02O', 'tower metrics need a real tower id');
+  assert(a.problems.length >= 5 && a.missingWeights[0] === 'x', `problems reported (${a.problems.length})`);
+  assert(parseAdvice('garbage', DEFAULT_WEIGHTS, st, 'llm-x').proposals.length === 0, 'garbage answers give no proposals, no crash');
+}
 
 console.log('all ai checks passed');

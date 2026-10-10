@@ -41,9 +41,26 @@ npm run simulate -- 5 --smart --difficulty=easy   # ให้ bot เล่น�
 npm run versus-test   # ทดสอบ logic ของ versus โดยต่อ 2 ฝั่งผ่าน channel ในหน่วยความจำ
 npm run features-test # ทดสอบ Remove rock, Downgrade, Swap และ Slate
 npm run render-smoke  # รัน renderer กับ canvas จำลอง เพื่อหา runtime error และค่า NaN
+npm run determinism-test # seed เดียวกัน + action เดียวกัน = เกมเดียวกัน, replay, canPlace
+npm run ai-test       # recorder, analyzer, tuner, การตรวจคำตอบของ LLM
+npm run bot-golden -- --write=a.json / --check=a.json  # ยืนยันว่าการแก้โค้ดไม่เปลี่ยน action ของบอท
 ```
 
 ต้องใช้ Node 18 ขึ้นไป
+
+### AI: ทดสอบ balance และจูนบอท
+
+ผลทั้งหมดอยู่ใน `sim-runs/` (ไม่อยู่ใน git) รันขนานทุก core
+
+```bash
+npm run batch -- --weights=w0 --seeds=200      # โหมด A: เล่น 200 เกม → รายงาน balance ใน sim-runs/batch/
+npm run tune -- --rounds=20                    # จูนค่าน้ำหนัก (hill-climbing) → รายงานรายรอบใน sim-runs/tune/reports/
+npm run tune -- --export-llm                   # สร้างคำขอให้ LLM ที่ sim-runs/tune/llm/request-rNNN.md
+npm run tune -- --rounds=5 --import=answer.json  # เล่นข้อเสนอของ LLM (JSON) บน seed เดิม แล้วจูนต่อ
+npm run tune -- --rounds=5 --try=my.json       # ลองค่าน้ำหนักที่ตั้งเอง
+```
+
+`--weights=` รับ `w0`, `smart`, id ที่บันทึกไว้ใน `sim-runs/weights/` หรือ path ของไฟล์ JSON (ใส่แค่ค่าที่ต้องการเปลี่ยนก็พอ) ค่าน้ำหนักทั้งหมดพร้อมขอบเขตและคำอธิบายอยู่ใน [src/ai/weights.ts](src/ai/weights.ts)
 
 ## Deploy บน Vercel
 
@@ -74,7 +91,17 @@ src/
   render/mini.ts     มุมมองบอร์ดของคู่แข่ง (จาก snapshot)
   ui/panel.ts        แผง HUD
   main.ts            game loop และ input
+  ai/weights.ts      ค่าน้ำหนักของบอท ขอบเขต และคำอธิบาย
+  ai/bot.ts          บอท heuristic: nextAction (ตัดสินใจ) / applyAction (ลงมือ)
+  ai/runner.ts       เล่นเกมแบบ headless และ replay จาก seed + log
+  ai/recorder.ts     GameRecord ของแต่ละเกม (lives ที่เสียรายเวฟ, damage ต่อ tower, การเลือก)
+  ai/analyze.ts      สรุปสถิติ และเทียบสองชุดแบบจับคู่ seed พร้อม standard error
+  ai/tuner.ts        hill-climbing: เสนอ candidate, ตัดสิน, จำทิศทางที่ได้ผล
+  ai/advisor.ts      คำขอสำหรับ LLM และการตรวจคำตอบ (LLM เป็นแค่ผู้เสนอ ไม่ใช่ผู้ตัดสิน)
+  ai/report.ts       รายงานภาษาไทย (batch และรายรอบการจูน)
 scripts/simulate.ts  bot สำหรับเล่นแบบ headless
+scripts/ai/          CLI ของ batch / tune (worker threads)
+summary/             สรุปแต่ละ commit ของงาน AI (ภาษาไทย)
 ```
 
 **กติกาที่ยึดตามแมพต้นฉบับ:** สูตรคำนวณเกราะของ WC3, aura ชนิดเดียวกันไม่ stack, ได้โบนัสดาเมจ +10% ทุก 10 kill (สูงสุด +120%), bounty = `ubba + 1`, ครีปเข้า Mine แล้วลด lives ตาม point value (`upoi`), lives สูงสุด 50, ความยาก Easy/Normal/Hard ปรับเกราะครีป −3/−1/+2

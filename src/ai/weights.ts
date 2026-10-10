@@ -141,7 +141,8 @@ export const SMART_WEIGHTS: Weights = { ...DEFAULT_WEIGHTS, id: 'smart', note: '
 export function clampWeight(key: NumericWeightKey, v: number): number {
   const s = WEIGHT_SPECS[key];
   const c = Math.min(s.max, Math.max(s.min, Number.isFinite(v) ? v : s.min));
-  return s.int ? Math.round(c) : Math.round(c * 1000) / 1000;
+  // precision follows the range: bonuses in the thousands don't need decimals, multipliers get two
+  return s.int || s.max - s.min >= 100 ? Math.round(c) : Math.round(c * 100) / 100;
 }
 
 /** Fills in any keys missing from an older or hand-written weight file, and clamps every value. */

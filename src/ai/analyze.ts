@@ -115,11 +115,12 @@ export function summarize(recs: GameRecord[]): EvalSummary {
     })
     .sort((a, b) => b.damageShare - a.damageShare);
 
-  const specialsMade: Record<string, number> = {};
+  const madeIn: Record<string, number> = {};
   for (const r of recs) {
     const made = new Set(r.picks.filter((p) => p.split(':')[1] === 'special').map((p) => p.split(':')[2]));
-    for (const id of made) specialsMade[id] = r2((specialsMade[id] ?? 0) + 1 / n);
+    for (const id of made) madeIn[id] = (madeIn[id] ?? 0) + 1;
   }
+  const specialsMade = Object.fromEntries(Object.entries(madeIn).map(([id, c]) => [id, r2(c / n)]));
 
   const scores = recs.map((r) => r.score);
   return {
@@ -202,7 +203,7 @@ export function checkExpectation(base: GameRecord[], cand: GameRecord[], e: Expe
 export function metricLabel(e: Pick<Expectation, 'metric' | 'levels' | 'tower'>): string {
   let s: string = e.metric;
   if (e.tower) s += ` ${displayName(e.tower)}`;
-  if (e.levels) s += ` ด่าน ${e.levels[0]}–${e.levels[1]}`;
+  if (e.levels) s += e.levels[0] === e.levels[1] ? ` ด่าน ${e.levels[0]}` : ` ด่าน ${e.levels[0]}–${e.levels[1]}`;
   return s;
 }
 
