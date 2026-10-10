@@ -11,3 +11,6 @@ export function mulberry32(seed: number): () => number {
 }
 
 export const randomSeed = () => Math.floor(Math.random() * 2 ** 31);
+
+/** Seed for the combat stream, derived so it never matches the gem stream. */
+export const combatSeed = (seed: number) => (seed ^ 0x9e3779b9) >>> 0;

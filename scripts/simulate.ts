@@ -1,15 +1,21 @@
 /**
  * Headless smoke test: a simple bot plays the game so logic errors and balance problems show up without a browser.
- * Run: npm run simulate
+ * Run: npm run simulate [runs] [--smart] [--difficulty=hard] [--seed=1]
+ * Run r uses seed + r, so the same arguments always give the same results.
  */
 import { Game, type Difficulty } from '../src/game/game';
 
 declare const process: { argv: string[] };
-import { GRID } from '../src/game/config';
+import { GRID, STEP } from '../src/game/config';
 import { findRoute, routeLength } from '../src/game/path';
+import { mulberry32 } from '../src/game/rng';
 import { GEM_INFO, RECIPES, TOWERS, abilityOf } from '../src/data/gems';
 
 const smart = process.argv.includes('--smart');
+const arg = (name: string) => process.argv.find((a) => a.startsWith(`--${name}=`))?.split('=')[1];
+const baseSeed = +(arg('seed') ?? 1);
+/** the bot's own tie-break randomness, reseeded per run */
+let botRng = mulberry32(0);
 
 function tileValue(game: Game, x: number, y: number): number {
   if (smart && game.route.some((p) => p.x === x && p.y === y)) {
@@ -23,7 +29,7 @@ function tileValue(game: Game, x: number, y: number): number {
     const d = Math.max(Math.abs(p.x - x), Math.abs(p.y - y));
     if (d === 1) near++;
   }
-  return near + Math.random() * 0.5;
+  return near + botRng() * 0.5;
 }
 
 function power(id: string): number {
@@ -67,20 +73,22 @@ function upgradeTowers(game: Game) {
 const runs = +(process.argv[2] ?? 5);
 const results: number[] = [];
 for (let r = 0; r < runs; r++) {
-  const difficulty = (process.argv.find((a) => a.startsWith('--difficulty='))?.split('=')[1] ?? 'normal') as Difficulty;
-  const game = new Game({ difficulty });
+  const difficulty = (arg('difficulty') ?? 'normal') as Difficulty;
+  const seed = baseSeed + r;
+  const game = new Game({ difficulty, seed });
+  botRng = mulberry32(seed);
   let guard = 0;
   while (game.phase !== 'gameover' && game.phase !== 'victory') {
     if (game.phase === 'build') {
       playRound(game);
       upgradeTowers(game);
     }
-    game.update(1 / 30);
-    if (++guard > 30 * 60 * 60 * 3) throw new Error('simulation stuck');
+    game.update(STEP);
+    if (++guard > (3 * 60 * 60) / STEP) throw new Error('simulation stuck');
   }
   const specials = game.towers.filter((t) => !GEM_INFO[t.id]).map((t) => TOWERS[t.id].name);
   console.log(
-    `run ${r + 1}: ${game.phase} at level ${game.level}, lives ${game.lives}, gold ${game.gold}, kills ${game.stats.kills}, ` +
+    `run ${r + 1} (seed ${seed}): ${game.phase} at level ${game.level}, lives ${game.lives}, gold ${game.gold}, kills ${game.stats.kills}, ` +
       `towers ${game.towers.length}, rocks ${game.rocks.size}, route ${game.routeLen.toFixed(0)}, quality ${game.qualityLevel}`,
   );
   console.log(`   specials: ${specials.join(', ') || '-'}`);

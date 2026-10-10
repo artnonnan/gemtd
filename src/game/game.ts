@@ -3,7 +3,7 @@ import {
   MIN_SPEED_FACTOR, SPAWN_INTERVAL, START_GOLD, START_LIVES, toTiles, type Point,
 } from './config';
 import { findRoute, routeLength } from './path';
-import { mulberry32, randomSeed } from './rng';
+import { combatSeed, mulberry32, randomSeed } from './rng';
 import {
   SLATE_RECIPES, SLATE_SPECIALS, SLATE_TELEPORT_RANGE, isSlate, slatesConflict, type SlateRecipe,
 } from '../data/slates';
@@ -164,13 +164,19 @@ export class Game {
 
   readonly difficulty: Difficulty;
   readonly versus: boolean;
-  /** gem rolls only; combat randomness stays on Math.random so both players' gem sequences line up */
+  /** same seed + same actions + fixed STEP updates = same game */
+  readonly seed: number;
+  /** gem rolls only, so both versus players' gem sequences line up however their fights go */
   private rng: () => number;
+  /** dice, crits, procs: a separate stream so combat never shifts the gem rolls */
+  private combatRng: () => number;
 
   constructor(opts: GameOptions = {}) {
     this.difficulty = opts.difficulty ?? 'normal';
     this.versus = opts.versus ?? false;
-    this.rng = mulberry32(opts.seed ?? randomSeed());
+    this.seed = opts.seed ?? randomSeed();
+    this.rng = mulberry32(this.seed);
+    this.combatRng = mulberry32(combatSeed(this.seed));
     this.refreshRoute();
     this.say(`Level 1 (${this.difficulty}): place ${GEMS_PER_ROUND} gems, then keep or combine one.`);
   }
@@ -855,7 +861,7 @@ export class Game {
     const def = TOWERS[t.id];
     const a = abilityOf(t.id);
     let dmg = def.dmg;
-    for (let i = 0; i < def.dice; i++) dmg += 1 + Math.floor(Math.random() * def.sides);
+    for (let i = 0; i < def.dice; i++) dmg += 1 + Math.floor(this.combatRng() * def.sides);
     if (a.killDamage) dmg += t.kills * a.killDamage.perKill + this.level * a.killDamage.perLevel;
     if (a.stackBurn) {
       // Wraith flames: each repeated hit on the same burning unit adds another layer
@@ -865,7 +871,7 @@ export class Game {
       dmg += a.stackBurn.perHit * (stacks - 1);
     }
     dmg *= this.damageMult(t);
-    const crit = !!a.crit && Math.random() < a.crit.chance;
+    const crit = !!a.crit && this.combatRng() < a.crit.chance;
     if (crit) {
       dmg *= a.crit!.mult;
       this.effects.push({ kind: 'text', x: c.x, y: c.y - 0.4, r: 0, color: '#ffe066', text: `${Math.round(dmg)}!`, born: this.time, life: 0.7 });
@@ -883,7 +889,7 @@ export class Game {
         this.applyOnHit(a, o, t);
       }
     }
-    if (a.nova && Math.random() < a.nova.chance) {
+    if (a.nova && this.combatRng() < a.nova.chance) {
       const r = toTiles(a.nova.radius);
       this.effects.push({ kind: 'ring', x: c.x, y: c.y, r, color: '#9fe8ff', born: this.time, life: 0.4 });
       for (const o of this.creeps) {
@@ -893,17 +899,17 @@ export class Game {
         o.slowUntil = this.time + 2;
       }
     }
-    if (a.luckyGold && Math.random() < a.luckyGold) {
+    if (a.luckyGold && this.combatRng() < a.luckyGold) {
       const g = Math.max(1, Math.floor(this.level / 2));
       this.gold += g;
       this.effects.push({ kind: 'text', x: t.x + 0.5, y: t.y, r: 0, color: '#ffd84a', text: `+${g}g`, born: this.time, life: 1 });
     }
-    if (a.spells && Math.random() < a.spells.chance) this.castSpell(t, a.spells, c);
+    if (a.spells && this.combatRng() < a.spells.chance) this.castSpell(t, a.spells, c);
   }
 
   /** Spell / Elder Slate: one random spell — area damage (most likely), armor reduction, or gold. */
   private castSpell(t: Tower, s: NonNullable<Ability['spells']>, c: Creep) {
-    const roll = Math.random();
+    const roll = this.combatRng();
     if (roll < 0.66) {
       const r = toTiles(s.radius);
       this.effects.push({ kind: 'ring', x: c.x, y: c.y, r, color: '#9fe8ff', born: this.time, life: 0.4 });
@@ -931,7 +937,7 @@ export class Game {
     if (a.poison && (!c.poison || c.poison.until <= this.time || c.poison.dps <= a.poison.dps)) {
       c.poison = { dps: a.poison.dps, slow: a.poison.slow, until: this.time + a.poison.dur, src: t };
     }
-    if (a.stun && c.stunUntil <= this.time && Math.random() < a.stun.chance) c.stunUntil = this.time + a.stun.dur;
+    if (a.stun && c.stunUntil <= this.time && this.combatRng() < a.stun.chance) c.stunUntil = this.time + a.stun.dur;
     if (a.shred) {
       c.shred = Math.max(c.shredUntil > this.time ? c.shred : 0, a.shred);
       c.shredUntil = this.time + 5;

@@ -34,6 +34,9 @@ export const START_LIVES = 50;
 export const MAX_LIVES = 50;
 export const LAST_LEVEL = 50;
 
+/** Fixed simulation step (seconds). Browser and headless runs must both use it or the same seed plays out differently. */
+export const STEP = 1 / 60;
+
 /** Creeps can never be slowed below this fraction of their base speed. */
 export const MIN_SPEED_FACTOR = 0.3;
 

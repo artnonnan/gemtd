@@ -1,11 +1,11 @@
 import './style.css';
+import { STEP } from './game/config';
 import { Game } from './game/game';
 import { Match } from './net/match';
 import { Renderer } from './render/renderer';
 import { BoardInput } from './ui/input';
 import { Panel, type Controls } from './ui/panel';
 
-const STEP = 1 / 60;
 const MAX_STEPS_PER_FRAME = 240;
 
 let game = new Game();
