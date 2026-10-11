@@ -4,6 +4,7 @@
  */
 import { CHECKPOINTS, STEP, START_LIVES, toTiles } from '../src/game/config';
 import { GEM_INFO, TOWERS, qualityUpgradeCost } from '../src/data/gems';
+import { SLATE_SPECIALS } from '../src/data/slates';
 import { AIR_PATH, cover, dpsMaps, exposureOf, hitsAir, hitsGround, towerDps } from '../src/ai/exposure';
 import { BLUEPRINTS, BLUEPRINT_IDS } from '../src/ai/blueprint';
 import { Game } from '../src/game/game';
@@ -331,6 +332,68 @@ assert(w.mazeGain === 5 && w.source === 'manual' && w.qualityReserve === DEFAULT
     const qAt = (recs: GameRecord[]) => recs.reduce((s, r) => s + r.qualityLevel, 0) / recs.length;
     const held = games({ chippedHold: 20, qualityReserve: 0 });
     const rushed = games({ qualityReserve: 0 });
+    // tierValue: a special that grows into a strong late tower outranks an early one; 0 leaves values alone
+    const tv = new Bot({ ...v4w, tierValue: 1 }, 1) as unknown as { specialValue(id: string): number };
+    const tv0 = new Bot(v4w, 1) as unknown as { specialValue(id: string): number };
+    assert(tv0.specialValue('h015') === towerPower('h015', v4w) && tv.specialValue('h015') > tv.specialValue('h01A') && towerPower('h015', v4w) < towerPower('h01A', v4w) * 2,
+      `tierValue 1 ranks Black Opal (${tv.specialValue('h015').toFixed(0)}) above Silver (${tv.specialValue('h01A').toFixed(0)}); without it ${towerPower('h015', v4w).toFixed(0)} vs ${towerPower('h01A', v4w).toFixed(0)}`);
+    // armorAuraValue: Red Crystal's air armor aura is worth something once towers that hit air stand in its range
+    {
+      const mk = (id: string, x: number, y: number) => ({ uid: 9000 + x * 37 + y, id, x, y, cooldown: 0, kills: 0, damage: 0, fresh: false, firedAt: -1, swapUsed: false, teleportUsed: false });
+      const keptAir = [mk('h01A', 17, 18), mk('h01A', 19, 18), mk('h03X', 18, 17)]; // Silver ×2, Malachite: hit air
+      const ba = new Bot({ ...v4w, armorAuraValue: 1 }, 1) as unknown as { armorAuraPower(id: string, kept: unknown[], at?: { x: number; y: number }): number };
+      const near = ba.armorAuraPower('h029', keptAir, { x: 18, y: 18 }), far = ba.armorAuraPower('h029', keptAir, { x: 2, y: 34 });
+      assert(near > 0 && far === 0 && ba.armorAuraPower('h01A', keptAir, { x: 18, y: 18 }) === 0, `armorAuraValue: Red Crystal next to air towers adds ${near.toFixed(1)} power, far away 0, a tower without the aura 0`);
+    }
+    // slatePairBonus: only slates that belong to a special slate get made, and pairs get combined
+    const pairs = games({ slatePairBonus: 3000, slateCombine: 1 });
+    const halves = new Set(SLATE_SPECIALS.flatMap((s) => s.ingredients));
+    const made = pairs.flatMap((r) => r.picks.filter((p) => p.split(':')[1] === 'slate').map((p) => p.split(':')[2]));
+    const combined = pairs.flatMap((r) => r.picks.filter((p) => p.split(':')[1] === 'slateSpecial'));
+    assert(made.length > 0 && made.every((id) => halves.has(id)), `slatePairBonus builds only halves of special slates (${made.length} slates, ${combined.length} special slates in ${seeds.length} games)`);
+    // coreRefill: after the plan is built, rocks in the core box are swapped for gems, at most N per level
+    {
+      const core = BLUEPRINTS['orbit-s-v4-c10-core'];
+      const box = core.core!;
+      const gr = new Game({ seed: 3 });
+      const br = new Bot({ ...v4w, id: 'cr', blueprintId: 'orbit-s-v4-c10-core', planFirst: 1, coreRefill: 3 }, 3);
+      let swaps = 0, bad = 0, waiting: string | null = null;
+      const perLevel = new Map<number, number>();
+      while (gr.phase !== 'gameover' && gr.phase !== 'victory') {
+        for (let a; (a = br.nextAction(gr)); ) {
+          if (waiting && !(a.type === 'place' && `${a.x},${a.y}` === waiting)) bad++;
+          waiting = null;
+          if (a.type === 'removeRock') {
+            const planLeft = core.sorted.some((c) => !gr.towerAt(c.x, c.y) && !gr.isRock(c.x, c.y) && gr.canPlace(c.x, c.y));
+            if (planLeft || a.x < box.x0 || a.x > box.x1 || a.y < box.y0 || a.y > box.y1) bad++;
+            perLevel.set(gr.level, (perLevel.get(gr.level) ?? 0) + 1);
+            swaps++;
+            waiting = `${a.x},${a.y}`;
+          }
+          applyAction(gr, a);
+        }
+        gr.update(STEP);
+        gr.events.length = 0;
+      }
+      assert(swaps > 0 && bad === 0 && [...perLevel.values()].every((n) => n <= 3),
+        `coreRefill 3: ${swaps} core rocks swapped for gems after the plan was built, each refilled at once, ≤3 per level (level ${gr.level})`);
+    }
+    // qualityPace: quality keeps up with floor(level / pace) whenever gold allows, despite a big reserve
+    {
+      const gp2 = new Game({ seed: 8 });
+      const bp2 = new Bot({ ...v4w, qualityReserve: 300, chippedHold: 20, qualityPace: 3 }, 8);
+      let behindWithGold = 0;
+      while (gp2.phase !== 'gameover' && gp2.phase !== 'victory' && gp2.level <= 15) {
+        for (let a; (a = bp2.nextAction(gp2)); ) {
+          // the bot passed on gold that covered an upgrade it was behind on
+          if (gp2.phase === 'build' && a.type === 'place' && gp2.qualityLevel < Math.floor(gp2.level / 3) && gp2.gold >= qualityUpgradeCost(gp2.qualityLevel)) behindWithGold++;
+          applyAction(gp2, a);
+        }
+        gp2.update(STEP);
+        gp2.events.length = 0;
+      }
+      assert(behindWithGold === 0 && gp2.qualityLevel >= 3, `qualityPace 3 keeps quality on pace (quality ${gp2.qualityLevel} at level ${gp2.level}) despite qualityReserve 300 and chippedHold 20`);
+    }
     assert(qAt(held) < qAt(rushed), `chippedHold 20 holds gem quality back while Chipped gems are missing (quality at the end ${qAt(rushed).toFixed(1)} → ${qAt(held).toFixed(1)})`);
   }
 

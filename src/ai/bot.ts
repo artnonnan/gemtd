@@ -6,8 +6,8 @@ import { GEMS_PER_ROUND, GRID, toTiles, type Point } from '../game/config';
 import type { Game, Tower } from '../game/game';
 import { blockedGrid, findRouteSegments, joinSegments, pathCost, rerouteAround } from '../game/path';
 import { mulberry32 } from '../game/rng';
-import { GEM_INFO, QUALITY_CHANCES, RECIPES, TOWERS, WAVES, abilityOf, qualityUpgradeCost, MAX_QUALITY_LEVEL } from '../data/gems';
-import { SLATE_TELEPORT_RANGE, isSlate } from '../data/slates';
+import { GEM_INFO, QUALITY_CHANCES, RECIPES, TOWERS, WAVES, abilityOf, isSpecial, qualityUpgradeCost, MAX_QUALITY_LEVEL } from '../data/gems';
+import { SLATE_SPECIALS, SLATE_TELEPORT_RANGE, isSlate } from '../data/slates';
 import { AIR_PATH, AIR_WAVE_SHARE, GEM_ODDS, cover, dpsMaps, exposureOf, hitsAir, hitsGround, type DpsMaps } from './exposure';
 import type { Weights } from './weights';
 import { blueprintOf, isTowerSpot, type BlueprintCell, type LoadedBlueprint } from './blueprint';
@@ -34,6 +34,10 @@ const isBossWave = (level: number) => /^Summon( Air)?$/.test(WAVES[level - 1]?.n
 const AIR_SLATE = 'n000';
 /** a teleport must gain at least this many covered path tiles */
 const TELEPORT_MIN_GAIN = 1;
+/** tierValue: a special's grown power counts up to this (some late towers estimate as huge or infinite) */
+const GROWN_CAP = 5000;
+/** armorAuraValue: one armor point off the enemies is worth this share of the power of the towers hitting them */
+const ARMOR_POINT = 0.05;
 
 /** Route legs of the current board, shared by every mazing candidate in one placement. */
 interface Maze {
@@ -237,6 +241,43 @@ export class Bot {
     return null;
   }
 
+  // ---------- core refill ----------
+
+  /** level and how many core rocks were swapped for gems in it */
+  private coreLevel = 0;
+  private coreSwaps = 0;
+
+  /**
+   * coreRefill: once no plan cell can be built any more, each level swaps up to coreRefill rocks inside the plan's
+   * core rectangle for new gems (the rock comes off, the very next move puts a gem there, so the route never opens),
+   * the rocks that reach the most path first. More rolls in the core: more chances of a strong tower there.
+   */
+  private coreRefillAction(game: Game): Action | null {
+    const bp = this.blueprint!, box = bp.core!;
+    if (this.coreLevel !== game.level) {
+      this.coreLevel = game.level;
+      this.coreSwaps = 0;
+    }
+    if (this.coreSwaps >= this.weights.coreRefill) return null;
+    const planLeft = bp.sorted.some((c) => !game.towerAt(c.x, c.y) && !game.isRock(c.x, c.y) && game.canPlace(c.x, c.y));
+    if (planLeft) return null;
+    let best: Point | null = null, bestCover = -1;
+    for (let y = box.y0; y <= box.y1; y++) {
+      for (let x = box.x0; x <= box.x1; x++) {
+        if (!game.isRock(x, y)) continue;
+        const c = cover(game.route, x, y, GEM_ODDS.range);
+        if (c > bestCover) {
+          best = { x, y };
+          bestCover = c;
+        }
+      }
+    }
+    if (!best) return null;
+    this.coreSwaps++;
+    this.refill.push(best);
+    return { type: 'removeRock', x: best.x, y: best.y };
+  }
+
   /** Strong enough on its own, or the last missing ingredient of a special with what stands on the board. */
   private isGoodGem(game: Game, t: Tower): boolean {
     if (towerPower(t.id, this.weights) >= this.weights.centreGoodPower) return true;
@@ -256,9 +297,13 @@ export class Bot {
   private qualityAction(game: Game): Action | null {
     const w = this.weights;
     if (game.qualityLevel >= Math.min(w.qualityMaxLevel, MAX_QUALITY_LEVEL)) return null;
-    const reserve = w.qualityRushLevel && game.level >= w.qualityRushLevel ? 0 : w.qualityReserve;
+    // qualityPace: below the quality the level calls for, upgrade as soon as gold covers it (no reserve, no hold)
+    const behind = w.qualityPace > 0 && game.qualityLevel < Math.floor(game.level / w.qualityPace);
+    const rushing = behind || (!!w.qualityRushLevel && game.level >= w.qualityRushLevel);
+    const reserve = rushing ? 0 : w.qualityReserve;
     if (game.gold < qualityUpgradeCost(game.qualityLevel) + reserve) return null;
-    if (w.chippedHold && this.holdForChipped(game)) return null;
+    // the rush is for Perfect gems (late recipes): no more waiting for Chipped ones then
+    if (w.chippedHold && !rushing && this.holdForChipped(game)) return null;
     this.heldLevels = 0;
     return { type: 'quality' };
   }
@@ -312,6 +357,8 @@ export class Bot {
     }
     const centre = w.centreFirst && this.blueprint ? this.centreAction(game) : null;
     if (centre) return centre;
+    const core = w.coreRefill && this.blueprint?.core ? this.coreRefillAction(game) : null;
+    if (core) return core;
     // planFirst: the next plan cell in build order, scores ignored, until no plan cell can be built
     if (w.planFirst && this.blueprint) {
       const c = this.blueprint.sorted.find(
@@ -432,6 +479,33 @@ export class Bot {
     return c;
   }
 
+  /** true while recipeBonus asks specialValue (no spot yet) */
+  private planning = false;
+
+  /** kept towers' power by what they hit, set at each choice (armorAuraValue, recipe planning) */
+  private auraTargets: { air: number; ground: number } | null = null;
+
+  /**
+   * An armor aura (Red Crystal on air, Paraiba on ground): each armor point taken off the enemies counts as
+   * ARMOR_POINT of the power of the kept towers that hit them (in range when a spot is given, all of them for planning).
+   */
+  private armorAuraPower(id: string, kept: Tower[], at?: { x: number; y: number }): number {
+    const aura = abilityOf(id).armorAura;
+    if (!aura) return 0;
+    const air = aura.targets !== 'ground', ground = aura.targets !== 'air';
+    let sum = 0;
+    if (at) {
+      const r = toTiles(aura.range);
+      for (const t of kept) {
+        if ((t.x - at.x) ** 2 + (t.y - at.y) ** 2 > r * r || (t.x === at.x && t.y === at.y)) continue;
+        if ((air && hitsAir(t.id)) || (ground && hitsGround(t.id))) sum += towerPower(t.id, this.weights);
+      }
+    } else if (this.auraTargets) {
+      sum = (air ? this.auraTargets.air : 0) + (ground ? this.auraTargets.ground : 0);
+    }
+    return aura.amount * ARMOR_POINT * sum;
+  }
+
   /** Opal's attack speed aura, worth its share of the power of the kept towers it reaches. */
   private auraPower(id: string, x: number, y: number, kept: Tower[]): number {
     const aura = abilityOf(id).auraSpeed;
@@ -444,6 +518,12 @@ export class Bot {
 
   /** keepCoverage, but a tower with an aura (Star Ruby's burn) is judged by the path inside the aura. */
   private spotCoverage(game: Game, id: string, x: number, y: number, route: Point[] = game.route): number {
+    const armor = this.weights.armorAuraValue > 0 ? abilityOf(id).armorAura : undefined;
+    if (armor) {
+      // an armor aura counts the path inside the aura (Red Crystal: the flight path, which crosses the middle twice)
+      const r = toTiles(armor.range);
+      return (armor.targets !== 'ground' ? AIR_WAVE_SHARE * cover(AIR_PATH, x, y, r) : 0) + (armor.targets !== 'air' ? (1 - AIR_WAVE_SHARE) * cover(route, x, y, r) : 0);
+    }
     const burn = abilityOf(id).burn;
     if (!burn) return this.keepCoverage(game, id, x, y, route);
     const r = toTiles(burn.range);
@@ -453,12 +533,17 @@ export class Bot {
   private chooseAction(game: Game): Action | null {
     const w = this.weights;
     let best: { a: Action; v: number } | null = null;
-    const kept = w.typeDiversity > 0 || w.auraValue > 0 ? game.towers.filter((t) => !t.fresh && !isSlate(t.id)) : [];
+    const kept = w.typeDiversity > 0 || w.auraValue > 0 || w.armorAuraValue > 0 ? game.towers.filter((t) => !t.fresh && !isSlate(t.id)) : [];
+    // armorAuraValue, for recipe planning (no spot yet): what an armor aura would add to every tower that can use it
+    this.auraTargets = w.armorAuraValue > 0
+      ? { air: kept.filter((t) => hitsAir(t.id)).reduce((s, t) => s + towerPower(t.id, w), 0), ground: kept.filter((t) => hitsGround(t.id)).reduce((s, t) => s + towerPower(t.id, w), 0) }
+      : null;
     const kindOf = (id: string) => GEM_INFO[id]?.type ?? id;
     const consider = (a: Action, result: string, bonus: number) => {
-      let p = towerPower(result, w);
+      let p = this.specialValue(result);
       const at = a as { x: number; y: number };
       if (w.auraValue > 0) p += w.auraValue * this.auraPower(result, at.x, at.y, kept);
+      if (w.armorAuraValue > 0) p += w.armorAuraValue * this.armorAuraPower(result, kept, at);
       if (w.typeDiversity > 0) {
         // the same gem type (or the same special) already standing makes another one worth less
         const same = kept.filter((t) => kindOf(t.id) === kindOf(result) && !(t.x === at.x && t.y === at.y)).length;
@@ -492,9 +577,12 @@ export class Bot {
       consider({ type: 'keep', x: t.x, y: t.y }, t.id, plan(t.id));
       const lower = w.downgradeForRecipe ? game.downgradeOption(t) : null;
       if (lower) consider({ type: 'downgrade', x: t.x, y: t.y }, lower, plan(lower));
-      if (w.slateBonus > 0) {
+      if (w.slateBonus > 0 || w.slatePairBonus > 0) {
         for (const r of game.slateOptions(t)) {
-          const bonus = w.slateBonus + (r.result === AIR_SLATE && this.airSoon(game) ? w.airSlateBonus : 0);
+          // slatePairBonus: a slate that is half of a special slate, more when the other half already stands
+          const pair = w.slatePairBonus > 0 ? this.slatePairShare(game, r.result) : 0;
+          if (w.slateBonus <= 0 && !pair) continue;
+          const bonus = w.slateBonus + pair * w.slatePairBonus + (r.result === AIR_SLATE && this.airSoon(game) ? w.airSlateBonus : 0);
           consider({ type: 'slate', x: t.x, y: t.y, result: r.result }, r.result, bonus);
         }
       }
@@ -529,9 +617,58 @@ export class Bot {
     for (const r of RECIPES) {
       if (!r.ingredients.includes(id) || s.made.has(r.result)) continue;
       const have = r.ingredients.filter((i) => s.owned.has(i)).length;
-      best = Math.max(best, ((have + 1) / r.ingredients.length) * towerPower(r.result, this.weights));
+      this.planning = true;
+      const value = this.specialValue(r.result);
+      this.planning = false;
+      best = Math.max(best, ((have + 1) / r.ingredients.length) * value);
     }
     return this.weights.recipeProgress * best;
+  }
+
+  /** 1 when this slate completes a special slate with one standing, 0.5 when it starts one, 0 otherwise */
+  private slatePairShare(game: Game, id: string): number {
+    let share = 0;
+    for (const s of SLATE_SPECIALS) {
+      const i = s.ingredients.indexOf(id);
+      if (i < 0) continue;
+      const other = s.ingredients[1 - i];
+      share = Math.max(share, game.towers.some((t) => t.id === other) ? 1 : 0.5);
+    }
+    return share;
+  }
+
+  /** power of the best tower within two upgrades, capped: what a special grows into late in the game */
+  private grownCache = new Map<string, number>();
+
+  private grownPower(id: string): number {
+    let v = this.grownCache.get(id);
+    if (v === undefined) {
+      let best = 0, frontier = [id];
+      for (let step = 0; step < 2; step++) {
+        frontier = frontier.flatMap((f) => (TOWERS[f]?.upgrades ?? []).filter((u) => TOWERS[u]));
+        for (const u of frontier) {
+          const p = towerPower(u, this.weights);
+          if (Number.isFinite(p)) best = Math.max(best, p);
+        }
+      }
+      v = Math.min(GROWN_CAP, best);
+      this.grownCache.set(id, v);
+    }
+    return v;
+  }
+
+  /**
+   * What a special is worth when choosing or planning: its power now, plus with tierValue a share of what it grows into
+   * (Silver ≈ 1200 two upgrades on, Black Opal ≈ 3100, Blood Stone or Yellow Sapphire hit the cap). Base gems are unchanged.
+   */
+  private specialValue(id: string): number {
+    const p = towerPower(id, this.weights);
+    const w = this.weights;
+    if ((GEM_INFO[id] && !isSpecial(id)) || isSlate(id)) return p;
+    const grown = w.tierValue ? (w.tierValue * Math.max(0, this.grownPower(id) - p)) / 10 : 0;
+    // planning only (no spot): the aura's worth on everything that can use it
+    const aura = w.armorAuraValue && this.planning ? w.armorAuraValue * this.armorAuraPower(id, []) : 0;
+    return p + grown + aura;
   }
 
   /** Before a boss wave: top lives up to bossLifeTarget while the gem placement is still going on. */
@@ -579,8 +716,15 @@ export function applyAction(game: Game, a: Action): boolean {
   if (a.type === 'buyLife') return game.buyLife();
   if (a.type === 'removeRock') return game.removeRock(a.x, a.y);
   if (a.type === 'teleport' || a.type === 'slateSpecial') {
-    // slates are off the tile grid: find this one by its spot
-    const s = game.towers.find((o) => isSlate(o.id) && o.x === a.x && o.y === a.y);
+    // slates are off the tile grid: find this one by its spot. Two slates can share a spot (a new slate made on a
+    // gem that stood on an old one), so take the one that can make this move, in board order as the bot looked.
+    const s = game.towers.find(
+      (o) =>
+        isSlate(o.id) && o.x === a.x && o.y === a.y &&
+        (a.type === 'slateSpecial'
+          ? game.slateSpecialOptions(o).some((r) => r.result === a.result)
+          : game.canTeleport(o) && game.teleportSpotOk(o, a.tx, a.ty)),
+    );
     if (!s) return false;
     if (a.type === 'slateSpecial') return game.combineSlates(s, a.result);
     return game.beginTeleport(s) && game.teleportTo(a.tx, a.ty);

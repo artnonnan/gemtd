@@ -43,6 +43,8 @@ export interface Weights {
   qualityRushLevel: number;
   /** 1 = tower upgrades always leave the next gem quality upgrade's cost untouched */
   qualityFirst: number;
+  /** levels per quality step: below quality floor(level / this), upgrade as soon as gold covers it; 0 = off */
+  qualityPace: number;
   /** hold quality upgrades up to this many levels while a recipe in progress misses a Chipped gem */
   chippedHold: number;
   /** stop upgrading gem quality at this level */
@@ -72,10 +74,16 @@ export interface Weights {
   recipeProgress: number;
   /** 1 = also consider keeping a gem one quality lower when that advances a recipe more (scored the same way) */
   downgradeForRecipe: number;
+  /** choose and recipe planning: a special is worth power + this × (power two upgrades on, capped at 5000) / 10 */
+  tierValue: number;
+  /** choose: a slate that is half of a special slate gets this (half when the other half is not standing yet) */
+  slatePairBonus: number;
   /** choose: power × (1 - this × kept towers of the same gem type / 10) */
   typeDiversity: number;
   /** choose: an attack speed aura (Opal) adds this × aura % × power of the kept towers in its range */
   auraValue: number;
+  /** choose and planning: an armor aura (Red Crystal on air) adds this × armor × 5% of the power of the towers it helps */
+  armorAuraValue: number;
   /** 1 = a special may form on any of its ingredients (kept ones too): the spot reaching the most path, by aura range if it has one */
   specialSpot: number;
   /** at the start of each level, take up to this many rocks off blueprint slots and put the first gems back there */
@@ -84,6 +92,8 @@ export interface Weights {
   rockClearFromLevel: number;
   /** 1 = place on the next plan cell in build order, ignoring tile scores, until no plan cell can be built */
   planFirst: number;
+  /** once the plan is built: each level, up to this many rocks in the plan's core rectangle are swapped for new gems */
+  coreRefill: number;
   /** 1 = each level, gems go on the plan's slots (the centre) until one is good, then the rest build the plan */
   centreFirst: number;
   /** centreFirst: a gem is good with at least this power, or when it completes a special with the board */
@@ -188,6 +198,10 @@ export const WEIGHT_SPECS: Record<NumericWeightKey, WeightSpec> = {
   },
   qualityReserve: { min: 0, max: 300, int: true, desc: 'อัป gem quality เมื่อทอง ≥ ค่าอัป (20 + 30 × level) + ค่านี้; ต่ำ = อัปเร็ว ได้เจมดีเร็วแต่ทองเหลือน้อย' },
   qualityMaxLevel: { min: 0, max: 8, int: true, desc: 'gem quality สูงสุดที่จะอัป (0–8)' },
+  qualityPace: {
+    min: 0, max: 10,
+    desc: 'เป้า gem quality ตามด่าน: เป้า = floor(ด่าน / ค่านี้) เช่น 3 → quality 1 ที่ด่าน 3, 2 ที่ด่าน 6, 4 ที่ด่าน 12, 8 ที่ด่าน 24; ถ้า quality ต่ำกว่าเป้า อัปทันทีที่ทองพอ (ไม่กัน qualityReserve และไม่รอ chippedHold) ช่วงต้นที่ค่าอัปถูก (20, 50, 80) จึงได้ rush; ถึงเป้าแล้วใช้ qualityReserve / chippedHold ตามเดิม; ค่าน้อย = เร่งเร็ว; 0 = ไม่ใช้เป้า',
+  },
   chippedHold: {
     min: 0, max: 20, int: true,
     desc: 'ยังไม่รีบอัป gem quality ถ้ามีสูตร special ที่กำลังทำ (มีวัตถุดิบบนกระดานแล้ว) แต่ยังขาดเจม Chipped (quality สูงขึ้นจะสุ่มได้ Chipped น้อยลง) รอได้สูงสุดเท่านี้ด่านติดกัน ถ้ายังสุ่มไม่เจอก็ยอมอัปแล้วไปต่อ; 0 = ไม่รอ',
@@ -218,6 +232,14 @@ export const WEIGHT_SPECS: Record<NumericWeightKey, WeightSpec> = {
     min: 0, max: 1, int: true,
     desc: '1 = ตอนเลือกพิจารณา keep แบบ downgrade (เจม Flawed–Perfect ลดลง 1 ขั้น) ด้วย คิดคะแนนแบบเดียวกับ keep จึงจะชนะก็ต่อเมื่อเจมที่ต่ำลงช่วยให้สูตร special ใกล้ครบมากกว่า (ใช้คู่กับ recipeProgress); 0 = ไม่ downgrade',
   },
+  tierValue: {
+    min: 0, max: 5,
+    desc: 'มองเผื่อ special ขั้นสูง: ตอนเลือกและตอนวางแผนสูตร (recipeProgress) ค่าของ special = power ตอนนี้ + ค่านี้ × (power ของตัวที่อัปต่ออีก 2 ขั้น สูงสุด 5000) / 10; สูตรที่โตไปเป็นของแรงช่วงท้าย (Black Opal → BIG Opal ~3100, Uranium 238 → Atomic ~2850, Paraiba → Dimas Barbosa ~3000, Blood Stone / Yellow Sapphire / Gold / Dark Emerald ชนเพดาน 5000) จึงมีค่ากว่าสายเริ่มต้น (Silver → Silver Knight ~1200, Jade → Lucky China Jade ~940); สูตรขั้นสูงต้องใช้เจม Perfect (quality 8 หรือ combine) ใช้คู่กับ recipeProgress; 0 = ดูแค่ power ตอนนี้',
+  },
+  slatePairBonus: {
+    min: 0, max: 5000,
+    desc: 'ตอนเลือก: slate ที่เป็นครึ่งหนึ่งของ slate พิเศษ (Elder = Spell + Poison, Viper = Range + Damage, Wraith = Slow + Opal Vein, Ancient = Air + Hold) ได้โบนัสเท่านี้เมื่ออีกครึ่งมีบนกระดานแล้ว และครึ่งหนึ่งเมื่อยังไม่มี (เริ่มคู่) ใช้คู่กับ slateCombine = 1 เพื่อรวมทันที; ทำงานได้แม้ slateBonus = 0 (สร้างเฉพาะ slate ที่เข้าคู่); 0 = ไม่สนคู่',
+  },
   typeDiversity: {
     min: 0, max: 3,
     desc: 'ตอนเลือก keep/combine/special: power × (1 − ค่านี้ × จำนวน tower ชนิดเดียวกัน (Ruby, Topaz, ... หรือ special ตัวเดียวกัน) ที่มีบนกระดานแล้ว / 10) (ต่ำสุด 0.1) ให้ได้ tower หลากหลาย (slow, poison, splash, ยิงอากาศ) แทนชนิดเดิมซ้ำ; 0 = ไม่สนความหลากหลาย',
@@ -225,6 +247,10 @@ export const WEIGHT_SPECS: Record<NumericWeightKey, WeightSpec> = {
   auraValue: {
     min: 0, max: 5,
     desc: 'ตอนเลือก: tower ที่มีออร่าเร่งความเร็วยิง (Opal) ได้ power เพิ่ม ค่านี้ × % ออร่า × power รวมของ tower ที่ keep ไว้ในรัศมีออร่า (ปกติ Opal ถูกคิด power แค่ดาเมจตัวเองจึงไม่เคยถูกเลือก); 0 = ไม่นับออร่า',
+  },
+  armorAuraValue: {
+    min: 0, max: 5,
+    desc: 'ค่าของออร่าลดเกราะ (Red Crystal = Flawless Emerald + Ruby + Flawed Amethyst: −4 เกราะศัตรูบินรัศมี 1300 ≈ 10 ช่อง, อัปเป็น Red Facet / Rose Quartz ได้ออร่าเผาด้วย; Paraiba ลดเกราะพื้น): ตอนเลือก power เพิ่ม ค่านี้ × เกราะที่ลด × 5% × power รวมของ tower ที่ยิงเป้านั้นได้ในรัศมี; ตอนวางแผนสูตร (recipeProgress) นับ tower ที่ยิงได้ทั้งหมด; กับ specialSpot = 1 เลือกตำแหน่งที่รัศมีออร่าครอบเส้นทางบินมากสุด (เส้นทางบินผ่านกลางแผนที่ 2 ครั้ง: ช่วง 1→2 ที่ y=18 และ 4→5 ที่ x=18); 0 = ไม่นับออร่าเกราะ',
   },
   specialSpot: {
     min: 0, max: 1, int: true,
@@ -241,6 +267,10 @@ export const WEIGHT_SPECS: Record<NumericWeightKey, WeightSpec> = {
   planFirst: {
     min: 0, max: 1, int: true,
     desc: 'ใช้กับแปลน: 1 = วางเจมลงช่องแปลนถัดไปตามลำดับสร้างเสมอ ไม่ใช้คะแนนช่อง (routeAdjacency / groundExposure / mazeGain) และไม่ใช้โบนัสแปลน จนกว่าแปลนจะสร้างครบ (หรือช่องที่เหลือวางแล้วปิดทาง) หลังจากนั้นวางตามคะแนนช่องปกติ; 0 = ช่องแปลนแข่งคะแนนกับช่องอื่น (blueprintWeight)',
+  },
+  coreRefill: {
+    min: 0, max: 5, int: true,
+    desc: 'ใช้กับแปลนที่มี core (เช่น orbit-s-v4-c10-core: สี่เหลี่ยม 14,16–22,20): เมื่อสร้างแปลนเสร็จแล้ว ทุกด่านถอนหินในสี่เหลี่ยม core ได้สูงสุดเท่านี้ (ก้อนที่ยิงทางได้มากสุดก่อน) แล้ววางเจมใหม่ทับทันที ทางจึงไม่เปลี่ยน ได้สุ่มเจม/ทำ special ที่ป้อมกลางมากขึ้นแทนการไปสร้างรอบนอก; 0 = ไม่ทำ',
   },
   centreFirst: {
     min: 0, max: 1, int: true,
@@ -288,6 +318,7 @@ export const DEFAULT_WEIGHTS: Weights = {
   qualityReserve: 30,
   qualityRushLevel: 0,
   qualityFirst: 0,
+  qualityPace: 0,
   chippedHold: 0,
   qualityMaxLevel: 8,
   upgradeReserve: 20,
@@ -303,12 +334,16 @@ export const DEFAULT_WEIGHTS: Weights = {
   combine2Bonus: 1000,
   recipeProgress: 0,
   downgradeForRecipe: 0,
+  tierValue: 0,
+  slatePairBonus: 0,
   typeDiversity: 0,
   auraValue: 0,
+  armorAuraValue: 0,
   specialSpot: 0,
   rockClear: 0,
   rockClearFromLevel: 0,
   planFirst: 0,
+  coreRefill: 0,
   centreFirst: 0,
   centreGoodPower: 0,
   centreRockShare: 0,

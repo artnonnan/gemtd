@@ -35,6 +35,8 @@ export interface Blueprint {
   parent?: string;
   /** area the path should pass through many times (inclusive tile rectangle) */
   hub?: { x0: number; y0: number; x1: number; y1: number };
+  /** the core block (inclusive tile rectangle): once the plan is built, coreRefill swaps rocks here for new gems */
+  core?: { x0: number; y0: number; x1: number; y1: number };
   /** build checkpoints: by the end of `level`, the route should pass the hub at least minPasses times */
   phases?: { level: number; minPasses: number; goal: string }[];
   cells: BlueprintCell[];
