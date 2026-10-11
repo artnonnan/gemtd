@@ -39,6 +39,21 @@ const GROWN_CAP = 5000;
 /** armorAuraValue: one armor point off the enemies is worth this share of the power of the towers hitting them */
 const ARMOR_POINT = 0.05;
 
+/** special tower → the recipe it grows from (Helltaker → Jade): specialDiversity counts a whole line as one */
+const SPECIAL_LINE = (() => {
+  const line = new Map<string, string>();
+  for (const r of RECIPES) {
+    const queue = [r.result];
+    while (queue.length) {
+      const id = queue.shift()!;
+      if (line.has(id)) continue;
+      line.set(id, r.result);
+      for (const u of TOWERS[id]?.upgrades ?? []) if (TOWERS[u] && !GEM_INFO[u]) queue.push(u);
+    }
+  }
+  return line;
+})();
+
 /** Route legs of the current board, shared by every mazing candidate in one placement. */
 interface Maze {
   grid: Uint8Array;
@@ -557,9 +572,18 @@ export class Bot {
       } else if (w.keepExposure > 0 && a.type !== 'quality' && a.type !== 'buyLife') {
         p *= 1 + (w.keepExposure * this.chooseCoverage(game, result, (a as { x: number }).x, (a as { y: number }).y, false)) / 10;
       }
-      const v = p + bonus;
+      let v = p + bonus;
+      // specialDiversity: another special of a line already standing (a 4th Jade next to 3 Helltakers) is worth less, bonus included
+      if (a.type === 'special' && w.specialDiversity > 0) v *= this.lineFactor(result);
       if (!best || v > best.v) best = { a, v };
     };
+    this.lineCounts.clear();
+    if (w.specialDiversity > 0) {
+      for (const t of game.towers) {
+        const line = !t.fresh && SPECIAL_LINE.get(t.id);
+        if (line) this.lineCounts.set(line, (this.lineCounts.get(line) ?? 0) + 1);
+      }
+    }
     const recipe = w.recipeProgress > 0 ? this.recipeState(game) : null;
     const plan = (id: string) => (recipe ? this.recipeBonus(recipe, id) : 0);
     // with specialSpot, a special may also form on a kept ingredient (the round's gems then all turn to rock)
@@ -620,9 +644,20 @@ export class Bot {
       this.planning = true;
       const value = this.specialValue(r.result);
       this.planning = false;
-      best = Math.max(best, ((have + 1) / r.ingredients.length) * value);
+      best = Math.max(best, ((have + 1) / r.ingredients.length) * value * this.lineFactor(r.result));
     }
     return this.weights.recipeProgress * best;
+  }
+
+  /** specials of each line standing at the current choice (specialDiversity) */
+  private lineCounts = new Map<string, number>();
+
+  /** 1 - specialDiversity × towers of this special's line already standing (at least 0.1); 1 when off */
+  private lineFactor(id: string): number {
+    const w = this.weights;
+    const line = SPECIAL_LINE.get(id);
+    if (!w.specialDiversity || !line) return 1;
+    return Math.max(0.1, 1 - w.specialDiversity * (this.lineCounts.get(line) ?? 0));
   }
 
   /** 1 when this slate completes a special slate with one standing, 0.5 when it starts one, 0 otherwise */

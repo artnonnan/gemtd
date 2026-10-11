@@ -78,6 +78,8 @@ export interface Weights {
   tierValue: number;
   /** choose: a slate that is half of a special slate gets this (half when the other half is not standing yet) */
   slatePairBonus: number;
+  /** choose and planning: a special is worth × (1 - this × towers of its line already standing) */
+  specialDiversity: number;
   /** choose: power × (1 - this × kept towers of the same gem type / 10) */
   typeDiversity: number;
   /** choose: an attack speed aura (Opal) adds this × aura % × power of the kept towers in its range */
@@ -240,6 +242,10 @@ export const WEIGHT_SPECS: Record<NumericWeightKey, WeightSpec> = {
     min: 0, max: 5000,
     desc: 'ตอนเลือก: slate ที่เป็นครึ่งหนึ่งของ slate พิเศษ (Elder = Spell + Poison, Viper = Range + Damage, Wraith = Slow + Opal Vein, Ancient = Air + Hold) ได้โบนัสเท่านี้เมื่ออีกครึ่งมีบนกระดานแล้ว และครึ่งหนึ่งเมื่อยังไม่มี (เริ่มคู่) ใช้คู่กับ slateCombine = 1 เพื่อรวมทันที; ทำงานได้แม้ slateBonus = 0 (สร้างเฉพาะ slate ที่เข้าคู่); 0 = ไม่สนคู่',
   },
+  specialDiversity: {
+    min: 0, max: 1,
+    desc: 'special หลากหลาย: ค่าของการทำ special (รวมโบนัส specialBonus) และโบนัสวางแผนสูตร × (1 − ค่านี้ × จำนวน tower สายเดียวกันที่มีแล้ว) ต่ำสุด 0.1; สายนับรวมตัวที่อัปแล้ว (Jade / China Jade / Lucky China Jade / Helltaker เป็นสายเดียว) เช่น 0.5: Jade ตัวที่ 2 ได้ครึ่งเดียว ตัวที่ 3 ได้ 10% บอทจึงไปเก็บวัตถุดิบสูตรอื่นแทน; 0 = ทำสายเดิมซ้ำได้เต็มที่',
+  },
   typeDiversity: {
     min: 0, max: 3,
     desc: 'ตอนเลือก keep/combine/special: power × (1 − ค่านี้ × จำนวน tower ชนิดเดียวกัน (Ruby, Topaz, ... หรือ special ตัวเดียวกัน) ที่มีบนกระดานแล้ว / 10) (ต่ำสุด 0.1) ให้ได้ tower หลากหลาย (slow, poison, splash, ยิงอากาศ) แทนชนิดเดิมซ้ำ; 0 = ไม่สนความหลากหลาย',
@@ -336,6 +342,7 @@ export const DEFAULT_WEIGHTS: Weights = {
   downgradeForRecipe: 0,
   tierValue: 0,
   slatePairBonus: 0,
+  specialDiversity: 0,
   typeDiversity: 0,
   auraValue: 0,
   armorAuraValue: 0,

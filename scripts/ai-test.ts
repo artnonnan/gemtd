@@ -345,6 +345,12 @@ assert(w.mazeGain === 5 && w.source === 'manual' && w.qualityReserve === DEFAULT
       const near = ba.armorAuraPower('h029', keptAir, { x: 18, y: 18 }), far = ba.armorAuraPower('h029', keptAir, { x: 2, y: 34 });
       assert(near > 0 && far === 0 && ba.armorAuraPower('h01A', keptAir, { x: 18, y: 18 }) === 0, `armorAuraValue: Red Crystal next to air towers adds ${near.toFixed(1)} power, far away 0, a tower without the aura 0`);
     }
+    // specialDiversity: a Helltaker standing makes another Jade worth less (same line), Silver untouched
+    {
+      const bd = new Bot({ ...v4w, specialDiversity: 0.5 }, 1) as unknown as { lineCounts: Map<string, number>; lineFactor(id: string): number };
+      bd.lineCounts.set('h018', 1); // one tower of the Jade line (e.g. Helltaker)
+      assert(bd.lineFactor('h018') === 0.5 && bd.lineFactor('h01A') === 1, `specialDiversity 0.5: Jade with one of its line standing ×${bd.lineFactor('h018')}, Silver ×${bd.lineFactor('h01A')}`);
+    }
     // slatePairBonus: only slates that belong to a special slate get made, and pairs get combined
     const pairs = games({ slatePairBonus: 3000, slateCombine: 1 });
     const halves = new Set(SLATE_SPECIALS.flatMap((s) => s.ingredients));
