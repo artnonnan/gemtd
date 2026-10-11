@@ -230,7 +230,8 @@ export function promising(s: TuneState): string[] {
   return out;
 }
 
-export type LlmReason = 'stuck' | 'periodic' | 'rules-changed' | 'manual';
+/** loop: tune by LLM (npm run tune-llm), where the advisor proposes every round */
+export type LlmReason = 'stuck' | 'periodic' | 'rules-changed' | 'manual' | 'loop';
 
 /** When to ask the advisor: stuck, every N rounds, or right after the game/bot changed. */
 export function llmReason(s: TuneState, opts: { stuckAfter: number; every: number; rulesChanged: boolean }): LlmReason | null {

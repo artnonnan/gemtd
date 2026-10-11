@@ -1,6 +1,9 @@
 import { DIFFICULTIES, SWAP_COST, type Difficulty, type Game, type RecipeStatus, type Tower } from '../game/game';
 import { describeAction, type AutoPlay } from '../ai/autoplay';
-import { parseWeights } from '../ai/loadWeights';
+import { listWeights, parseWeights, type WeightIndex } from '../ai/loadWeights';
+
+/** localStorage key for the last weight set picked in the AI dropdown */
+const AI_WEIGHTS_KEY = 'gemtd.aiWeights';
 import type { Weights } from '../ai/weights';
 import type { Match } from '../net/match';
 import { MiniRenderer } from '../render/mini';
@@ -64,7 +67,12 @@ export class Panel {
   private mini: MiniRenderer;
   private miniWrap: HTMLElement;
   private settingsBtn: HTMLElement;
-  private aiWeights: HTMLInputElement;
+  private aiWeights: HTMLSelectElement;
+  private boardMap: HTMLSelectElement;
+  private boardSeeds: HTMLSelectElement;
+  private boardRows: HTMLElement;
+  /** last /__weights answer, for the leaderboard filters */
+  private weightIndex: WeightIndex | null = null;
   private aiSeed: HTMLInputElement;
   private aiFile: HTMLInputElement;
   private aiStatus: HTMLElement;
@@ -99,8 +107,24 @@ export class Panel {
           <section class="ai">
             <h3>AI auto-play</h3>
             <p class="muted">Watch the bot play. The same weights and seed replay exactly the game from <code>npm run batch</code>.</p>
+            <div class="ai-board">
+              <div class="btns">
+                <b>Leaderboard</b>
+                <select id="ai-board-map" title="Only weight sets that use this maze plan"><option value="">all maps</option></select>
+                <select id="ai-board-seeds" title="Only results from at least this many games">
+                  <option value="40">≥ 40 games</option>
+                  <option value="10">≥ 10 games</option>
+                  <option value="1">any</option>
+                </select>
+              </div>
+              <div id="ai-board-rows" class="ai-board-rows"><p class="muted">Loading… (needs <code>npm run dev</code>)</p></div>
+            </div>
+            <p class="muted">Or pick a set and a seed yourself:</p>
             <div class="btns">
-              <input id="ai-weights" value="w0" placeholder="w0 / smart / w12" autocomplete="off" spellcheck="false" title="Weight set: w0, smart, or an id from sim-runs/weights (npm run dev only)" />
+              <select id="ai-weights" title="Weight set: w0, smart, or a set saved in sim-runs/weights (npm run dev only)">
+                <option value="w0">w0</option>
+                <option value="smart">smart</option>
+              </select>
               <input id="ai-seed" placeholder="seed: random" inputmode="numeric" autocomplete="off" title="Seed (empty = random)" />
               <button data-act="ai-start" class="primary">▶ AI play</button>
               <button data-act="ai-file" title="Load a weight set from a JSON file">JSON file…</button>
@@ -148,11 +172,21 @@ export class Panel {
         this.aiFile.value = '';
       });
     });
-    for (const el of [this.aiWeights, this.aiSeed]) {
-      el.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') void this.loadAndStartAi();
-      });
-    }
+    this.aiSeed.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') void this.loadAndStartAi();
+    });
+    this.aiWeights.addEventListener('change', () => {
+      try {
+        localStorage.setItem(AI_WEIGHTS_KEY, this.aiWeights.value);
+      } catch {
+        // storage blocked: the choice just is not remembered
+      }
+    });
+    this.boardMap = this.settings.querySelector('#ai-board-map')!;
+    this.boardSeeds = this.settings.querySelector('#ai-board-seeds')!;
+    this.boardRows = this.settings.querySelector('#ai-board-rows')!;
+    for (const el of [this.boardMap, this.boardSeeds]) el.addEventListener('change', () => this.renderBoard());
+    void this.fillWeightList();
 
     this.codeInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && this.codeInput.value.trim()) this.match.session.join(this.codeInput.value);
@@ -202,7 +236,91 @@ export class Panel {
   }
 
   toggleSettings(open = this.settings.hidden) {
+    // new sets appear while tuning runs, so the list is fetched again on every open
+    if (open && this.settings.hidden) void this.fillWeightList();
     this.settings.hidden = !open;
+  }
+
+  /** Weight sets ranked by average level reached, each with buttons to watch its best and its median game. */
+  private renderBoard() {
+    const index = this.weightIndex;
+    if (!index) return;
+    if (!index.results.length) {
+      this.boardRows.innerHTML = '<p class="muted">No results yet: run <code>npm run batch</code> or a tune (needs <code>npm run dev</code>).</p>';
+      return;
+    }
+    const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+    const sets = new Map(index.sets.map((s) => [s.id, s]));
+    const runBest = new Map(index.best.map((b) => [b.id, b.run]));
+    const map = this.boardMap.value, minSeeds = +this.boardSeeds.value;
+    const rows = index.results
+      .filter((r) => r.seeds >= minSeeds && (!map || (sets.get(r.id)?.blueprint || 'none') === map))
+      .sort((a, b) => b.avgLevel - a.avgLevel || b.avgScore - a.avgScore || b.seeds - a.seeds)
+      .slice(0, 30);
+    if (!rows.length) {
+      this.boardRows.innerHTML = '<p class="muted">Nothing matches these filters.</p>';
+      return;
+    }
+    const watch = (id: string, g: { seed: number; level: number }, label: string, tip: string) =>
+      `<button data-act="ai-watch" data-v="${esc(id)} ${g.seed}" title="${esc(tip)}">▶ ${label} <span class="muted">s${g.seed}·L${g.level}</span></button>`;
+    this.boardRows.innerHTML = `<table class="ai-board-table">
+      <thead><tr><th>#</th><th>Weight set</th><th>Map</th><th title="Average level reached">Avg lvl</th><th>Games</th><th>Watch</th></tr></thead>
+      <tbody>${rows
+        .map((r, i) => {
+          const s = sets.get(r.id);
+          const run = runBest.get(r.id);
+          const old = index.rules && r.rules !== index.rules;
+          return `<tr${old ? ' class="old"' : ''} title="${esc(`${s?.note ?? ''}${run ? `\n★ current best of ${run}` : ''}${old ? '\n⚠ played under older rules: a replay may not match exactly' : ''}`)}">
+            <td>${i + 1}</td>
+            <td>${run ? '★ ' : ''}${esc(r.id)}${old ? ' <span class="muted">⚠</span>' : ''}</td>
+            <td class="muted">${esc(s?.blueprint && s.blueprint !== 'none' ? s.blueprint : '–')}</td>
+            <td><b>${r.avgLevel.toFixed(2)}</b>${r.wins ? ` <span class="muted">${r.wins} win</span>` : ''}</td>
+            <td>${r.seeds}</td>
+            <td class="btns">${watch(r.id, r.best, 'best', `Best game: seed ${r.best.seed}, level ${r.best.level}`)}${watch(r.id, r.median, 'typical', `Median game: seed ${r.median.seed}, level ${r.median.level}`)}</td>
+          </tr>`;
+        })
+        .join('')}</tbody></table>`;
+  }
+
+  private async watchAi(id: string, seed: number) {
+    try {
+      this.startAi(await this.controls.ai.load(id), seed);
+    } catch (e) {
+      this.aiError((e as Error).message);
+    }
+  }
+
+  /** The AI weight dropdown: built-in sets, the best of each tuning run, then every saved set (newest first). */
+  private async fillWeightList() {
+    const index = await listWeights();
+    const { sets, best } = index;
+    this.weightIndex = index;
+    // map filter: every maze plan some evaluated set uses
+    const mapOf = new Map(sets.map((s) => [s.id, s.blueprint || 'none']));
+    const maps = [...new Set(index.results.map((r) => mapOf.get(r.id) ?? 'none'))].sort();
+    const pickedMap = this.boardMap.value;
+    this.boardMap.innerHTML = `<option value="">all maps</option>${maps.map((m) => `<option value="${m}">${m === 'none' ? 'no plan' : m}</option>`).join('')}`;
+    this.boardMap.value = maps.includes(pickedMap) ? pickedMap : '';
+    this.renderBoard();
+    let keep = this.aiWeights.value;
+    try {
+      keep = localStorage.getItem(AI_WEIGHTS_KEY) ?? keep;
+    } catch {
+      // storage blocked: keep the current choice
+    }
+    const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+    const note = new Map(sets.map((s) => [s.id, s]));
+    const opt = (id: string, label: string) => {
+      const s = note.get(id);
+      return `<option value="${esc(id)}" title="${esc(s ? `${s.blueprint ? `[${s.blueprint}] ` : ''}${s.note}` : id)}">${esc(label)}</option>`;
+    };
+    const groups = [
+      `<optgroup label="Built-in">${opt('w0', 'w0 (baseline)')}${opt('smart', 'smart (greedy maze)')}</optgroup>`,
+      best.length ? `<optgroup label="Best of each tuning run">${best.map((b) => opt(b.id, `★ ${b.id} — ${b.run}`)).join('')}</optgroup>` : '',
+      sets.length ? `<optgroup label="Saved sets (newest first)">${sets.map((s) => opt(s.id, s.blueprint && s.blueprint !== 'none' ? `${s.id} · ${s.blueprint}` : s.id)).join('')}</optgroup>` : '',
+    ];
+    this.aiWeights.innerHTML = groups.join('');
+    this.aiWeights.value = [...this.aiWeights.options].some((o) => o.value === keep) ? keep : 'w0';
   }
 
   /** Shown in the AI section (and opens Settings so it is seen). */
@@ -264,6 +382,11 @@ export class Panel {
       case 'heatmap': this.controls.heatmap = v as Controls['heatmap']; break;
       case 'blueprint': this.controls.showBlueprint = !this.controls.showBlueprint; break;
       case 'ai-start': void this.loadAndStartAi(); break;
+      case 'ai-watch': {
+        const [id, seed] = v.split(' ');
+        void this.watchAi(id, +seed);
+        break;
+      }
       case 'ai-file': this.aiFile.click(); break;
       case 'ai-stop': this.controls.ai.stop(); break;
       case 'ai-replay': if (ai) this.startAi(ai.weights, ai.seed); break;

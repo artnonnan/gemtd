@@ -66,6 +66,8 @@ export interface EvalSummary {
   towers: TowerStat[];
   /** special towers made, as share of games that made it at least once */
   specialsMade: Record<string, number>;
+  /** slates (and special slates) made, as share of games that made it at least once */
+  slatesMade: Record<string, number>;
   /** recipe results never made in any game */
   unusedRecipes: string[];
   avgUpgrades: number;
@@ -138,6 +140,12 @@ export function summarize(recs: GameRecord[]): EvalSummary {
     for (const id of made) madeIn[id] = (madeIn[id] ?? 0) + 1;
   }
   const specialsMade = Object.fromEntries(Object.entries(madeIn).map(([id, c]) => [id, r2(c / n)]));
+  const slateIn: Record<string, number> = {};
+  for (const r of recs) {
+    const made = new Set(r.picks.filter((p) => p.split(':')[1].startsWith('slate')).map((p) => p.split(':')[2]));
+    for (const id of made) slateIn[id] = (slateIn[id] ?? 0) + 1;
+  }
+  const slatesMade = Object.fromEntries(Object.entries(slateIn).map(([id, c]) => [id, r2(c / n)]));
 
   const scores = recs.map((r) => r.score);
   const avgAt = (pick: (r: GameRecord) => number[]) => {
@@ -187,6 +195,7 @@ export function summarize(recs: GameRecord[]): EvalSummary {
     blueprint,
     towers,
     specialsMade,
+    slatesMade,
     unusedRecipes: RECIPES.map((r) => r.result).filter((id) => !(id in specialsMade)),
     avgUpgrades: r2(mean(recs.map((r) => r.upgrades.length))),
     avgQuality: r2(mean(recs.map((r) => r.qualityLevel))),

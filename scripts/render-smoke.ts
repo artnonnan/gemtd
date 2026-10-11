@@ -103,7 +103,10 @@ renderer.draw(game);
   renderer.zoom = 1;
   renderer.offX = renderer.offY = 0;
   renderer.draw(g);
-  const hits = g.freshTowers.filter((t) => [-1, -0.5, 0, 0.5, 1, 1.5, 2].some((dy) => renderer.hintAt((t.x + 0.5) * 18, (t.y + 1.2 + dy) * 18) === t));
+  // labels pop in and bob with real time: probe the whole column under each gem, not a few points
+  const probes = Array.from({ length: 80 }, (_, i) => -1 + i * 0.05);
+  const labelOn = (t: { x: number; y: number }) => probes.some((dy) => renderer.hintAt((t.x + 0.5) * 18, (t.y + 1.2 + dy) * 18) === t);
+  const hits = g.freshTowers.filter(labelOn);
   if (hits.length !== 2) throw new Error(`FAIL: expected a Silver and a combine label, found ${hits.length}`);
 
   // slate: Topaz (Normal) + Flawed Amethyst; the label sits on the Topaz
@@ -114,8 +117,7 @@ renderer.draw(game);
   partner.id = 'h007';
   others.forEach((t, k) => (t.id = BASE_GEMS[GEM_TYPES[k + 1]][0])); // three different Chipped gems
   renderer.draw(s);
-  const onCore = [-1, -0.5, 0, 0.5, 1, 1.5, 2].some((dy) => renderer.hintAt((core.x + 0.5) * 18, (core.y + 1.2 + dy) * 18) === core);
-  if (!onCore) throw new Error('FAIL: no slate label on the Topaz');
+  if (!labelOn(core)) throw new Error('FAIL: no slate label on the Topaz');
 
   // panel focus: the recipe's gems lit, lines into the selected one
   renderer.focus = [{ tower: a, state: 'self' }, { tower: b, state: 'fresh' }, { tower: c, state: 'kept' }];

@@ -24,15 +24,13 @@ export function towerDps(id: string): number {
 export const hitsGround = (id: string) => abilityOf(id).targets !== 'air';
 export const hitsAir = (id: string) => abilityOf(id).targets !== 'ground';
 
-/** Adds `dps` to every tile within `r` tiles of (cx, cy). */
+/** Adds `dps` to every tile within `r` tiles of (cx, cy); slates may stand between tiles (half-tile cx, cy). */
 function stamp(map: Float32Array, cx: number, cy: number, r: number, dps: number) {
-  const R = Math.floor(r);
-  for (let dy = -R; dy <= R; dy++) {
-    const y = cy + dy;
-    if (y < 0 || y >= GRID) continue;
-    for (let dx = -R; dx <= R; dx++) {
-      const x = cx + dx;
-      if (x < 0 || x >= GRID || dx * dx + dy * dy > r * r) continue;
+  for (let y = Math.max(0, Math.ceil(cy - r)); y <= Math.min(GRID - 1, Math.floor(cy + r)); y++) {
+    const dy = y - cy;
+    for (let x = Math.max(0, Math.ceil(cx - r)); x <= Math.min(GRID - 1, Math.floor(cx + r)); x++) {
+      const dx = x - cx;
+      if (dx * dx + dy * dy > r * r) continue;
       map[y * GRID + x] += dps;
     }
   }

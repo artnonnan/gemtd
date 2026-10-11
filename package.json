@@ -16,6 +16,7 @@
     "versus-test": "esbuild scripts/versus-test.ts --bundle --platform=node --format=esm --external:peerjs --outfile=node_modules/.cache/versus.mjs --log-level=warning && node node_modules/.cache/versus.mjs",
     "batch": "esbuild scripts/ai/main.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/ai.mjs --log-level=warning && node node_modules/.cache/ai.mjs batch",
     "tune": "esbuild scripts/ai/main.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/ai.mjs --log-level=warning && node node_modules/.cache/ai.mjs tune",
+    "tune-llm": "esbuild scripts/ai/main.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/ai-llm.mjs --log-level=warning && node node_modules/.cache/ai-llm.mjs tune-llm",
     "blueprint": "esbuild scripts/blueprint.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/blueprint.mjs --log-level=warning && node node_modules/.cache/blueprint.mjs"
   },
   "devDependencies": {

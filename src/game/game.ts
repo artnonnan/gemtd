@@ -542,8 +542,12 @@ export class Game {
    * Gems, rocks and other slates may be there: slates have no pathing.
    */
   isTeleportTarget(x: number, y: number): boolean {
-    const src = this.teleportSource;
-    if (!src || x * 2 !== Math.round(x * 2) || y * 2 !== Math.round(y * 2)) return false;
+    return !!this.teleportSource && this.teleportSpotOk(this.teleportSource, x, y);
+  }
+
+  /** isTeleportTarget for any slate, without starting a teleport (the bot plans with it). */
+  teleportSpotOk(src: Tower, x: number, y: number): boolean {
+    if (x * 2 !== Math.round(x * 2) || y * 2 !== Math.round(y * 2)) return false;
     if (x < 0 || y < 0 || x > GRID - 1 || y > GRID - 1) return false;
     for (const ty of new Set([Math.floor(y), Math.ceil(y)])) {
       for (const tx of new Set([Math.floor(x), Math.ceil(x)])) if (this.isReserved(tx, ty)) return false;

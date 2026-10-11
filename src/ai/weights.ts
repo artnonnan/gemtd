@@ -39,16 +39,28 @@ export interface Weights {
   // ---- economy ----
   /** upgrade gem quality when gold >= its cost + this */
   qualityReserve: number;
+  /** from this level on, upgrade gem quality as soon as gold covers it (no reserve); 0 = never rush */
+  qualityRushLevel: number;
+  /** 1 = tower upgrades always leave the next gem quality upgrade's cost untouched */
+  qualityFirst: number;
+  /** hold quality upgrades up to this many levels while a recipe in progress misses a Chipped gem */
+  chippedHold: number;
   /** stop upgrading gem quality at this level */
   qualityMaxLevel: number;
   /** upgrade a tower when gold >= its cost + this */
   upgradeReserve: number;
   /** buy lives (10 gold each) while lives are below this; 0 = never */
   buyLifeBelow: number;
+  /** before a boss wave (build phase), buy lives up to this many; 0 = never */
+  bossLifeTarget: number;
+  /** 0 = upgrade the first affordable tower; > 0 = the upgrade with the most dps gain per gold, × (1 + this × path tiles reached / 10) */
+  upgradeFocus: number;
 
   // ---- keep / combine choice: score = power(result) × (1 + keepExposure × coverage / 10) + bonus ----
   /** how much a gem's position matters when choosing which to keep */
   keepExposure: number;
+  /** with a plan: path reached is judged as (1 - this) × the route now + this × the route once the plan is built */
+  keepFuture: number;
   /** keep/combine/special: power × (1 + this) for a gem standing on a blueprint slot */
   slotKeepBonus: number;
   /** penalty (10 × this) for building on a blueprint hub cell, or a reserve cell before it unlocks */
@@ -56,6 +68,38 @@ export interface Weights {
   specialBonus: number;
   combine4Bonus: number;
   combine2Bonus: number;
+  /** keep/combine: + this × (ingredients of an unmade recipe owned after this pick / its size) × power of that special */
+  recipeProgress: number;
+  /** 1 = also consider keeping a gem one quality lower when that advances a recipe more (scored the same way) */
+  downgradeForRecipe: number;
+  /** choose: power × (1 - this × kept towers of the same gem type / 10) */
+  typeDiversity: number;
+  /** choose: an attack speed aura (Opal) adds this × aura % × power of the kept towers in its range */
+  auraValue: number;
+  /** 1 = a special may form on any of its ingredients (kept ones too): the spot reaching the most path, by aura range if it has one */
+  specialSpot: number;
+  /** at the start of each level, take up to this many rocks off blueprint slots and put the first gems back there */
+  rockClear: number;
+  /** rockClear starts at this level (0 = from the first) */
+  rockClearFromLevel: number;
+  /** 1 = place on the next plan cell in build order, ignoring tile scores, until no plan cell can be built */
+  planFirst: number;
+  /** 1 = each level, gems go on the plan's slots (the centre) until one is good, then the rest build the plan */
+  centreFirst: number;
+  /** centreFirst: a gem is good with at least this power, or when it completes a special with the board */
+  centreGoodPower: number;
+  /** centreFirst: with no free slot left, swap a rock for a gem only when at least this share of the slots are rocks */
+  centreRockShare: number;
+
+  // ---- slates ----
+  /** choose: create a slate when the round offers one, scored power + this; 0 = never */
+  slateBonus: number;
+  /** extra for an Air Slate when an air wave comes within the next 4 levels */
+  airSlateBonus: number;
+  /** 1 = teleport each new slate to the spot within range that covers the most path */
+  slateTeleport: number;
+  /** 1 = combine two owned slates into a special slate (Ancient, Wraith, Elder, Viper) as soon as possible */
+  slateCombine: number;
 
   // ---- tower power (dps-based) ----
   /** extra power per point of slow (0..1) */
@@ -138,13 +182,88 @@ export const WEIGHT_SPECS: Record<NumericWeightKey, WeightSpec> = {
     min: 0, max: 3,
     desc: 'ตอนเลือก keep/combine/special คูณ power ด้วย (1 + ค่านี้ × จำนวนช่องทางที่ตำแหน่งนั้นยิงถึง / 10) โดยนับทางพื้นถ้ายิงพื้นได้ และทางบิน × สัดส่วนเวฟบินถ้ายิงอากาศได้; เจมแรงที่อยู่มุมที่ทางไม่ผ่านจะได้ค่าน้อย; 0 = ไม่ใช้',
   },
+  keepFuture: {
+    min: 0, max: 1,
+    desc: 'ใช้กับแปลนและ keepExposure: ตอนเลือก keep/combine/special นับจำนวนช่องทางที่ตำแหน่งนั้นยิงถึงเป็น (1 − ค่านี้) × ทางตอนนี้ + ค่านี้ × ทางตอนแปลนสร้างครบ; tower อยู่ทั้งเกม จุดที่ทางจะวนผ่านแน่นภายหลัง (ป้อมกลาง) จึงชนะจุดที่ทางผ่านแค่ตอนนี้ (เช่น Silver ด่าน 6 ที่ทแยงยิงทางตอนนี้ 18 ช่องแต่ตอนแปลนเสร็จแค่ 48 ช่อง ส่วนป้อมกลาง 14 → 210); 0 = ดูแค่ตอนนี้',
+  },
   qualityReserve: { min: 0, max: 300, int: true, desc: 'อัป gem quality เมื่อทอง ≥ ค่าอัป (20 + 30 × level) + ค่านี้; ต่ำ = อัปเร็ว ได้เจมดีเร็วแต่ทองเหลือน้อย' },
   qualityMaxLevel: { min: 0, max: 8, int: true, desc: 'gem quality สูงสุดที่จะอัป (0–8)' },
+  chippedHold: {
+    min: 0, max: 20, int: true,
+    desc: 'ยังไม่รีบอัป gem quality ถ้ามีสูตร special ที่กำลังทำ (มีวัตถุดิบบนกระดานแล้ว) แต่ยังขาดเจม Chipped (quality สูงขึ้นจะสุ่มได้ Chipped น้อยลง) รอได้สูงสุดเท่านี้ด่านติดกัน ถ้ายังสุ่มไม่เจอก็ยอมอัปแล้วไปต่อ; 0 = ไม่รอ',
+  },
+  qualityFirst: {
+    min: 0, max: 1, int: true,
+    desc: '1 = เงินไปอัป gem quality ก่อน: การอัป tower (ช่วงเวฟ) ต้องเหลือทองพอค่าอัป quality ขั้นถัดไป (20 + 30 × level) เสมอ จนกว่าจะถึง qualityMaxLevel; ใช้คู่กับ qualityReserve ต่ำเพื่อให้อัป quality ทันทีที่ทองพอตอนวางเจม; 0 = อัป tower ได้ทุกเมื่อที่ทองพอ (upgradeReserve)',
+  },
+  qualityRushLevel: {
+    min: 0, max: 50, int: true,
+    desc: 'ตั้งแต่ด่านนี้ไป อัป gem quality ทันทีที่ทองพอ (ไม่กันทอง qualityReserve) เพื่อเร่งให้ได้ Flawless/Perfect ไปทำสูตร special ระดับสูง; ก่อนด่านนี้ใช้ qualityReserve ตามปกติ (เก็บทองไว้อัป tower); 0 = ไม่เร่ง',
+  },
   upgradeReserve: { min: 0, max: 300, int: true, desc: 'อัป tower (ช่วงเวฟ) เมื่อทอง ≥ ค่าอัป + ค่านี้; แย่งทองกับการอัป quality' },
   buyLifeBelow: { min: 0, max: 50, int: true, desc: 'ซื้อ life (10 ทอง) เมื่อ lives ต่ำกว่าค่านี้; 0 = ไม่ซื้อ' },
+  bossLifeTarget: { min: 0, max: 50, int: true, desc: 'ก่อนเวฟบอส (Summon / Summon Air ด่าน 7, 14, 21, 28, ...) ตอนวางเจม ซื้อ life (10 ทอง) จนมี lives เท่าค่านี้ ก่อนอัป quality; 0 = ไม่ซื้อเพิ่มก่อนบอส' },
+  upgradeFocus: {
+    min: 0, max: 3,
+    desc: 'การเลือก tower ที่จะอัป: 0 = อัปตัวแรกที่ทองพอ (ตามลำดับบนกระดาน); > 0 = เลือกการอัปที่ได้ dps เพิ่มต่อทองมากสุด คูณ (1 + ค่านี้ × จำนวนช่องทางที่ tower นั้นยิงถึง / 10) ป้อมกลางที่ทางวนผ่านจึงได้ก่อน',
+  },
   specialBonus: { min: 0, max: 5000, desc: 'โบนัสตอนเลือกทำ special tower (คะแนนตัวเลือก = power ของผลลัพธ์ + โบนัส); power ของเจมทั่วไปหลักสิบถึงหลักร้อย' },
   combine4Bonus: { min: 0, max: 5000, desc: 'โบนัสตอนเลือก combine 4 เม็ด (ได้เจมสูงขึ้น 2 ขั้น)' },
   combine2Bonus: { min: 0, max: 5000, desc: 'โบนัสตอนเลือก combine 2 เม็ด (ได้เจมสูงขึ้น 1 ขั้น); โบนัส 0 = เลือกตาม power อย่างเดียว' },
+  recipeProgress: {
+    min: 0, max: 5,
+    desc: 'วางแผนสูตร special: ตอน keep/combine บวก ค่านี้ × (จำนวนวัตถุดิบของสูตรที่ยังไม่ได้ทำ ที่จะมีบนกระดานหลังเลือก / จำนวนวัตถุดิบทั้งหมด) × power ของ special นั้น (เอาสูตรที่ดีสุด) เฉพาะเมื่อเจมนี้เป็นวัตถุดิบที่ยังไม่มี; สูตรระดับสูงได้มากกว่าเพราะ power สูงกว่า; 0 = ไม่วางแผน (ทำ special ได้แค่ตอนวัตถุดิบครบพอดี)',
+  },
+  downgradeForRecipe: {
+    min: 0, max: 1, int: true,
+    desc: '1 = ตอนเลือกพิจารณา keep แบบ downgrade (เจม Flawed–Perfect ลดลง 1 ขั้น) ด้วย คิดคะแนนแบบเดียวกับ keep จึงจะชนะก็ต่อเมื่อเจมที่ต่ำลงช่วยให้สูตร special ใกล้ครบมากกว่า (ใช้คู่กับ recipeProgress); 0 = ไม่ downgrade',
+  },
+  typeDiversity: {
+    min: 0, max: 3,
+    desc: 'ตอนเลือก keep/combine/special: power × (1 − ค่านี้ × จำนวน tower ชนิดเดียวกัน (Ruby, Topaz, ... หรือ special ตัวเดียวกัน) ที่มีบนกระดานแล้ว / 10) (ต่ำสุด 0.1) ให้ได้ tower หลากหลาย (slow, poison, splash, ยิงอากาศ) แทนชนิดเดิมซ้ำ; 0 = ไม่สนความหลากหลาย',
+  },
+  auraValue: {
+    min: 0, max: 5,
+    desc: 'ตอนเลือก: tower ที่มีออร่าเร่งความเร็วยิง (Opal) ได้ power เพิ่ม ค่านี้ × % ออร่า × power รวมของ tower ที่ keep ไว้ในรัศมีออร่า (ปกติ Opal ถูกคิด power แค่ดาเมจตัวเองจึงไม่เคยถูกเลือก); 0 = ไม่นับออร่า',
+  },
+  specialSpot: {
+    min: 0, max: 1, int: true,
+    desc: '1 = ทำ special ได้ที่ตำแหน่งของวัตถุดิบตัวไหนก็ได้ (รวมเจมที่ keep ไว้จากด่านก่อน) และเลือกตำแหน่งที่ยิงถึงทางเดินมากสุด นับตามระยะ aura ถ้ามี (Star Ruby เผารอบตัว ~2 ช่อง จึงไปอยู่จุดที่ทางวนผ่านแน่นสุด) ใช้ค่าตำแหน่งอย่างน้อยเท่า keepExposure 1; 0 = ทำ special ที่เจมรอบนี้เท่านั้น',
+  },
+  rockClear: {
+    min: 0, max: 3, int: true,
+    desc: 'ใช้กับแปลน: ต้นด่าน (ก่อนวางเจมเม็ดแรก) เอาหินบนช่อง slot ของแปลน (ป้อมกลาง) ออกได้สูงสุดเท่านี้ (ฟรี) แล้ววางเจมเม็ดแรก ๆ ของด่านกลับลงช่องนั้นก่อน เจมที่เหลือสร้างกำแพงตามแปลนต่อ จึงได้สุ่มเจมดีที่ป้อมกลางบ่อยขึ้นแต่กำแพงรอบนอกเสร็จช้าลง; 0 = ไม่เอาหินออก',
+  },
+  rockClearFromLevel: {
+    min: 0, max: 50, int: true,
+    desc: 'rockClear เริ่มทำตั้งแต่ด่านนี้ (ก่อนหน้านั้นเจมทุกเม็ดไปสร้างแปลนตามปกติ) เช่นตั้งให้เริ่มหลังกำแพงรอบนอกเสร็จ เพื่อไม่ให้การเติมป้อมกลางทำให้ทางยาวช้าลงช่วงต้น; 0 = เริ่มตั้งแต่ด่านแรก; ไม่มีผลถ้า rockClear = 0',
+  },
+  planFirst: {
+    min: 0, max: 1, int: true,
+    desc: 'ใช้กับแปลน: 1 = วางเจมลงช่องแปลนถัดไปตามลำดับสร้างเสมอ ไม่ใช้คะแนนช่อง (routeAdjacency / groundExposure / mazeGain) และไม่ใช้โบนัสแปลน จนกว่าแปลนจะสร้างครบ (หรือช่องที่เหลือวางแล้วปิดทาง) หลังจากนั้นวางตามคะแนนช่องปกติ; 0 = ช่องแปลนแข่งคะแนนกับช่องอื่น (blueprintWeight)',
+  },
+  centreFirst: {
+    min: 0, max: 1, int: true,
+    desc: 'ใช้กับแปลน: 1 = ทุกด่านวางเจมลงช่อง slot ของแปลน (ป้อมกลาง) ก่อนทีละเม็ด ถ้าได้เจมดี (ดู centreGoodPower) เจมที่เหลือของด่านไปสร้างกำแพงตามแปลน ถ้ายังไม่ดีวางกลางต่อ ช่องกลางเต็มแล้วถอนหินได้ (ดู centreRockShare); 0 = ไม่ทำ',
+  },
+  centreGoodPower: {
+    min: 0, max: 1000,
+    desc: 'centreFirst: เจมกลางนับว่าดีเมื่อ power ≥ ค่านี้ (power เจมทั่วไป 20–565, Chipped ~20–60, Flawless/Perfect หลักร้อย) หรือเมื่อเป็นวัตถุดิบที่ทำ special ได้ครบกับของบนกระดาน; 0 = เจมไหนก็ดี (วางกลางด่านละ 1 เม็ด)',
+  },
+  centreRockShare: {
+    min: 0, max: 1,
+    desc: 'centreFirst: เมื่อช่องกลางไม่มีที่ว่าง ถอนหินในช่องกลางทีละก้อนแล้ววางเจมทับทันที (ฟรี ทางไม่เปิดระหว่างเวฟ) เฉพาะเมื่อสัดส่วนหินในช่องกลาง ≥ ค่านี้; 0 = ถอนเสมอเมื่อต้องการ, 1 = ถอนเฉพาะเมื่อช่องกลางเป็นหินทั้งหมด',
+  },
+  slateBonus: {
+    min: 0, max: 5000,
+    desc: 'ตอนเลือก: ถ้ารอบนี้สร้าง slate ได้ (เจม Normal + Flawed ที่เป็นคู่ในรอบเดียวกัน) ให้คะแนนตัวเลือก slate = power + ค่านี้ เทียบกับ keep/combine/special; slate วางบนทางเดินได้ ครีปเดินทับได้ ไม่บังทาง และเจมวางทับได้; 0 = ไม่สร้าง slate เลย',
+  },
+  airSlateBonus: { min: 0, max: 5000, desc: 'โบนัสเพิ่มให้ Air Slate (ยิงอากาศระยะ 850) เมื่อมีเวฟอากาศภายใน 4 ด่านข้างหน้า; ใช้ร่วมกับ slateBonus' },
+  slateTeleport: {
+    min: 0, max: 1, int: true,
+    desc: '1 = teleport slate ใหม่ทันที (ครั้งเดียว ระยะ 2000 ทีละครึ่งช่อง) ไปจุดที่ยิงถึงทางเดินมากสุด (นับทางที่วนผ่านซ้ำ) บวกเส้นทางบินถ้า slate ยิงอากาศได้; 0 = ไม่ย้าย',
+  },
+  slateCombine: { min: 0, max: 1, int: true, desc: '1 = รวม slate สองตัวที่มีเป็น slate พิเศษ (Ancient = Air+Hold, Wraith = Slow+Opal Vein, Elder = Spell+Poison, Viper = Range+Damage) ทันทีที่ทำได้ (ได้ teleport ใหม่ด้วย); 0 = ไม่รวม' },
   slowValue: { min: 0, max: 5, desc: 'คูณ power ของ tower ด้วย (1 + ค่านี้ × สัดส่วน slow) ตอนเลือก keep/combine' },
   splashValue: { min: 0, max: 5, desc: 'คูณ power ด้วย (1 + ค่านี้ × รัศมี splash เป็นช่อง)' },
   airValue: { min: 0.2, max: 5, desc: 'คูณ power ของ tower ที่ยิงอากาศได้; >1 = ชอบ tower ยิงอากาศ' },
@@ -167,15 +286,36 @@ export const DEFAULT_WEIGHTS: Weights = {
   blueprintWeight: 0,
   blueprintWindow: 10,
   qualityReserve: 30,
+  qualityRushLevel: 0,
+  qualityFirst: 0,
+  chippedHold: 0,
   qualityMaxLevel: 8,
   upgradeReserve: 20,
   buyLifeBelow: 0,
+  bossLifeTarget: 0,
+  upgradeFocus: 0,
   keepExposure: 0,
+  keepFuture: 0,
   slotKeepBonus: 0,
   reserveRespect: 0,
   specialBonus: 3000,
   combine4Bonus: 2000,
   combine2Bonus: 1000,
+  recipeProgress: 0,
+  downgradeForRecipe: 0,
+  typeDiversity: 0,
+  auraValue: 0,
+  specialSpot: 0,
+  rockClear: 0,
+  rockClearFromLevel: 0,
+  planFirst: 0,
+  centreFirst: 0,
+  centreGoodPower: 0,
+  centreRockShare: 0,
+  slateBonus: 0,
+  airSlateBonus: 0,
+  slateTeleport: 0,
+  slateCombine: 0,
   slowValue: 0,
   splashValue: 0,
   airValue: 1,

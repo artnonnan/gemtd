@@ -329,7 +329,8 @@ button.ghost {
   letter-spacing: 2px;
 }
 
-.ai input {
+.ai input,
+.ai select {
   width: 130px;
   background: #0f1219;
   color: var(--text);
@@ -337,6 +338,61 @@ button.ghost {
   border-radius: 6px;
   padding: 6px 8px;
   font: inherit;
+}
+
+.ai select {
+  width: 100%;
+  max-width: 340px;
+}
+
+.ai-board .btns select {
+  width: auto;
+}
+
+.ai-board-rows {
+  max-height: 320px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  margin: 6px 0 8px;
+}
+
+.ai-board-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.ai-board-table th,
+.ai-board-table td {
+  padding: 4px 6px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.ai-board-table thead th {
+  position: sticky;
+  top: 0;
+  background: #0f1219;
+  font-weight: 600;
+}
+
+.ai-board-table tbody tr:nth-child(odd) {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.ai-board-table tr.old td {
+  opacity: 0.7;
+}
+
+.ai-board-table td.btns {
+  display: flex;
+  gap: 4px;
+}
+
+.ai-board-table td.btns button {
+  padding: 2px 6px;
+  font-size: 12px;
 }
 
 .ai p {

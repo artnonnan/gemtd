@@ -71,14 +71,20 @@ class Recorder implements GameObserver {
   private wave: { level: number; lives: number; dmg: Map<number, number> } | null = null;
 
   beforeMove(game: Game, a: Action) {
-    if (a.type === 'keep' || a.type === 'combine' || a.type === 'special') {
+    if (a.type === 'keep' || a.type === 'combine' || a.type === 'special' || a.type === 'slate' || a.type === 'downgrade') {
       // the choice starts the wave, so this is the last look at the board before it
       this.pending = { lives: game.lives, gold: game.gold };
       const t = game.towerAt(a.x, a.y)!;
       const cell = this.bp?.at.get(a.y * GRID + a.x);
-      if (isTowerSpot(cell)) this.bpSlotsKept.push(cell!.order);
-      const result = a.type === 'keep' ? t.id : a.type === 'special' ? a.result : game.combineOptions(t).find((o) => o.count === a.count)!.result;
+      if (isTowerSpot(cell) && a.type !== 'slate') this.bpSlotsKept.push(cell!.order);
+      const result =
+        a.type === 'keep' ? t.id
+        : a.type === 'downgrade' ? game.downgradeOption(t)!
+        : a.type === 'special' || a.type === 'slate' ? a.result
+        : game.combineOptions(t).find((o) => o.count === a.count)!.result;
       this.picks.push(`${game.level}:${a.type === 'combine' ? `combine${a.count}` : a.type}:${result}`);
+    } else if (a.type === 'slateSpecial') {
+      this.picks.push(`${game.level}:slateSpecial:${a.result}`);
     } else if (a.type === 'place' && this.bp) {
       const i = game.level - 1;
       this.bpPlaced[i] = (this.bpPlaced[i] ?? 0) + 1;

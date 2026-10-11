@@ -129,6 +129,7 @@ const REASON_TH: Record<LlmReason, string> = {
   periodic: 'ตรวจทิศทางตามรอบ',
   'rules-changed': 'โค้ดเกมหรือบอทเปลี่ยน',
   manual: 'สั่งเอง',
+  loop: 'tune by LLM: ขอข้อเสนอทุกรอบ',
 };
 
 export interface RoundReportInput {
@@ -140,7 +141,8 @@ export interface RoundReportInput {
   /** set on rounds that also played the holdout seeds; vsPrev/trainVsPrev compare with the run's start */
   holdout?: { score: number; vsPrev?: Paired; prevId?: string; trainVsPrev?: Paired };
   rulesChanged?: { from: string; to: string };
-  llm?: { reason: LlmReason; file: string };
+  /** command: how to feed the answer back (default: npm run tune -- --import=...) */
+  llm?: { reason: LlmReason; file: string; command?: string };
   advice?: { diagnosis: string; missingWeights: string[]; problems: string[] };
   next: Weights[];
   seconds: number;
@@ -216,7 +218,7 @@ export function roundReport(o: RoundReportInput): string {
       if (o.advice.problems.length) L.push(`- ปัญหาตอนตรวจคำตอบ: ${o.advice.problems.join('; ')}`);
     }
     if (o.llm) {
-      L.push(`- **ควรขอคำแนะนำจาก LLM** (${REASON_TH[o.llm.reason]}): เปิด \`${o.llm.file}\` วางในแชทกับ Claude แล้วบันทึกคำตอบ JSON เป็นไฟล์ จากนั้นรัน \`npm run tune -- --import=<ไฟล์คำตอบ>\``);
+      L.push(`- **ควรขอคำแนะนำจาก LLM** (${REASON_TH[o.llm.reason]}): เปิด \`${o.llm.file}\` วางในแชทกับ Claude แล้วบันทึกคำตอบ JSON เป็นไฟล์ จากนั้นรัน \`${o.llm.command ?? 'npm run tune -- --import=<ไฟล์คำตอบ>'}\``);
     }
     const r = s.llm;
     if (r.proposals) L.push(`- สถิติ LLM: เรียก ${r.calls} ครั้ง · เสนอ ${r.proposals} ชุด · ชนะ ${r.accepted} · ทายถูก ${r.correct} / ผิด ${r.wrong} / ไม่มีผล ${r.noEffect}`);

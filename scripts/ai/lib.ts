@@ -3,8 +3,7 @@
  * Results live in sim-runs/ (not in git). Evaluations are cached per "rules hash": a hash of every source
  * file that can change how a bot game plays out, so editing the game or the bot never mixes old and new numbers.
  */
-import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { cpus } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -12,6 +11,7 @@ import { Worker } from 'node:worker_threads';
 import type { Difficulty } from '../../src/game/game';
 import type { GameRecord } from '../../src/ai/recorder';
 import { DEFAULT_WEIGHTS, SMART_WEIGHTS, weightsKey, withDefaults, type Weights } from '../../src/ai/weights';
+import { rulesHash as hashRules } from './rules-hash';
 
 declare const process: { argv: string[]; exitCode: number; cwd(): string; stdout: { write(s: string): void } };
 
@@ -33,23 +33,8 @@ export const stamp = () => new Date().toISOString().replace(/[:T]/g, '-').slice(
 export type SeedSet = 'train' | 'holdout';
 export const seedsOf = (set: SeedSet, n: number) => Array.from({ length: n }, (_, i) => (set === 'train' ? 1 : 1_000_001) + i);
 
-/** src/ai files that only read results; changing them must not invalidate cached games */
-const ANALYSIS_ONLY = new Set(['analyze.ts', 'report.ts', 'advisor.ts', 'tuner.ts', 'autoplay.ts', 'loadWeights.ts']);
-
-function listFiles(dir: string): string[] {
-  return readdirSync(join(ROOT, dir), { withFileTypes: true }).flatMap((e) =>
-    e.isDirectory() ? listFiles(`${dir}/${e.name}`) : [`${dir}/${e.name}`],
-  );
-}
-
 /** Everything that decides how a bot game plays out (game, data incl. blueprints, bot). Reports and analysis are left out on purpose. */
-export function rulesHash(): string {
-  const h = createHash('sha1');
-  const files = [...listFiles('src/game'), ...listFiles('src/data'), ...listFiles('src/ai').filter((f) => !ANALYSIS_ONLY.has(f.split('/').pop()!))];
-  // line endings differ between checkouts; they must not change the hash
-  for (const f of files.sort()) h.update(f).update(readFileSync(join(ROOT, f), 'utf8').replace(/\r\n/g, '\n'));
-  return h.digest('hex').slice(0, 10);
-}
+export const rulesHash = (): string => hashRules(ROOT);
 
 export function writeJson(path: string, data: unknown) {
   mkdirSync(dirname(path), { recursive: true });

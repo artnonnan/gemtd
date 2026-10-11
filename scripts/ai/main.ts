@@ -2,6 +2,7 @@
  * AI command line. The same bundled file also runs as each worker thread.
  *   npm run batch -- [--weights=w0|smart|<id>|file.json] [--seeds=200] [--holdout] [--difficulty=normal] [--threads=N]
  *   npm run tune  -- [options, see tune.ts]
+ *   npm run tune-llm -- [options, see tune-llm.ts]   tune by LLM: the advisor proposes every round
  */
 import { join } from 'node:path';
 import { isMainThread, parentPort } from 'node:worker_threads';
@@ -11,6 +12,7 @@ import { summarize } from '../../src/ai/analyze';
 import { batchReport } from '../../src/ai/report';
 import { Pool, RUNS, arg, evaluate, flag, loadWeights, rulesHash, saveWeights, seedsOf, stamp, threads, writeText, type SeedSet, type Task } from './lib';
 import { tune } from './tune';
+import { tuneLlm } from './tune-llm';
 
 declare const process: { argv: string[]; exitCode: number };
 
@@ -54,7 +56,8 @@ if (!isMainThread) {
   try {
     if (cmd === 'batch') await batch();
     else if (cmd === 'tune') await tune();
-    else console.log('usage: npm run batch|tune -- [options]');
+    else if (cmd === 'tune-llm') await tuneLlm();
+    else console.log('usage: npm run batch|tune|tune-llm -- [options]');
   } catch (e) {
     console.error(e);
     process.exitCode = 1;

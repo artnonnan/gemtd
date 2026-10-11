@@ -53,9 +53,14 @@ export function describeAction(a: Action | null): string {
     case 'quality': return 'upgrade gem quality';
     case 'place': return `place a gem at ${a.x},${a.y}`;
     case 'keep': return `keep the gem at ${a.x},${a.y}`;
+    case 'downgrade': return `keep the gem at ${a.x},${a.y} one quality lower`;
     case 'combine': return `combine ${a.count} at ${a.x},${a.y}`;
     case 'special': return `make a special at ${a.x},${a.y}`;
     case 'upgrade': return `upgrade the tower at ${a.x},${a.y}`;
     case 'buyLife': return 'buy a life';
+    case 'slate': return `make a slate at ${a.x},${a.y}`;
+    case 'teleport': return `teleport the slate to ${a.tx},${a.ty}`;
+    case 'slateSpecial': return 'combine two slates';
+    case 'removeRock': return `remove the rock at ${a.x},${a.y}`;
   }
 }

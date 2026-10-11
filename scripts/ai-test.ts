@@ -3,13 +3,13 @@
  * Run: npm run ai-test
  */
 import { CHECKPOINTS, STEP, START_LIVES, toTiles } from '../src/game/config';
-import { TOWERS } from '../src/data/gems';
+import { GEM_INFO, TOWERS, qualityUpgradeCost } from '../src/data/gems';
 import { AIR_PATH, cover, dpsMaps, exposureOf, hitsAir, hitsGround, towerDps } from '../src/ai/exposure';
 import { BLUEPRINTS, BLUEPRINT_IDS } from '../src/ai/blueprint';
 import { Game } from '../src/game/game';
 import { mulberry32 } from '../src/game/rng';
 import { AutoPlay } from '../src/ai/autoplay';
-import { Bot, applyAction } from '../src/ai/bot';
+import { Bot, applyAction, towerPower } from '../src/ai/bot';
 import { playBotGame } from '../src/ai/runner';
 import { recordBotGame, type GameRecord } from '../src/ai/recorder';
 import { checkExpectation, metricOf, paired, summarize, waveKind } from '../src/ai/analyze';
@@ -185,6 +185,157 @@ assert(w.mazeGain === 5 && w.source === 'manual' && w.qualityReserve === DEFAULT
   assert(kids.every((k) => k.id.startsWith('spiral-w') && !k.proposal), 'run-prefixed ids, and hill candidates do not inherit the parent\'s LLM proposal');
   const adv = parseAdvice({ proposals: [{ changes: { blueprintId: 'spiral', blueprintWeight: 4 }, hypothesis: 'h' }, { changes: { blueprintId: 'maze-x' }, hypothesis: 'bad' }] }, base, st, 'llm-bp');
   assert(adv.proposals.length === 1 && adv.proposals[0].blueprintId === 'spiral' && adv.problems.some((p) => p.includes('maze-x')), 'the advisor may pick a registered blueprint, not an unknown one');
+
+  // rockClear: rocks come off plan slots only before the first gem of a level, and those tiles get this level's first gems
+  const v3 = BLUEPRINTS['orbit-s-v3'];
+  const g3 = new Game({ seed: 5 });
+  const bot3 = new Bot({ ...base, id: 'rc', blueprintId: 'orbit-s-v3', blueprintWeight: 10, rockClear: 2, specialSpot: 1 }, 5);
+  let removed = 0, badRemove = 0, badRefill = 0, keptSpecials = 0;
+  let pending: string[] = [];
+  while (g3.phase !== 'gameover' && g3.phase !== 'victory') {
+    for (let a; (a = bot3.nextAction(g3)); ) {
+      if (a.type === 'removeRock') {
+        removed++;
+        const c = v3.at.get(a.y * 37 + a.x);
+        if (c?.role !== 'slot' || g3.gemsLeft !== 5 || pending.length >= 2) badRemove++;
+        pending.push(`${a.x},${a.y}`);
+      } else if (a.type === 'place' && pending.length) {
+        if (pending.shift() !== `${a.x},${a.y}`) badRefill++;
+      } else if (a.type === 'special' && !g3.towerAt(a.x, a.y)!.fresh) {
+        keptSpecials++;
+      }
+      applyAction(g3, a);
+    }
+    if (g3.phase === 'wave') pending = [];
+    g3.update(STEP);
+    g3.events.length = 0;
+  }
+  assert(removed > 0 && badRemove === 0, `rockClear takes rocks off plan slots only, at most 2 per level, before the first gem (${removed} removed by level ${g3.level})`);
+  assert(badRefill === 0, 'the first gems of the level go back on the cleared tiles, in order');
+  console.log(`  (specialSpot: ${keptSpecials} specials formed on a kept ingredient)`);
+  const late = recordBotGame({ seed: 5, difficulty: 'normal', weights: { ...base, id: 'rc12', blueprintId: 'orbit-s-v3', blueprintWeight: 10, rockClear: 2, rockClearFromLevel: 12 } });
+  const lateRef = recordBotGame({ seed: 5, difficulty: 'normal', weights: { ...base, id: 'rc0', blueprintId: 'orbit-s-v3', blueprintWeight: 10 } });
+  assert(JSON.stringify(late.picks.filter((p) => +p.split(':')[0] < 12)) === JSON.stringify(lateRef.picks.filter((p) => +p.split(':')[0] < 12)), 'rockClearFromLevel 12: levels before 12 play exactly as without rockClear');
+
+  // planFirst: while a plan cell can be built, every gem goes on the earliest one
+  const gp = new Game({ seed: 3 });
+  const botP = new Bot({ ...base, id: 'pf', blueprintId: 'orbit-s-v3', blueprintWeight: 10, groundExposure: 5, planFirst: 1 }, 3);
+  let offPlan = 0, placed = 0;
+  while (gp.phase !== 'gameover' && gp.phase !== 'victory') {
+    for (let a; (a = botP.nextAction(gp)); ) {
+      if (a.type === 'place') {
+        const next = v3.sorted.find((c) => !gp.towerAt(c.x, c.y) && !gp.isRock(c.x, c.y) && gp.canPlace(c.x, c.y));
+        if (next) {
+          placed++;
+          if (next.x !== a.x || next.y !== a.y) offPlan++;
+        }
+      }
+      applyAction(gp, a);
+    }
+    gp.update(STEP);
+    gp.events.length = 0;
+  }
+  assert(placed > 0 && offPlan === 0, `planFirst follows the plan order even with groundExposure 5 (${placed} gems on plan, level ${gp.level})`);
+
+  // centreFirst: a level's gems go on the slots until one there is good; a removed rock gets a gem on the very next move
+  const gc = new Game({ seed: 4 });
+  const botC = new Bot({ ...base, id: 'cf', blueprintId: 'orbit-s-v3', blueprintWeight: 10, centreFirst: 1, centreGoodPower: 150, centreRockShare: 0.5 }, 4);
+  const isSlot = (x: number, y: number) => v3.at.get(y * 37 + x)?.role === 'slot';
+  let removedAt: string | null = null, badSwap = 0, swaps = 0, earlyWall = 0, centreGems = 0;
+  while (gc.phase !== 'gameover' && gc.phase !== 'victory') {
+    for (let a; (a = botC.nextAction(gc)); ) {
+      if (removedAt && !(a.type === 'place' && `${a.x},${a.y}` === removedAt)) badSwap++;
+      removedAt = null;
+      if (a.type === 'removeRock') {
+        swaps++;
+        removedAt = `${a.x},${a.y}`;
+        if (!isSlot(a.x, a.y)) badSwap++;
+      } else if (a.type === 'place') {
+        if (isSlot(a.x, a.y)) centreGems++;
+        // a gem off the slots while a free slot is left and no good gem stands there yet
+        const goodYet = gc.freshTowers.some((t) => isSlot(t.x, t.y) && towerPower(t.id, botC.weights) >= 150);
+        const freeSlot = v3.sorted.some((c) => c.role === 'slot' && !gc.towerAt(c.x, c.y) && !gc.isRock(c.x, c.y) && gc.canPlace(c.x, c.y));
+        if (!isSlot(a.x, a.y) && !goodYet && freeSlot) earlyWall++;
+      }
+      applyAction(gc, a);
+    }
+    gc.update(STEP);
+    gc.events.length = 0;
+  }
+  // keepFuture: orbit-v3-a seed 8 makes Silver at level 6 on the diagonal (busy now); judged by the finished maze it goes to the core
+  const silverAt = (keepFuture: number) => {
+    // orbit-v3-a's values (sim-runs is not in git)
+    const w8 = {
+      ...DEFAULT_WEIGHTS, id: 'kf', mazeGain: 0, mazeBonus: 87, routeAdjacency: 2.23, tieNoise: 0, groundExposure: 2,
+      blueprintId: 'orbit-s-v3', blueprintWeight: 10, blueprintWindow: 10, keepExposure: 0.86, qualityReserve: 250, upgradeReserve: 0,
+      buyLifeBelow: 15, specialBonus: 1727, combine4Bonus: 2000, combine2Bonus: 0, recipeProgress: 0.2, slowValue: 0.54, splashValue: 0.34,
+      airValue: 2.14, keepFuture,
+    };
+    const g8 = new Game({ seed: 8 });
+    const b8 = new Bot(w8, 8);
+    while (g8.phase !== 'gameover' && g8.phase !== 'victory' && g8.level < 12) {
+      for (let a; (a = b8.nextAction(g8)); ) {
+        if (a.type === 'special' && a.result === 'h01A') return `${a.x},${a.y}`;
+        applyAction(g8, a);
+      }
+      g8.update(STEP);
+      g8.events.length = 0;
+    }
+    return 'none';
+  };
+  const nowSpot = silverAt(0), futureSpot = silverAt(0.5);
+  const core = (s: string) => v3.at.get(+s.split(',')[1] * 37 + +s.split(',')[0])?.role === 'slot';
+  assert(!core(nowSpot) && core(futureSpot), `keepFuture 0.5 moves the first Silver into the core (${nowSpot} → ${futureSpot})`);
+
+  // qualityFirst: a tower upgrade never leaves less gold than the next gem quality upgrade costs
+  {
+    // capped at quality 4, so tower upgrades do happen once that is reached
+    const wq = { ...base, id: 'qf', qualityFirst: 1, qualityReserve: 0, upgradeReserve: 0, qualityMaxLevel: 4 };
+    const gq = new Game({ seed: 2 });
+    const bq = new Bot(wq, 2);
+    let ups = 0, broke = 0;
+    while (gq.phase !== 'gameover' && gq.phase !== 'victory') {
+      for (let a; (a = bq.nextAction(gq)); ) {
+        if (a.type === 'upgrade') {
+          const q = gq.qualityLevel;
+          applyAction(gq, a);
+          ups++;
+          if (q < 4 && gq.gold < qualityUpgradeCost(q)) broke++;
+          continue;
+        }
+        applyAction(gq, a);
+      }
+      gq.update(STEP);
+      gq.events.length = 0;
+    }
+    assert(ups > 0 && broke === 0, `qualityFirst: ${ups} tower upgrades, each left the next quality upgrade affordable (quality ${gq.qualityLevel} by level ${gq.level})`);
+  }
+
+  // typeDiversity / auraValue / chippedHold, on orbit-v4c10-a's values
+  {
+    const v4w = {
+      ...DEFAULT_WEIGHTS, id: 'v4', mazeGain: 0, mazeBonus: 87, routeAdjacency: 2.23, tieNoise: 0, groundExposure: 2,
+      blueprintId: 'orbit-s-v4-c10', blueprintWeight: 10, blueprintWindow: 10, keepExposure: 0.86, qualityReserve: 250, upgradeReserve: 0,
+      buyLifeBelow: 15, specialBonus: 1727, combine4Bonus: 2000, combine2Bonus: 0, recipeProgress: 0.2, slowValue: 0.54, splashValue: 0.34,
+      airValue: 2.14, keepFuture: 0.75, specialSpot: 1,
+    };
+    const seeds = [1, 2, 3, 4];
+    const games = (extra: object) => seeds.map((seed) => recordBotGame({ seed, difficulty: 'normal', weights: { ...v4w, ...extra } }));
+    const types = (recs: GameRecord[]) => recs.reduce((s, r) => s + new Set(r.final.map((id) => GEM_INFO[id]?.type ?? id)).size, 0) / recs.length;
+    const kept = (recs: GameRecord[], name: string) => recs.reduce((s, r) => s + r.picks.filter((p) => (TOWERS[p.split(':')[2]]?.name ?? '').includes(name)).length, 0);
+    const plain = games({});
+    const diverse = games({ typeDiversity: 3 });
+    assert(types(diverse) > types(plain), `typeDiversity 3 keeps more kinds of tower (${types(plain).toFixed(1)} → ${types(diverse).toFixed(1)} per board)`);
+    const aura = games({ auraValue: 5 });
+    assert(kept(aura, 'Opal') > kept(plain, 'Opal'), `auraValue 5 picks Opal more often (${kept(plain, 'Opal')} → ${kept(aura, 'Opal')} in ${seeds.length} games)`);
+    const qAt = (recs: GameRecord[]) => recs.reduce((s, r) => s + r.qualityLevel, 0) / recs.length;
+    const held = games({ chippedHold: 20, qualityReserve: 0 });
+    const rushed = games({ qualityReserve: 0 });
+    assert(qAt(held) < qAt(rushed), `chippedHold 20 holds gem quality back while Chipped gems are missing (quality at the end ${qAt(rushed).toFixed(1)} → ${qAt(held).toFixed(1)})`);
+  }
+
+  assert(badSwap === 0, `centreFirst: every rock it removes (${swaps}) is on a slot and gets a gem on the next move`);
+  assert(earlyWall === 0, `centreFirst: no wall while a slot is free and the centre has no good gem yet (${centreGems} centre gems by level ${gc.level})`);
 }
 
 // ---------- browser auto-play plays the same game as a headless run ----------
@@ -193,7 +344,8 @@ assert(w.mazeGain === 5 && w.source === 'manual' && w.qualityReserve === DEFAULT
     `${g.phase} L${g.level} lives=${g.lives} gold=${g.gold} kills=${g.stats.kills} t=${g.time.toFixed(4)} ` +
     g.towers.map((t) => `${t.id}@${t.x},${t.y}`).join(' ');
   const spiralW = { ...DEFAULT_WEIGHTS, id: 'spiral5', groundExposure: 2, keepExposure: 1, blueprintId: 'spiral', blueprintWeight: 5, slotKeepBonus: 1 };
-  for (const [w, seed] of [[DEFAULT_WEIGHTS, 1], [DEFAULT_WEIGHTS, 2], [SMART_WEIGHTS, 3], [spiralW, 4]] as const) {
+  const orbitW = { ...spiralW, id: 'orbit-v3', blueprintId: 'orbit-s-v3', blueprintWeight: 10, rockClear: 2, specialSpot: 1 };
+  for (const [w, seed] of [[DEFAULT_WEIGHTS, 1], [DEFAULT_WEIGHTS, 2], [SMART_WEIGHTS, 3], [spiralW, 4], [orbitW, 5]] as const) {
     const headless = playBotGame({ seed, difficulty: 'normal', weights: w }).game;
     // uneven frames and changing speed, like a real browser tab
     const g = new Game({ seed, difficulty: 'normal' });

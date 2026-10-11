@@ -29,6 +29,8 @@ export interface HistoryEntry {
   /** LLM proposals: was each prediction right? */
   verdicts?: string[];
   hypothesis?: string;
+  /** tune by LLM: the quick-seed winner replayed on more seeds before it may become best */
+  confirm?: { seeds: number; delta: number; se: number; z: number };
 }
 
 export const MAX_PROPOSALS = 5;
@@ -40,6 +42,8 @@ export function buildRequest(o: {
   summary: EvalSummary;
   history: HistoryEntry[];
   missingWeightsSoFar: string[];
+  /** overrides the default rule text (tune by LLM confirms on more seeds) */
+  acceptRule?: string;
 }) {
   const { summary: s } = o;
   return {
@@ -47,7 +51,7 @@ export function buildRequest(o: {
     round: o.state.round,
     roundsWithoutImprovement: o.state.stuck,
     scoreFormula: SCORE_FORMULA,
-    acceptRule: 'ชุดใหม่ชนะเมื่อคะแนนเฉลี่ยรายคู่ (seed เดียวกัน) สูงกว่า best เกิน 2 เท่าของ standard error',
+    acceptRule: o.acceptRule ?? 'ชุดใหม่ชนะเมื่อคะแนนเฉลี่ยรายคู่ (seed เดียวกัน) สูงกว่า best เกิน 2 เท่าของ standard error',
     seeds: o.state.seeds,
     best: { id: o.best.id, score: s.score, avgLevel: s.avgLevel, winRate: s.winRate, weights: pickNumbers(o.best) },
     bounds: Object.fromEntries(TUNABLE_KEYS.map((k) => [k, [WEIGHT_SPECS[k].min, WEIGHT_SPECS[k].max, WEIGHT_SPECS[k].int ? 'int' : 'float']])),
@@ -57,7 +61,13 @@ export function buildRequest(o: {
       'build: อัป gem quality ถ้าทองพอ (qualityReserve) แล้ววางเจมทีละเม็ดในช่องที่คะแนนสูงสุด (mazeGain/mazeBonus/routeAdjacency)',
       'choose: เลือก special / combine 4 / combine 2 / keep ตามคะแนน = power(ผลลัพธ์) + โบนัส; power = dps ประมาณ ปรับด้วย slowValue/splashValue/airValue',
       'wave: ซื้อ life ถ้า lives < buyLifeBelow, อัป tower ตัวที่ถูกสุดเมื่อทองพอ (upgradeReserve)',
-      'ยังไม่ใช้: swap, slate, teleport, remove rock, downgrade',
+      'slate: สร้างเมื่อ slateBonus > 0 (Air Slate ได้ airSlateBonus เพิ่มก่อนเวฟอากาศ), teleport ไปจุดที่ยิงทางได้มากสุดเมื่อ slateTeleport = 1, รวมเป็น slate พิเศษเมื่อ slateCombine = 1',
+      'วางแผนสูตร: recipeProgress ให้โบนัส keep/combine ที่ทำให้สูตร special ที่ยังไม่ได้ทำใกล้ครบ (สูตรแรงได้มากกว่า), downgradeForRecipe = 1 ให้พิจารณา keep แบบลด 1 ขั้นเพื่อทำสูตร; qualityRushLevel เร่งอัป quality ตั้งแต่ด่านที่กำหนด',
+      'ความหลากหลาย: typeDiversity หักคะแนนเจมชนิดที่มีบนกระดานแล้ว; auraValue ให้คะแนน Opal ตามออร่าเร่งความเร็วยิงต่อ tower รอบตัว; chippedHold ยังไม่อัป quality (สูงสุด N ด่าน) ถ้าสูตร special ที่กำลังทำยังขาดเจม Chipped',
+      'ทอง: qualityFirst = 1 การอัป tower ต้องเหลือทองพอค่าอัป gem quality ขั้นถัดไปเสมอ (quality มาก่อน tower) ใช้คู่ qualityReserve ต่ำ',
+      'สร้างจากกลาง: centreFirst = 1 วางเจมช่อง slot กลางก่อนทุกด่านจนได้เจมดี (centreGoodPower หรือทำ special ได้) แล้วค่อยสร้างกำแพง; ช่องกลางเต็มถอนหินทีละก้อนแล้ววางทับทันทีเมื่อหิน ≥ centreRockShare; planFirst = 1 วางตามลำดับแปลนเคร่ง (เคยแย่ −2.8 เพราะกำแพงกลางเกมยิงทางได้น้อย)',
+      'ป้อมกลาง: rockClear เอาหินบนช่อง slot ของแปลนออกต้นด่านแล้ววางเจมกลับลงไปก่อน; specialSpot = 1 ทำ special ที่วัตถุดิบตัวที่ยิงทางได้มากสุด (รวมตัวที่ keep ไว้ นับระยะ aura ของ Star Ruby)',
+      'ยังไม่ใช้: swap',
     ],
     history: o.history.slice(-40),
     llmRecord: o.state.llm,
@@ -78,6 +88,7 @@ export function buildRequest(o: {
     avgQualityLevel: s.avgQuality,
     towers: s.towers.slice(0, 15).map((t) => ({ id: t.id, name: t.name, pickRate: t.pickRate, damageShare: t.damageShare, dmgPerWave: t.dmgPerWave, levelWith: t.levelWith, levelWithout: t.levelWithout })),
     specialsMade: Object.fromEntries(Object.entries(s.specialsMade).map(([id, r]) => [displayName(id), r])),
+    slatesMade: Object.fromEntries(Object.entries(s.slatesMade ?? {}).map(([id, r]) => [displayName(id), r])),
     unusedRecipes: s.unusedRecipes.map(displayName),
     metrics: METRICS,
     missingWeightsSoFar: o.missingWeightsSoFar,
@@ -102,9 +113,12 @@ export const ANSWER_FORMAT = {
 
 /** The text to paste into a chat, request JSON included. */
 export function requestPrompt(request: ReturnType<typeof buildRequest>): string {
+  const loop = request.reason === 'loop';
   return [
     'คุณเป็นที่ปรึกษาจูนค่าน้ำหนักของบอทเล่นเกม Gem Tower Defense (tower defense 50 ด่าน)',
-    'บอทใช้ค่าน้ำหนักชุดหนึ่งตัดสินใจ ระบบ hill-climbing ปรับค่าทีละนิดอยู่แล้ว สิ่งที่ต้องการจากคุณคือ "ทิศทางใหม่" ที่ hill-climbing หาเองได้ยาก',
+    loop
+      ? 'โหมด tune by LLM: ไม่มี hill-climbing คุณเป็นคนเสนอค่าน้ำหนักทุกรอบ ผลของข้อเสนอรอบก่อน ๆ อยู่ใน history (delta = ผลบน seed ชุดเร็ว, confirm = ผลยืนยันบน seed มากขึ้น) ให้เรียนจากมันแล้วเสนอรอบถัดไป'
+      : 'บอทใช้ค่าน้ำหนักชุดหนึ่งตัดสินใจ ระบบ hill-climbing ปรับค่าทีละนิดอยู่แล้ว สิ่งที่ต้องการจากคุณคือ "ทิศทางใหม่" ที่ hill-climbing หาเองได้ยาก',
     `ข้อมูลด้านล่างคำนวณจาก ${request.seeds} เกม (seed เดียวกันทุกชุด) ของค่าน้ำหนักที่ดีที่สุดตอนนี้`,
     '',
     'กติกา:',
