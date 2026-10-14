@@ -96,6 +96,14 @@ export interface Weights {
   planFirst: number;
   /** once the plan is built: each level, up to this many rocks in the plan's core rectangle are swapped for new gems */
   coreRefill: number;
+  /** 1 = towers with the Swap ability move into the plan's core box (200 gold), onto a rock or a plain gem */
+  swapToCore: number;
+  /** from this level on plainOutside and lateRecipeBoost apply; 0 = never */
+  lateLevel: number;
+  /** late: keeping a plain gem no planned recipe wants inside the core box is worth × (1 - this) */
+  plainOutside: number;
+  /** late: recipe planning bonus × (1 + this) */
+  lateRecipeBoost: number;
   /** 1 = each level, gems go on the plan's slots (the centre) until one is good, then the rest build the plan */
   centreFirst: number;
   /** centreFirst: a gem is good with at least this power, or when it completes a special with the board */
@@ -278,6 +286,22 @@ export const WEIGHT_SPECS: Record<NumericWeightKey, WeightSpec> = {
     min: 0, max: 5, int: true,
     desc: 'ใช้กับแปลนที่มี core (เช่น orbit-s-v4-c10-core: สี่เหลี่ยม 14,16–22,20): เมื่อสร้างแปลนเสร็จแล้ว ทุกด่านถอนหินในสี่เหลี่ยม core ได้สูงสุดเท่านี้ (ก้อนที่ยิงทางได้มากสุดก่อน) แล้ววางเจมใหม่ทับทันที ทางจึงไม่เปลี่ยน ได้สุ่มเจม/ทำ special ที่ป้อมกลางมากขึ้นแทนการไปสร้างรอบนอก; 0 = ไม่ทำ',
   },
+  swapToCore: {
+    min: 0, max: 1, int: true,
+    desc: 'ใช้กับแปลนที่มี core: 1 = tower ที่มีความสามารถ Swap (Black Opal, Gold, Rose Quartz, Enchanted Emerald, Fire Star, Lucky China Jade, Helltaker, Atomic, ... ใช้ได้ 1 ครั้งต่อการอัป ราคา 200 ทอง) ที่อยู่นอกสี่เหลี่ยม core สลับที่กับหินหรือเจมธรรมดาในสี่เหลี่ยม core เมื่อยิงทางได้มากขึ้นอย่างน้อย 3 ช่อง (special ไปอยู่กลาง เจมธรรมดาออกไปข้างนอก); 0 = ไม่ swap',
+  },
+  lateLevel: {
+    min: 0, max: 50, int: true,
+    desc: 'ช่วงท้ายเกม: ตั้งแต่ด่านนี้ plainOutside และ lateRecipeBoost ทำงาน; 0 = ไม่ใช้ทั้งสองตัว',
+  },
+  plainOutside: {
+    min: 0, max: 1,
+    desc: 'ช่วงท้ายเกม (lateLevel) กับแปลนที่มี core: การ keep / combine เจมธรรมดาที่ไม่มีสูตรไหนต้องการ (โบนัสวางแผนสูตร = 0) ในสี่เหลี่ยม core มีค่า × (1 − ค่านี้) บอทจึงเก็บเม็ดที่อยู่นอกกลางแทน เหลือช่องกลางเป็นหินไว้ให้ coreRefill สุ่มหา special; 0 = ไม่สน',
+  },
+  lateRecipeBoost: {
+    min: 0, max: 5,
+    desc: 'ช่วงท้ายเกม (lateLevel): โบนัสวางแผนสูตร (recipeProgress) × (1 + ค่านี้) ให้ keep เจมที่เป็นวัตถุดิบสูตรที่ยังไม่ได้ทำ แทนเจมธรรมดาที่ power สูงแต่ไม่ได้ไปไหนต่อ; 0 = เท่าช่วงต้น',
+  },
   centreFirst: {
     min: 0, max: 1, int: true,
     desc: 'ใช้กับแปลน: 1 = ทุกด่านวางเจมลงช่อง slot ของแปลน (ป้อมกลาง) ก่อนทีละเม็ด ถ้าได้เจมดี (ดู centreGoodPower) เจมที่เหลือของด่านไปสร้างกำแพงตามแปลน ถ้ายังไม่ดีวางกลางต่อ ช่องกลางเต็มแล้วถอนหินได้ (ดู centreRockShare); 0 = ไม่ทำ',
@@ -351,6 +375,10 @@ export const DEFAULT_WEIGHTS: Weights = {
   rockClearFromLevel: 0,
   planFirst: 0,
   coreRefill: 0,
+  swapToCore: 0,
+  lateLevel: 0,
+  plainOutside: 0,
+  lateRecipeBoost: 0,
   centreFirst: 0,
   centreGoodPower: 0,
   centreRockShare: 0,

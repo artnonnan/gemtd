@@ -3,7 +3,7 @@
  * Keeping the two apart lets headless runs, the browser auto-play and replays share every decision.
  */
 import { GEMS_PER_ROUND, GRID, toTiles, type Point } from '../game/config';
-import type { Game, Tower } from '../game/game';
+import { SWAP_COST, type Game, type Tower } from '../game/game';
 import { blockedGrid, findRouteSegments, joinSegments, pathCost, rerouteAround } from '../game/path';
 import { mulberry32 } from '../game/rng';
 import { GEM_INFO, QUALITY_CHANCES, RECIPES, TOWERS, WAVES, abilityOf, isSpecial, qualityUpgradeCost, MAX_QUALITY_LEVEL } from '../data/gems';
@@ -26,7 +26,9 @@ export type Action =
   /** slates are off the tile grid: (x, y) is the slate's current spot, (tx, ty) where it goes (half tiles) */
   | { type: 'teleport'; x: number; y: number; tx: number; ty: number }
   | { type: 'slateSpecial'; x: number; y: number; result: string }
-  | { type: 'removeRock'; x: number; y: number };
+  | { type: 'removeRock'; x: number; y: number }
+  /** move the tower at (x, y) to (tx, ty) with its Swap ability, trading places with the rock or gem there */
+  | { type: 'swap'; x: number; y: number; tx: number; ty: number };
 
 const LIFE_COST = 10;
 /** Summon / Summon Air: the boss waves (same rule as the analyzer's waveKind) */
@@ -38,6 +40,8 @@ const TELEPORT_MIN_GAIN = 1;
 const GROWN_CAP = 5000;
 /** armorAuraValue: one armor point off the enemies is worth this share of the power of the towers hitting them */
 const ARMOR_POINT = 0.05;
+/** swapToCore: a swap must reach at least this many more path tiles */
+const SWAP_MIN_GAIN = 3;
 
 /** special tower → the recipe it grows from (Helltaker → Jade): specialDiversity counts a whole line as one */
 const SPECIAL_LINE = (() => {
@@ -134,7 +138,7 @@ export class Bot {
   nextAction(game: Game): Action | null {
     switch (game.phase) {
       case 'build':
-        return this.slateMoveAction(game) ?? this.bossLifeAction(game) ?? this.qualityAction(game) ?? this.rockAction(game) ?? this.placeAction(game);
+        return this.slateMoveAction(game) ?? this.bossLifeAction(game) ?? this.qualityAction(game) ?? this.swapAction(game) ?? this.rockAction(game) ?? this.placeAction(game);
       case 'choose':
         return this.chooseAction(game);
       case 'wave':
@@ -254,6 +258,37 @@ export class Bot {
     if (rocks.length && rocks.length / slots.length >= w.centreRockShare) return { type: 'removeRock', x: rocks[0].x, y: rocks[0].y };
     this.centreDoneLevel = game.level;
     return null;
+  }
+
+  // ---------- swap into the core ----------
+
+  /** board version at which no worthwhile swap was found, so the search runs once per change */
+  private swapChecked = -1;
+
+  /**
+   * swapToCore: a tower with the Swap ability standing outside the plan's core box trades places with a rock or a
+   * plain kept gem inside it, when that reaches at least SWAP_MIN_GAIN more path (counted the way specials are placed).
+   */
+  private swapAction(game: Game): Action | null {
+    const box = this.blueprint?.core;
+    if (!this.weights.swapToCore || !box || game.gold < SWAP_COST || this.swapChecked === game.version) return null;
+    const inBox = (x: number, y: number) => x >= box.x0 && x <= box.x1 && y >= box.y0 && y <= box.y1;
+    let best: { a: Action; gain: number } | null = null;
+    for (const t of game.towers) {
+      if (!game.canSwap(t) || inBox(t.x, t.y)) continue;
+      const here = this.chooseCoverage(game, t.id, t.x, t.y, true);
+      for (let y = box.y0; y <= box.y1; y++) {
+        for (let x = box.x0; x <= box.x1; x++) {
+          const o = game.towerAt(x, y);
+          const plain = !!o && !o.fresh && !isSlate(o.id) && !!GEM_INFO[o.id] && !isSpecial(o.id);
+          if (!game.isRock(x, y) && !plain) continue;
+          const gain = this.chooseCoverage(game, t.id, x, y, true) - here;
+          if (gain >= SWAP_MIN_GAIN && (!best || gain > best.gain)) best = { a: { type: 'swap', x: t.x, y: t.y, tx: x, ty: y }, gain };
+        }
+      }
+    }
+    if (!best) this.swapChecked = game.version;
+    return best?.a ?? null;
   }
 
   // ---------- core refill ----------
@@ -548,6 +583,9 @@ export class Bot {
   private chooseAction(game: Game): Action | null {
     const w = this.weights;
     let best: { a: Action; v: number } | null = null;
+    // lateLevel: from this level on, plainOutside and lateRecipeBoost apply
+    const late = w.lateLevel > 0 && game.level >= w.lateLevel;
+    const core = this.blueprint?.core;
     const kept = w.typeDiversity > 0 || w.auraValue > 0 || w.armorAuraValue > 0 ? game.towers.filter((t) => !t.fresh && !isSlate(t.id)) : [];
     // armorAuraValue, for recipe planning (no spot yet): what an armor aura would add to every tower that can use it
     this.auraTargets = w.armorAuraValue > 0
@@ -575,6 +613,11 @@ export class Bot {
       let v = p + bonus;
       // specialDiversity: another special of a line already standing (a 4th Jade next to 3 Helltakers) is worth less, bonus included
       if (a.type === 'special' && w.specialDiversity > 0) v *= this.lineFactor(result);
+      // plainOutside, late game: a plain gem that no planned recipe wants should not take a core spot
+      if (late && w.plainOutside > 0 && core && (a.type === 'keep' || a.type === 'combine' || a.type === 'downgrade') &&
+        GEM_INFO[result] && !isSpecial(result) && at.x >= core.x0 && at.x <= core.x1 && at.y >= core.y0 && at.y <= core.y1 && plan(result) === 0) {
+        v *= 1 - w.plainOutside;
+      }
       if (!best || v > best.v) best = { a, v };
     };
     this.lineCounts.clear();
@@ -585,7 +628,7 @@ export class Bot {
       }
     }
     const recipe = w.recipeProgress > 0 ? this.recipeState(game) : null;
-    const plan = (id: string) => (recipe ? this.recipeBonus(recipe, id) : 0);
+    const plan = (id: string) => (recipe ? this.recipeBonus(recipe, id) * (late ? 1 + w.lateRecipeBoost : 1) : 0);
     // with specialSpot, a special may also form on a kept ingredient (the round's gems then all turn to rock)
     if (w.specialSpot) {
       for (const t of game.towers) {
@@ -750,6 +793,10 @@ export function applyAction(game: Game, a: Action): boolean {
   if (a.type === 'place') return game.placeGem(a.x, a.y);
   if (a.type === 'buyLife') return game.buyLife();
   if (a.type === 'removeRock') return game.removeRock(a.x, a.y);
+  if (a.type === 'swap') {
+    const s = game.towerAt(a.x, a.y);
+    return !!s && game.beginSwap(s) && game.swapWith(a.tx, a.ty);
+  }
   if (a.type === 'teleport' || a.type === 'slateSpecial') {
     // slates are off the tile grid: find this one by its spot. Two slates can share a spot (a new slate made on a
     // gem that stood on an old one), so take the one that can make this move, in board order as the bot looked.

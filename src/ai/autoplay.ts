@@ -62,5 +62,6 @@ export function describeAction(a: Action | null): string {
     case 'teleport': return `teleport the slate to ${a.tx},${a.ty}`;
     case 'slateSpecial': return 'combine two slates';
     case 'removeRock': return `remove the rock at ${a.x},${a.y}`;
+    case 'swap': return `swap the tower at ${a.x},${a.y} to ${a.tx},${a.ty}`;
   }
 }

@@ -345,6 +345,41 @@ assert(w.mazeGain === 5 && w.source === 'manual' && w.qualityReserve === DEFAULT
       const near = ba.armorAuraPower('h029', keptAir, { x: 18, y: 18 }), far = ba.armorAuraPower('h029', keptAir, { x: 2, y: 34 });
       assert(near > 0 && far === 0 && ba.armorAuraPower('h01A', keptAir, { x: 18, y: 18 }) === 0, `armorAuraValue: Red Crystal next to air towers adds ${near.toFixed(1)} power, far away 0, a tower without the aura 0`);
     }
+    // swapToCore: specials with Swap move into the core box onto a rock or a plain gem; plainOutside keeps plain gems out late
+    {
+      const box = BLUEPRINTS['orbit-s-v4-c10-core'].core!;
+      const inBox = (x: number, y: number) => x >= box.x0 && x <= box.x1 && y >= box.y0 && y <= box.y1;
+      // coreRefill 2: three gems a level still land outside, so there is a choice to keep one out there
+      const lw = { ...v4w, blueprintId: 'orbit-s-v4-c10-core', planFirst: 1, coreRefill: 2, qualityPace: 3, slatePairBonus: 2000, slateCombine: 1 };
+      let swaps = 0, badSwaps = 0, plainIn = [0, 0];
+      for (const [k, extra] of [[0, { swapToCore: 1 }], [1, { swapToCore: 1, lateLevel: 25, plainOutside: 1 }]] as const) {
+        for (const seed of [1, 2, 3, 4, 5, 6]) {
+          const gs = new Game({ seed });
+          const bs = new Bot({ ...lw, ...extra }, seed);
+          while (gs.phase !== 'gameover' && gs.phase !== 'victory') {
+            for (let a; (a = bs.nextAction(gs)); ) {
+              if (a.type === 'swap' && k === 0) {
+                swaps++;
+                const src = gs.towerAt(a.x, a.y)!;
+                if (inBox(a.x, a.y) || !inBox(a.tx, a.ty) || gs.gold < 200) badSwaps++;
+                applyAction(gs, a);
+                if (gs.towerAt(a.tx, a.ty) !== src) badSwaps++;
+                continue;
+              }
+              if (a.type === 'keep' && gs.level >= 25 && inBox(a.x, a.y)) {
+                const id = gs.towerAt(a.x, a.y)!.id;
+                if (GEM_INFO[id] && GEM_INFO[id].quality < 5) plainIn[k]++;
+              }
+              applyAction(gs, a);
+            }
+            gs.update(STEP);
+            gs.events.length = 0;
+          }
+        }
+      }
+      assert(swaps > 0 && badSwaps === 0, `swapToCore: ${swaps} swaps in 6 games, each from outside the core box to inside it, paid for, tower moved`);
+      assert(plainIn[1] < plainIn[0], `plainOutside 1 keeps fewer plain gems in the core late (${plainIn[0]} → ${plainIn[1]} in 6 games)`);
+    }
     // specialDiversity: a Helltaker standing makes another Jade worth less (same line), Silver untouched
     {
       const bd = new Bot({ ...v4w, specialDiversity: 0.5 }, 1) as unknown as { lineCounts: Map<string, number>; lineFactor(id: string): number };
